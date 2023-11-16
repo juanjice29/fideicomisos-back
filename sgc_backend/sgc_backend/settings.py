@@ -83,8 +83,12 @@ WSGI_APPLICATION = 'sgc_backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        "ENGINE": "django.db.backends.oracle",
+        "NAME": "xe",
+        "USER": "sgc_software_dev",
+        "PASSWORD": "sgc_software_dev_f",
+        "HOST": "localhost",
+        "PORT": "1522",
     }
 }
 

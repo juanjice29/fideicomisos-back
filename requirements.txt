@@ -1,0 +1,6 @@
+
+Django
+djangorestframework
+cx_Oracle
+markdown
+django-filter
