@@ -8,34 +8,18 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
-
-class ProfileView(APIView):
-    authentication_classes = [SessionAuthentication, BasicAuthentication,TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, format=None):
-        content = {
-            'user': str(request.user.email),  # `django.contrib.auth.User` instance.
-            'auth': str(request.auth),  # None
-        }
-        return Response(content)
+from django.http import JsonResponse
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+class LoginView(APIView):
     
-
-
-
-class CustomAuthToken(ObtainAuthToken):
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data,
-                                           context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']
-        token, created = Token.objects.get_or_create(user=user)
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        user = authenticate(username=username, password=password)
+        refresh = RefreshToken.for_user(user)
         return Response({
-            'token': token.key,
-            'username':user.username,
-            'first_name':user.first_name,
-            'last_name':user.last_name,
-            'user_id': user.pk,
-            'email': user.email
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
         })
+        
