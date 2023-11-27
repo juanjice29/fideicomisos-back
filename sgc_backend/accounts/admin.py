@@ -36,7 +36,6 @@ class ProfileInline(admin.StackedInline):
 class CustomUserAdmin(AuthUserAdmin):
     form = UserAdminForm
     inlines = (ProfileInline, )
-
     def get_inline_instances(self, request, obj=None):
         if not obj:
             return list()
