@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.http import JsonResponse
 from rest_framework.permissions import IsAuthenticated
-from sgc_backend.permissions import IsEmployee
+from sgc_backend.permissions import HasRolePermission
+
 class IndexView(APIView):
    
     def get(self, request, format=None):
@@ -13,6 +14,8 @@ class IndexView(APIView):
         return Response(content)
     
 class RestrictedView(APIView):
-    permission_classes = [IsEmployee]
+    permission_classes = [HasRolePermission]
+    required_roles = [13, 12, 11]
+
     def get(self, request):
-        return Response(data="Only for logged in users")
+        return Response(data="Only for users with role 11,12,13")
