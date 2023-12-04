@@ -25,4 +25,4 @@ class HasRolePermission(BasePermission):
             return False
 
         # Check if the user's profile role is in the list of required roles
-        return request.user.profile.role in required_roles
+        return request.user.profile.rol.name in required_roles

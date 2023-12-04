@@ -4,6 +4,27 @@ from django.contrib.auth.password_validation import validate_password
 from .models import Profile
 from django.contrib.auth import authenticate
 from rest_framework import exceptions
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        # Add custom claims
+        token['username'] = user.username
+        token['rol'] = user.profile.rol.name  # Add the role to the token
+
+        return token
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        # Add the user to the validated data
+        data['user'] = self.user
+
+        return data
+    
 class ProfileSerializer(serializers.ModelSerializer):
     """
     Serializer for user login.
