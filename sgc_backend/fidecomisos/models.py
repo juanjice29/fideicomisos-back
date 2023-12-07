@@ -20,3 +20,4 @@ class Fideicomiso(models.Model):
     FechaCreacion = models.DateField()
     FechaVencimiento = models.DateField()
     FechaProrroga = models.DateField()
+    Estado = models.CharField(max_length=1)

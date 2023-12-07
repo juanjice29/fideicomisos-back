@@ -48,7 +48,7 @@ class UpdateFideicomisoView(APIView):
             for page in range(num_pages):
                 cur.execute(f"""
                 SELECT * FROM (
-                        SELECT FD.FIDE_FIDE, FD.FIDE_CIAS, FD.FIDE_FECCRE, FD.FIDE_FECHVENCI, GE.CIAS_DESCRI, ROWNUM RN
+                        SELECT FD.FIDE_FIDE, FD.FIDE_CIAS, FD.FIDE_FECCRE, FD.FIDE_FECHVENCI, GE.CIAS_DESCRI,GE.CIAS_STATUS, ROWNUM RN
                         FROM FD_TFIDE FD
                         JOIN GE_TCIAS GE ON FD.FIDE_CIAS = GE.CIAS_CIAS
                         WHERE ROWNUM <= {(page + 1) * rows_per_page}
@@ -67,7 +67,8 @@ class UpdateFideicomisoView(APIView):
                             'Nombre': row[4],
                             'FechaCreacion': row[2] if row[2] else None,
                             'FechaVencimiento': fecha_vencimiento,
-                            'FechaProrroga': fecha_vencimiento + relativedelta(years=30) if fecha_vencimiento else None
+                            'FechaProrroga': fecha_vencimiento + relativedelta(years=30) if fecha_vencimiento else None,
+                            'Estado': row[5]
                         }
                     )
             cur.close()
