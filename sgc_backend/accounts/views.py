@@ -1,28 +1,19 @@
 from tokenize import TokenError
 from .serializers import LoginSerializer
-from django.http import JsonResponse
-from rest_framework.decorators import api_view
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import authenticate
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import permission_classes
-from rest_framework import serializers
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.response import Response
 from .serializers import MyTokenObtainPairSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken
 from .models import Permisos
-from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Role, View, Permisos
+from .models import  Permisos
 @permission_classes([AllowAny])
 class LoginView(APIView):
     serializer_class = MyTokenObtainPairSerializer
