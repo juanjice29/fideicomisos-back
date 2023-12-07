@@ -1,8 +1,5 @@
 from django.db import models
 
-# Create your models here.
-from django.db import models
-
 class TipoDePersona(models.Model):
     id = models.AutoField(primary_key=True)
     tipoPersona = models.CharField(max_length=3)
@@ -21,3 +18,8 @@ class Fideicomiso(models.Model):
     FechaVencimiento = models.DateField()
     FechaProrroga = models.DateField()
     Estado = models.CharField(max_length=1)
+    
+class Encargo(models.Model):
+    NumeroEncargo = models.IntegerField()
+    Fideicomiso = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE, related_name='encargos')
+    Descripcion = models.CharField(max_length=100)

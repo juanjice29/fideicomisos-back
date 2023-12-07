@@ -16,13 +16,20 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import TipoDeDocumento
 from dateutil.relativedelta import relativedelta
-
+from django.shortcuts import get_object_or_404
+from rest_framework import generics
+from .models import Encargo, Fideicomiso
+from .serializers import EncargoSerializer
+from django.db import connection
+class EncargoListView(generics.ListAPIView):
+    queryset = Encargo.objects.all()
+    serializer_class = EncargoSerializer
 class FideicomisoList(generics.ListAPIView):
     serializer_class = FideicomisoSerializer
     pagination_class = PageNumberPagination
     def get_queryset(self):
         try:
-            queryset = Fideicomiso.objects.all()
+            queryset = Fideicomiso.objects.all().order_by('-FechaCreacion')
             return queryset
         except Exception as e:
             raise Exception(f"Error occurred: {str(e)}")
@@ -52,6 +59,7 @@ class UpdateFideicomisoView(APIView):
                         FROM FD_TFIDE FD
                         JOIN GE_TCIAS GE ON FD.FIDE_CIAS = GE.CIAS_CIAS
                         WHERE ROWNUM <= {(page + 1) * rows_per_page}
+                        ORDER BY FD.FIDE_FECCRE DESC
                     )
                     WHERE RN > {page * rows_per_page}
                 """)
@@ -76,6 +84,37 @@ class UpdateFideicomisoView(APIView):
             return Response({'status': 'success'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+class UpdateEncargoView(generics.UpdateAPIView):
+    def get(self, request, *args, **kwargs):
+        try:
+            # Connect to the Oracle database
+            dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIUN43')
+            conn = cx_Oracle.connect(user='VU_SFI', password='vu_sfi', dsn=dsn_tns)
+            cur = conn.cursor()
+
+            with connection.cursor() as cur:
+                cur.execute("""
+                    SELECT FD.FIDE_FIDE, PL.PLAN_PLAN, PL.PLAN_DESCRI
+                    FROM FD_TFIDE FD
+                    JOIN SF_TPTPL PT ON FD.FIDE_FIDE = PT.PTPL_FDEI
+                    JOIN SF_TPLAN PL ON PT.PTPL_PLAN = PL.PLAN_PLAN
+                """,)
+                rows = cur.fetchall()
+
+            for row in rows:
+                encargo, created = Encargo.objects.update_or_create(
+                    NumeroEncargo=row[1],
+                    defaults={
+                    'Fideicomiso' : row[0],
+                    'Descripcion' : row[2]
+                    }
+                )
+            cur.close()
+            conn.close()
+            return Response({'status': 'success'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return encargo
 class FetchFideicomisoView(APIView):
     pagination_class = PageNumberPagination
     def get(self, request, *args, **kwargs):
