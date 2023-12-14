@@ -30,7 +30,19 @@ ALLOWED_HOSTS = []
 
 
 # Application definition
-
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -91,8 +103,8 @@ DATABASES = {
     'default': {
         "ENGINE": "django.db.backends.oracle",
         "NAME": "xe",
-        "USER": "sgc_software_dev",
-        "PASSWORD": "sgc_software_dev_f",
+        "USER": "SGC_SOFTWARE_DEV_F",
+        "PASSWORD": "SGC_SOFTWARE_DEV_F",
         "HOST": "localhost",
         "PORT": "1522",
     }

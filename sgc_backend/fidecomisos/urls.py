@@ -6,8 +6,8 @@ urlpatterns = [
     path('fideicomisos/', FideicomisoList.as_view(), name='fideicomiso-list'),
     path('encargos/', EncargoListView.as_view(), name='encargo-list'),
     path('update_fideicomiso/', UpdateFideicomisoView.as_view(), name='update-fideicomiso'),
-    path('traer_fideicomiso/', FetchFideicomisoView.as_view(), name='traer-fideicomiso'),
-    path('update_encargos/', UpdateEncargoView.as_view()),
+    path('update_encargo/', UpdateEncargoFromTemp.as_view(), name='update-encargo'),
+    path('update_encargotemp/', UpdateEncargoTemp.as_view(), name='update-encargo-temp')
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

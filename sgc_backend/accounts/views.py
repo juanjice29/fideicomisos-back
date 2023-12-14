@@ -58,6 +58,9 @@ class LoginView(APIView):
 
         response_data = {
             'user': {
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
                 'username': user.username,
                 'rol': user.profile.rol.name,
                 'views': views,  # Add the views to the response data
