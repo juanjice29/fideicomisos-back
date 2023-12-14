@@ -7,7 +7,7 @@ urlpatterns = [
     path('upload/', upload_file, name='upload_file'),
     path('tipoactordecontrato/', TipoActorDeContratoListView.as_view(), name='tipoactordecontrato-list'),
     path('crearactordecontrato/', ActorDeContratoCreateView.as_view(), name='crearactordecontrato'),
-    path('encargo/<int:FideicomisoAsociado>/', EncargoListView.as_view(), name='encargo-list'),
+    path('encargo/', EncargoListView.as_view(), name='encargo-list'), #http://127.0.0.1:8000/actores/encargo/?CodigoSFC=116788
     path('actordecontrato/<int:id>/', ActorDeContratoUpdateView.as_view(), name='actordecontrato-update'),
     path('actordecontrato/<int:id>/delete/', ActorDeContratoDeleteView.as_view(), name='actordecontrato-delete'),
 ]

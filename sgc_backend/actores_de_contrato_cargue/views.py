@@ -45,10 +45,10 @@ class EncargoListView(generics.ListAPIView):
     serializer_class = EncargoSerializer
 
     def get_queryset(self):
-        queryset = Encargo.objects.all().order_by('id')  # Add an order_by clause here
-        fideicomiso_id = self.kwargs.get('Fideicomiso', None)  # or 'Fideicomiso_id'
-        if fideicomiso_id is not None:
-            queryset = queryset.filter(Fideicomiso=fideicomiso_id)  # or 'Fideicomiso_id'
+        queryset = Encargo.objects.all().order_by('id')
+        codigo_sfc = self.request.query_params.get('CodigoSFC', None)
+        if codigo_sfc is not None:
+            queryset = queryset.filter(Fideicomiso__CodigoSFC=codigo_sfc)
         return queryset
 class TipoActorDeContratoListView(generics.ListAPIView):
     queryset = TipoActorDeContrato.objects.all()
