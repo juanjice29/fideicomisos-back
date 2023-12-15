@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'fidecomisos',
     'actores_de_contrato_cargue',
+    'beneficiario_final',
     
 ]
 
