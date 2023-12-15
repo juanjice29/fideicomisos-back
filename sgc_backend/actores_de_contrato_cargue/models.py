@@ -12,7 +12,10 @@ class TipoActorDeContrato(models.Model):
 class ActorDeContrato(models.Model):
     TipoIdentificacion = models.ForeignKey(TipoDeDocumento, on_delete=models.CASCADE)
     NumeroIdentificacion = models.CharField(max_length=12)
-    Nombre = models.CharField(max_length=100)
+    Primer_Nombre = models.CharField(max_length=100)
+    Segundo_Nombre = models.CharField(max_length=100)
+    Primer_Apellido = models.CharField(max_length=100)
+    Segundo_Apellido = models.CharField(max_length=100)
     TipoActor = models.ForeignKey(TipoActorDeContrato, on_delete=models.CASCADE)
     FideicomisoAsociado = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE, null=False)
     FechaActualizacion = models.DateField()

@@ -7,7 +7,7 @@ from .models import ActorDeContrato, TipoActorDeContrato
 from rest_framework import viewsets
 from .models import ActorDeContrato
 from .serializers import ActorDeContratoSerializer
-from fidecomisos.models import Encargo
+from fidecomisos.models import Encargo, TipoDeDocumento
 from fidecomisos.serializers import EncargoSerializer
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.views import APIView
@@ -40,7 +40,7 @@ def upload_file(request):
             return JsonResponse({'status': 'success'})
     else:
         return JsonResponse({'status': 'invalid request'}, status=400)
-    
+
 class EncargoListView(generics.ListAPIView):
     serializer_class = EncargoSerializer
 
@@ -51,24 +51,35 @@ class EncargoListView(generics.ListAPIView):
             queryset = queryset.filter(Fideicomiso__CodigoSFC=codigo_sfc)
         return queryset
 class TipoActorDeContratoListView(generics.ListAPIView):
-    queryset = TipoActorDeContrato.objects.all()
+    queryset = TipoActorDeContrato.objects.all().order_by('id')
     serializer_class = TipoActorDeContratoSerializer
-
+class ActorDeContratoListView(generics.ListAPIView):
+    queryset = ActorDeContrato.objects.all().order_by('id')
+    serializer_class = ActorDeContratoSerializer
 class ActorDeContratoCreateView(APIView):
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         try:
-            fideicomiso_id = request.data.get('FideicomisoAsociado')
+            codigo_sfc = request.data.get('FideicomisoAsociado')
             tipo_actor_id = request.data.get('TipoActor')
             encargo_id = request.data.get('EncargoAsociado')
+            Primer_Nombre = request.data.get('Primer_Nombre')
+            Segundo_Nombre = request.data.get('Segundo_Nombre')
+            Primer_Apellido = request.data.get('Primer_Apellido')
+            Segundo_Apellido = request.data.get('Segundo_Apellido')
             numero_identificacion = request.data.get('NumeroIdentificacion')
-
-            if not Fideicomiso.objects.filter(CodigoSFC=fideicomiso_id).exists():
+            try:
+                tipo_documento_instance = TipoDeDocumento.objects.get(TipoDocumento=request.data['TipoIdentificacion'])
+            except TipoDeDocumento.DoesNotExist:
+                return Response({'status': 'invalid request', 'message': 'TipoDeDocumento does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+            fideicomiso = Fideicomiso.objects.filter(CodigoSFC=codigo_sfc).first()
+            if not fideicomiso:
                 return Response({'status': 'invalid request', 'message': 'Fideicomiso does not exist'}, status=status.HTTP_400_BAD_REQUEST)
 
-            if not TipoActorDeContrato.objects.filter(id=tipo_actor_id).exists():
+            tipo_actor = TipoActorDeContrato.objects.filter(id=tipo_actor_id).first()
+            if not tipo_actor:
                 return Response({'status': 'invalid request', 'message': 'TipoActor does not exist'}, status=status.HTTP_400_BAD_REQUEST)
 
-            encargo = Encargo.objects.filter(id=encargo_id, FideicomisoAsociado=fideicomiso_id).first()
+            encargo = Encargo.objects.filter(id=encargo_id, Fideicomiso=fideicomiso).first()
             if not encargo:
                 return Response({'status': 'invalid request', 'message': 'Encargo does not exist or is not associated with the provided Fideicomiso'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -76,54 +87,60 @@ class ActorDeContratoCreateView(APIView):
                 return Response({'status': 'invalid request', 'message': 'NumeroIdentificacion must be 12 characters or less'}, status=status.HTTP_400_BAD_REQUEST)
 
             actor = ActorDeContrato.objects.create(
-                FideicomisoAsociado=fideicomiso_id,
+                TipoIdentificacion=tipo_documento_instance,
+                FideicomisoAsociado=fideicomiso,
                 NumeroIdentificacion=numero_identificacion,
-                TipoActor=tipo_actor_id,
-                Nombre=encargo.Nombre,
+                TipoActor=tipo_actor,
+                Primer_Nombre=Primer_Nombre,
+                Segundo_Nombre=Segundo_Nombre,
+                Primer_Apellido=Primer_Apellido,
+                Segundo_Apellido=Segundo_Apellido,
+                EncargoAsociado=encargo,
                 FechaActualizacion=timezone.now()
             )
 
             return Response({'status': 'success'}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
 class ActorDeContratoUpdateView(generics.UpdateAPIView):
     queryset = ActorDeContrato.objects.all()
     serializer_class = ActorDeContratoSerializer
     lookup_field = 'id'
-
     def put(self, request, *args, **kwargs):
         try:
-            actor = self.get_object()
-            fideicomiso_id = request.data.get('FideicomisoAsociado', actor.FideicomisoAsociado)
-            tipo_actor_id = request.data.get('TipoActor', actor.TipoActor)
-            encargo_id = request.data.get('EncargoAsociado', actor.EncargoAsociado)
-            numero_identificacion = request.data.get('NumeroIdentificacion', actor.NumeroIdentificacion)
+            instance = self.get_object()
 
-            if not Fideicomiso.objects.filter(CodigoSFC=fideicomiso_id).exists():
-                return Response({'status': 'invalid request', 'message': 'Fideicomiso does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+            # request.data is the JSON object sent from the Angular frontend
+            data = request.data
 
-            if not TipoActorDeContrato.objects.filter(id=tipo_actor_id).exists():
-                return Response({'status': 'invalid request', 'message': 'TipoActor does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+            tipo_documento_instance = TipoDeDocumento.objects.get(TipoDocumento=data['TipoIdentificacion'])
+            fideicomiso = Fideicomiso.objects.get(CodigoSFC=data['FideicomisoAsociado'])
+            tipo_actor = TipoActorDeContrato.objects.get(id=data['TipoActor'])
+            encargo = Encargo.objects.get(id=data['EncargoAsociado'], Fideicomiso=fideicomiso)
 
-            encargo = Encargo.objects.filter(id=encargo_id, FideicomisoAsociado=fideicomiso_id).first()
-            if not encargo:
-                return Response({'status': 'invalid request', 'message': 'Encargo does not exist or is not associated with the provided Fideicomiso'}, status=status.HTTP_400_BAD_REQUEST)
-
-            if len(numero_identificacion) > 12:
-                return Response({'status': 'invalid request', 'message': 'NumeroIdentificacion must be 12 characters or less'}, status=status.HTTP_400_BAD_REQUEST)
-
-            actor.FideicomisoAsociado = fideicomiso_id
-            actor.NumeroIdentificacion = numero_identificacion
-            actor.TipoActor = tipo_actor_id
-            actor.Nombre = encargo.Nombre
-            actor.FechaActualizacion = timezone.now()
-            actor.save()
+            instance.TipoIdentificacion = tipo_documento_instance
+            instance.FideicomisoAsociado = fideicomiso
+            instance.NumeroIdentificacion = data['NumeroIdentificacion']
+            instance.TipoActor = tipo_actor
+            instance.Primer_Nombre=data['Primer_Nombre']
+            instance.Segundo_Nombre=data['Segundo_Nombre']
+            instance.Primer_Apellido=data['Primer_Apellido']
+            instance.Segundo_Apellido=data['Segundo_Apellido']
+            instance.EncargoAsociado = encargo
+            instance.FechaActualizacion = timezone.now()
+            instance.save()
 
             return Response({'status': 'success'}, status=status.HTTP_200_OK)
+        except TipoDeDocumento.DoesNotExist:
+            return Response({'status': 'invalid request', 'message': 'TipoDeDocumento does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+        except Fideicomiso.DoesNotExist:
+            return Response({'status': 'invalid request', 'message': 'Fideicomiso does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+        except TipoActorDeContrato.DoesNotExist:
+            return Response({'status': 'invalid request', 'message': 'TipoActor does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+        except Encargo.DoesNotExist:
+            return Response({'status': 'invalid request', 'message': 'Encargo does not exist or is not associated with the provided Fideicomiso'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
 class ActorDeContratoDeleteView(generics.DestroyAPIView):
     queryset = ActorDeContrato.objects.all()
     lookup_field = 'id'

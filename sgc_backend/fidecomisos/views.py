@@ -28,6 +28,10 @@ from django.contrib import messages
 import logging
 import hashlib
 from django.core.cache import cache
+from .serializers import TipoDeDocumentoSerializer
+class TipoDeDocumentoListView(generics.ListAPIView):
+    queryset = TipoDeDocumento.objects.all()
+    serializer_class = TipoDeDocumentoSerializer   
 class EncargoListView(generics.ListAPIView):
     queryset = Encargo.objects.all()
     serializer_class = EncargoSerializer
