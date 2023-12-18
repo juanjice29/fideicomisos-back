@@ -29,6 +29,8 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
     instance.profile.save()
 class View(models.Model):
     name = models.CharField(max_length=255)
+    def __str__(self):
+        return self.name
 class Permisos(models.Model):
     role = models.ForeignKey(Role, on_delete=models.CASCADE)
     view = models.ForeignKey(View, on_delete=models.CASCADE)

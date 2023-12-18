@@ -11,7 +11,7 @@ class Beneficiario_Reporte(models.Model):
     date_added = models.DateTimeField(auto_now_add=True)
     date_created = models.DateTimeField(auto_now_add=True)
     period = models.CharField(max_length=255)#Ultimo Estado
-    Tipo_Novedad = models.ForeignKey(Tipo_Novedad, on_delete=models.CASCADE)
+    tipo_Novedad = models.ForeignKey(Tipo_Novedad, on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True)
     type_product = models.CharField(max_length=255)
     
@@ -19,6 +19,6 @@ class Beneficiario_Reporte(models.Model):
         return self.client_id
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['client_id', 'Tipo_Novedad', 'type_product'], name='unique_identificacion_beneficiario')
+            models.UniqueConstraint(fields=['client_id', 'tipo_Novedad', 'type_product'], name='unique_identificacion_beneficiario')
         ]
         

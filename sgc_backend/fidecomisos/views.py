@@ -29,13 +29,25 @@ import logging
 import hashlib
 from django.core.cache import cache
 from .serializers import TipoDeDocumentoSerializer
+from rest_framework.permissions import IsAuthenticated
+from .permissions import HasRolePermission, LoggingJWTAuthentication
+import logging
+
 class TipoDeDocumentoListView(generics.ListAPIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
     queryset = TipoDeDocumento.objects.all()
     serializer_class = TipoDeDocumentoSerializer   
+
 class EncargoListView(generics.ListAPIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
     queryset = Encargo.objects.all()
     serializer_class = EncargoSerializer
+
 class FideicomisoList(generics.ListAPIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
     serializer_class = FideicomisoSerializer
     pagination_class = PageNumberPagination
     def get_queryset(self):
@@ -44,7 +56,10 @@ class FideicomisoList(generics.ListAPIView):
             return queryset
         except Exception as e:
             raise Exception(f"Error occurred: {str(e)}")
+
 class UpdateFideicomisoView(APIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
     def get(self, request, *args, **kwargs):
         try:
             # Connect to the Oracle database
@@ -105,6 +120,8 @@ class UpdateFideicomisoView(APIView):
 
 logger = logging.getLogger(__name__)
 class UpdateEncargoTemp(APIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
     def get(self, request, *args, **kwargs):
         try:
             # Connect to the Oracle database
@@ -153,6 +170,8 @@ class UpdateEncargoTemp(APIView):
             logger.error(f"An error occurred: {e}")
             return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 class UpdateEncargoFromTemp(APIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
     def get(self, request, *args, **kwargs):
         # First, call the UpdateEncargoTemp view
         update_encargo_temp_view = UpdateEncargoTemp.as_view()

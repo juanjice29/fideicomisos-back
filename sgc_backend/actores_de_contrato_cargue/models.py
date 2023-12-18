@@ -20,6 +20,7 @@ class ActorDeContrato(models.Model):
     FideicomisoAsociado = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE, null=False)
     FechaActualizacion = models.DateField()
     EncargoAsociado = models.ForeignKey(Encargo, on_delete=models.CASCADE, null=False)
+    Activo = models.BooleanField(default=True)
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['NumeroIdentificacion', 'FideicomisoAsociado', 'EncargoAsociado'], name='unique_identificacion_fideicomiso_encargo')

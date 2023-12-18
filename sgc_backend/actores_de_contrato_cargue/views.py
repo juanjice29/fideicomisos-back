@@ -96,6 +96,7 @@ class ActorDeContratoCreateView(APIView):
                 Primer_Apellido=Primer_Apellido,
                 Segundo_Apellido=Segundo_Apellido,
                 EncargoAsociado=encargo,
+                Activo=True,
                 FechaActualizacion=timezone.now()
             )
 
@@ -128,6 +129,7 @@ class ActorDeContratoUpdateView(generics.UpdateAPIView):
             instance.Segundo_Apellido=data['Segundo_Apellido']
             instance.EncargoAsociado = encargo
             instance.FechaActualizacion = timezone.now()
+            instance.Activo=data['Activo']
             instance.save()
 
             return Response({'status': 'success'}, status=status.HTTP_200_OK)

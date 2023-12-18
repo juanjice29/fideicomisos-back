@@ -9,17 +9,20 @@ from .models import Beneficiario_Reporte
 from xml.etree import ElementTree as ET
 from datetime import datetime
 from rest_framework.views import APIView
-
+from rest_framework.permissions import IsAuthenticated
 class ClientCreateView(generics.CreateAPIView):
+    permission_classes = [IsAuthenticated]
     queryset = Beneficiario_Reporte.objects.all()
     serializer_class = Beneficiario_ReporteSerializer
 
 class ClientDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
     queryset = Beneficiario_Reporte.objects.all()
     serializer_class = Beneficiario_ReporteSerializer
     lookup_field = 'client_id'
 
 class ClientsByUserTypeView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = Beneficiario_ReporteSerializer
 
     def get_queryset(self):
@@ -27,6 +30,7 @@ class ClientsByUserTypeView(generics.ListAPIView):
         return Beneficiario_Reporte.objects.filter(user_type=user_type)
 
 class UpdateClientView(APIView):
+    permission_classes = [IsAuthenticated]
     def post(self, request, format=None):
         xml_data = ET.fromstring(request.data['xml'])
         product = request.data.get('product')

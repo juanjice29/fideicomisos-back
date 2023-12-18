@@ -1,3 +1,4 @@
+from logging import Logger
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
@@ -15,7 +16,11 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Add custom claims
         token['username'] = user.username
         token['rol'] = user.profile.rol.name  # Add the role to the token
-
+        try:
+            token['rol'] = user.profile.rol.name  # Add the role to the token
+        except AttributeError as e:
+            Logger.error('Error getting user role: %s', str(e))
+    
         return token
     def validate(self, attrs):
         data = super().validate(attrs)
