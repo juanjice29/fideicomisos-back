@@ -19,7 +19,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         try:
             token['rol'] = user.profile.rol.name  # Add the role to the token
         except AttributeError as e:
-            Logger.error('Error getting user role: %s', str(e))
+            Logger.error('Error al obtener el rol: %s', str(e))
     
         return token
     def validate(self, attrs):
@@ -59,12 +59,12 @@ class LoginSerializer(serializers.Serializer):
                 if user.is_active:
                     data["user"] = user
                 else:
-                    msg = "User is deactivated."
+                    msg = "El usuario esta desactivado."
                     raise exceptions.ValidationError(msg)
             else:
-                msg = "Unable to login with provided credentials."
+                msg = "No fue posible ingresar con las credenciales brindadas."
                 raise exceptions.ValidationError(msg)
         else:
-            msg = "Must provide username and password both."
+            msg = "Debe ingresar nombre de usuario y contraseña."
             raise exceptions.ValidationError(msg)
         return data

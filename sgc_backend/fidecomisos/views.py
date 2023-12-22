@@ -27,12 +27,13 @@ from django.db import IntegrityError
 from django.contrib import messages
 import logging
 import hashlib
+from .pagination import CustomPageNumberPagination
 from django.core.cache import cache
 from .serializers import TipoDeDocumentoSerializer
 from rest_framework.permissions import IsAuthenticated
 from .permissions import HasRolePermission, LoggingJWTAuthentication
 import logging
-
+from django.core.paginator import Paginator
 class TipoDeDocumentoListView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -45,17 +46,32 @@ class EncargoListView(generics.ListAPIView):
     queryset = Encargo.objects.all()
     serializer_class = EncargoSerializer
 
+from .pagination import CustomPageNumberPagination
+
 class FideicomisoList(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
     serializer_class = FideicomisoSerializer
-    pagination_class = PageNumberPagination
+    pagination_class = CustomPageNumberPagination
+
     def get_queryset(self):
-        try:
-            queryset = Fideicomiso.objects.all().order_by('-FechaCreacion')
-            return queryset
-        except Exception as e:
-            raise Exception(f"Error occurred: {str(e)}")
+        queryset = Fideicomiso.objects.all()
+        codigo_sfc = self.request.query_params.get('codigo_sfc', None)
+        nombre = self.request.query_params.get('nombre', None)
+        order_by = self.request.query_params.get('order_by', 'FechaCreacion')
+        order_direction = self.request.query_params.get('order_direction', 'asc')
+        if codigo_sfc is not None:
+            queryset = queryset.filter(CodigoSFC__icontains=codigo_sfc)
+
+        if nombre is not None:
+            queryset = queryset.filter(Nombre__icontains=nombre)
+
+        if order_by in ['CodigoSFC', 'FechaCreacion', 'Estado']:
+            if order_direction == 'desc':
+                order_by = '-' + order_by
+            queryset = queryset.order_by(order_by)
+
+        return queryset
 
 class UpdateFideicomisoView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
