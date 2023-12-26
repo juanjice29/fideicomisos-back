@@ -49,19 +49,22 @@ class EncargoListView(generics.ListAPIView):
     serializer_class = EncargoSerializer
 
 from .pagination import CustomPageNumberPagination
+from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import APIException
 
-class FideicomisoList(APIView):
+class FideicomisoList(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
     serializer_class = FideicomisoSerializer
     pagination_class = CustomPageNumberPagination
-    def get(self, request, *args, **kwargs):
+    def get_queryset(self):
         try:
             queryset = Fideicomiso.objects.all()
             codigo_sfc = self.request.query_params.get('codigo_sfc', None)
             nombre = self.request.query_params.get('nombre', None)
             order_by = self.request.query_params.get('order_by', 'FechaCreacion')
             order_direction = self.request.query_params.get('order_direction', 'asc')
+
             if codigo_sfc is not None:
                 queryset = queryset.filter(CodigoSFC__icontains=codigo_sfc)
 
@@ -71,14 +74,17 @@ class FideicomisoList(APIView):
             if order_by in ['CodigoSFC', 'FechaCreacion', 'Estado']:
                 if order_direction == 'desc':
                     order_by = '-' + order_by
-                queryset = queryset.order_by(order_by)
-            serializer = self.serializer_class(queryset, many=True)
-            return Response(serializer.data)
+                queryset = queryset.order_by(order_by, 'CodigoSFC')
+
+
+            return queryset
         except ValidationError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ...
+
+            raise ParseError(detail=str(e))
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-   
+            raise APIException(detail=str(e))
     def post(self, request, *args, **kwargs):
             try:
                 codigo_sfc = request.data.get('codigo_sfc', None)
