@@ -61,7 +61,6 @@ class ActorDeContratoCreateView(APIView):
         try:
             codigo_sfc = request.data.get('FideicomisoAsociado')
             tipo_actor_id = request.data.get('TipoActor')
-            encargo_id = request.data.get('EncargoAsociado')
             Primer_Nombre = request.data.get('Primer_Nombre')
             Segundo_Nombre = request.data.get('Segundo_Nombre')
             Primer_Apellido = request.data.get('Primer_Apellido')
@@ -79,10 +78,6 @@ class ActorDeContratoCreateView(APIView):
             if not tipo_actor:
                 return Response({'status': 'invalid request', 'message': 'TipoActor no existe'}, status=status.HTTP_400_BAD_REQUEST)
 
-            encargo = Encargo.objects.filter(id=encargo_id, Fideicomiso=fideicomiso).first()
-            if not encargo:
-                return Response({'status': 'invalid request', 'message': 'Encargo no existe o no esta asociado con el Fideicomiso'}, status=status.HTTP_400_BAD_REQUEST)
-
             if len(numero_identificacion) > 12:
                 return Response({'status': 'invalid request', 'message': 'NumeroIdentificacion debe ser de 12 caracteres o menos'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -95,7 +90,6 @@ class ActorDeContratoCreateView(APIView):
                 Segundo_Nombre=Segundo_Nombre,
                 Primer_Apellido=Primer_Apellido,
                 Segundo_Apellido=Segundo_Apellido,
-                EncargoAsociado=encargo,
                 Activo=True,
                 FechaActualizacion=timezone.now()
             )
@@ -117,8 +111,6 @@ class ActorDeContratoUpdateView(generics.UpdateAPIView):
             tipo_documento_instance = TipoDeDocumento.objects.get(TipoDocumento=data['TipoIdentificacion'])
             fideicomiso = Fideicomiso.objects.get(CodigoSFC=data['FideicomisoAsociado'])
             tipo_actor = TipoActorDeContrato.objects.get(id=data['TipoActor'])
-            encargo = Encargo.objects.get(id=data['EncargoAsociado'], Fideicomiso=fideicomiso)
-
             instance.TipoIdentificacion = tipo_documento_instance
             instance.FideicomisoAsociado = fideicomiso
             instance.NumeroIdentificacion = data['NumeroIdentificacion']
@@ -127,7 +119,6 @@ class ActorDeContratoUpdateView(generics.UpdateAPIView):
             instance.Segundo_Nombre=data['Segundo_Nombre']
             instance.Primer_Apellido=data['Primer_Apellido']
             instance.Segundo_Apellido=data['Segundo_Apellido']
-            instance.EncargoAsociado = encargo
             instance.FechaActualizacion = timezone.now()
             instance.Activo=data['Activo']
             instance.save()
@@ -139,8 +130,6 @@ class ActorDeContratoUpdateView(generics.UpdateAPIView):
             return Response({'status': 'invalid request', 'message': 'Fideicomiso no existe'}, status=status.HTTP_400_BAD_REQUEST)
         except TipoActorDeContrato.DoesNotExist:
             return Response({'status': 'invalid request', 'message': 'TipoActor no existe'}, status=status.HTTP_400_BAD_REQUEST)
-        except Encargo.DoesNotExist:
-            return Response({'status': 'invalid request', 'message': 'Encargo no existe o no esta asociado con el Fideicomiso'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 class ActorDeContratoDeleteView(generics.DestroyAPIView):
