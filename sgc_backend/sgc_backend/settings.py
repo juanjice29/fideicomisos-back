@@ -30,7 +30,19 @@ ALLOWED_HOSTS = []
 
 
 # Application definition
-
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -47,6 +59,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'fidecomisos',
     'actores_de_contrato_cargue',
+    'beneficiario_final',
     
 ]
 
@@ -91,8 +104,8 @@ DATABASES = {
     'default': {
         "ENGINE": "django.db.backends.oracle",
         "NAME": "xe",
-        "USER": "sgc_software_dev",
-        "PASSWORD": "sgc_software_dev_f",
+        "USER": "SGC_SOFTWARE_DEV_F",
+        "PASSWORD": "SGC_SOFTWARE_DEV_F",
         "HOST": "localhost",
         "PORT": "1522",
     }
@@ -140,9 +153,9 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SIMPLE_JWT = {
-  # It will work instead of the default serializer(TokenObtainPairSerializer).
-  "TOKEN_OBTAIN_SERIALIZER": "accounts.serializers.MyTokenObtainPairSerializer",
-  # ...
+    # It will work instead of the default serializer(TokenObtainPairSerializer).
+    "TOKEN_OBTAIN_SERIALIZER": "accounts.serializers.MyTokenObtainPairSerializer",
+    # ...
 }
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
@@ -152,13 +165,11 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication'
-    ]
-    
+    ],
+    #'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    #'PAGE_SIZE': 10,
 }
-REST_FRAMEWORK = {
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10
-}
+
 JWT_AUTH = {
     'JWT_ALLOW_REFRESH': True,
     'JWT_EXPIRATION_DELTA': datetime.timedelta(seconds=3600),
