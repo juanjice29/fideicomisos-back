@@ -6,6 +6,7 @@ from django.views import View
 from dateutil.parser import parse
 from django.http import HttpRequest
 from rest_framework.views import APIView
+from django.core.exceptions import ValidationError
 import cx_Oracle
 from .models import Fideicomiso, TipoDeDocumento
 from dateutil.relativedelta import relativedelta
@@ -55,23 +56,28 @@ class FideicomisoList(generics.ListAPIView):
     pagination_class = CustomPageNumberPagination
 
     def get_queryset(self):
-        queryset = Fideicomiso.objects.all()
-        codigo_sfc = self.request.query_params.get('codigo_sfc', None)
-        nombre = self.request.query_params.get('nombre', None)
-        order_by = self.request.query_params.get('order_by', 'FechaCreacion')
-        order_direction = self.request.query_params.get('order_direction', 'asc')
-        if codigo_sfc is not None:
-            queryset = queryset.filter(CodigoSFC__icontains=codigo_sfc)
+        try:
+            queryset = Fideicomiso.objects.all()
+            codigo_sfc = self.request.query_params.get('codigo_sfc', None)
+            nombre = self.request.query_params.get('nombre', None)
+            order_by = self.request.query_params.get('order_by', 'FechaCreacion')
+            order_direction = self.request.query_params.get('order_direction', 'asc')
+            if codigo_sfc is not None:
+                queryset = queryset.filter(CodigoSFC__icontains=codigo_sfc)
 
-        if nombre is not None:
-            queryset = queryset.filter(Nombre__icontains=nombre)
+            if nombre is not None:
+                queryset = queryset.filter(Nombre__icontains=nombre)
 
-        if order_by in ['CodigoSFC', 'FechaCreacion', 'Estado']:
-            if order_direction == 'desc':
-                order_by = '-' + order_by
-            queryset = queryset.order_by(order_by)
+            if order_by in ['CodigoSFC', 'FechaCreacion', 'Estado']:
+                if order_direction == 'desc':
+                    order_by = '-' + order_by
+                queryset = queryset.order_by(order_by)
 
-        return queryset
+            return queryset
+        except ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UpdateFideicomisoView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
