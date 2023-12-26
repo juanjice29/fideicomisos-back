@@ -5,29 +5,29 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import Beneficiario_Reporte
+from .models import Beneficiario_Reporte_Dian
 from xml.etree import ElementTree as ET
 from datetime import datetime
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 class ClientCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
-    queryset = Beneficiario_Reporte.objects.all()
+    queryset = Beneficiario_Reporte_Dian.objects.all()
     serializer_class = Beneficiario_ReporteSerializer
 
 class ClientDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
-    queryset = Beneficiario_Reporte.objects.all()
+    queryset = Beneficiario_Reporte_Dian.objects.all()
     serializer_class = Beneficiario_ReporteSerializer
-    lookup_field = 'client_id'
+    lookup_field = 'Id_Cliente'
 
 class ClientsByUserTypeView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = Beneficiario_ReporteSerializer
 
     def get_queryset(self):
-        user_type = self.kwargs.get('user_type')
-        return Beneficiario_Reporte.objects.filter(user_type=user_type)
+        user_type = self.kwargs.get('Tipo_Novedad')
+        return Beneficiario_Reporte_Dian.objects.filter(user_type=user_type)
 
 class UpdateClientView(APIView):
     permission_classes = [IsAuthenticated]
@@ -37,21 +37,21 @@ class UpdateClientView(APIView):
         period = request.data.get('period', '2023-3')
 
         for item in xml_data.findall('item'):
-            client_id = item.find('niben').text
-            tipo_novedad = item.find('tnov').text
-            date_create = datetime.strptime(item.find('date_create').text, '%Y-%m-%d')
+            Id_Cliente = item.find('niben').text
+            Tipo_Novedad = item.find('tnov').text
+            Fecha_creado = datetime.strptime(item.find('date_create').text, '%Y-%m-%d')
 
-            is_active = True if tipo_novedad in ['1', '2'] else False
+            is_active = True if Tipo_Novedad in ['1', '2'] else False
 
-            Beneficiario_Reporte.objects.update_or_create(
-                client_id=client_id,
+            Beneficiario_Reporte_Dian.objects.update_or_create(
+                client_id=Id_Cliente,
                 defaults={
-                    'user_type': tipo_novedad,
-                    'type_product': product,
-                    'date_added': datetime.now(),
-                    'date_created': date_create,
-                    'period': period,
-                    'is_active': is_active
+                    'Tipo_Novedad': Tipo_Novedad,
+                    'Tipo_Producto': product,
+                    'Fecha_Añadido': datetime.now(),
+                    'Fecha_Creado': Fecha_creado,
+                    'Periodo': period,
+                    'Activo': is_active
                 }
             )
         return Response(status=status.HTTP_200_OK)
