@@ -27,7 +27,7 @@ def upload_file(request):
                 try:
                     fideicomiso = Fideicomiso.objects.get(CodigoSFC=row['FideicomisoAsociado'])
                 except ObjectDoesNotExist:
-                    return JsonResponse({'status': 'error', 'message': f'Fideicomiso {row["FideicomisoAsociado"]} does not exist'}, status=400)
+                    return JsonResponse({'status': 'error', 'message': f'Fideicomiso {row["FideicomisoAsociado"]} no existe'}, status=400)
 
                 ActorDeContrato.objects.create(
                     TipoIdentificacion=row['TipoIdentificacion'],
@@ -70,21 +70,21 @@ class ActorDeContratoCreateView(APIView):
             try:
                 tipo_documento_instance = TipoDeDocumento.objects.get(TipoDocumento=request.data['TipoIdentificacion'])
             except TipoDeDocumento.DoesNotExist:
-                return Response({'status': 'invalid request', 'message': 'TipoDeDocumento does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'status': 'invalid request', 'message': 'TipoDeDocumento no existe'}, status=status.HTTP_400_BAD_REQUEST)
             fideicomiso = Fideicomiso.objects.filter(CodigoSFC=codigo_sfc).first()
             if not fideicomiso:
-                return Response({'status': 'invalid request', 'message': 'Fideicomiso does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'status': 'invalid request', 'message': 'Fideicomiso no existe'}, status=status.HTTP_400_BAD_REQUEST)
 
             tipo_actor = TipoActorDeContrato.objects.filter(id=tipo_actor_id).first()
             if not tipo_actor:
-                return Response({'status': 'invalid request', 'message': 'TipoActor does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'status': 'invalid request', 'message': 'TipoActor no existe'}, status=status.HTTP_400_BAD_REQUEST)
 
             encargo = Encargo.objects.filter(id=encargo_id, Fideicomiso=fideicomiso).first()
             if not encargo:
-                return Response({'status': 'invalid request', 'message': 'Encargo does not exist or is not associated with the provided Fideicomiso'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'status': 'invalid request', 'message': 'Encargo no existe o no esta asociado con el Fideicomiso'}, status=status.HTTP_400_BAD_REQUEST)
 
             if len(numero_identificacion) > 12:
-                return Response({'status': 'invalid request', 'message': 'NumeroIdentificacion must be 12 characters or less'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'status': 'invalid request', 'message': 'NumeroIdentificacion debe ser de 12 caracteres o menos'}, status=status.HTTP_400_BAD_REQUEST)
 
             actor = ActorDeContrato.objects.create(
                 TipoIdentificacion=tipo_documento_instance,
@@ -134,13 +134,13 @@ class ActorDeContratoUpdateView(generics.UpdateAPIView):
 
             return Response({'status': 'success'}, status=status.HTTP_200_OK)
         except TipoDeDocumento.DoesNotExist:
-            return Response({'status': 'invalid request', 'message': 'TipoDeDocumento does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': 'invalid request', 'message': 'TipoDeDocumento no existe'}, status=status.HTTP_400_BAD_REQUEST)
         except Fideicomiso.DoesNotExist:
-            return Response({'status': 'invalid request', 'message': 'Fideicomiso does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': 'invalid request', 'message': 'Fideicomiso no existe'}, status=status.HTTP_400_BAD_REQUEST)
         except TipoActorDeContrato.DoesNotExist:
-            return Response({'status': 'invalid request', 'message': 'TipoActor does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': 'invalid request', 'message': 'TipoActor no existe'}, status=status.HTTP_400_BAD_REQUEST)
         except Encargo.DoesNotExist:
-            return Response({'status': 'invalid request', 'message': 'Encargo does not exist or is not associated with the provided Fideicomiso'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': 'invalid request', 'message': 'Encargo no existe o no esta asociado con el Fideicomiso'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 class ActorDeContratoDeleteView(generics.DestroyAPIView):

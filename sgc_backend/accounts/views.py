@@ -49,7 +49,7 @@ class LoginView(APIView):
         # Check if the user is active
         user = serializer.validated_data['user']
         if not user.is_active:
-            return Response({"detail": "Account is inactive"}, status=400)
+            return Response({"detail": "Cuenta Inactiva"}, status=400)
 
         data = serializer.validated_data
 
