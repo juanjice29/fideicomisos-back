@@ -16,7 +16,9 @@ schema_view = get_schema_view(
    permission_classes=(permissions.AllowAny,),
 )
 urlpatterns = [
+   
     path('api/login', views.LoginView.as_view(), name='login'),
+    
     path('docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('account.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('account.yaml', schema_view.without_ui(cache_timeout=0), name='schema-yaml'),
