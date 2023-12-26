@@ -35,6 +35,7 @@ from rest_framework.permissions import IsAuthenticated
 from .permissions import HasRolePermission, LoggingJWTAuthentication
 import logging
 from django.core.paginator import Paginator
+from rest_framework.pagination import PageNumberPagination
 class TipoDeDocumentoListView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -49,13 +50,12 @@ class EncargoListView(generics.ListAPIView):
 
 from .pagination import CustomPageNumberPagination
 
-class FideicomisoList(generics.ListAPIView):
+class FideicomisoList(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
     serializer_class = FideicomisoSerializer
     pagination_class = CustomPageNumberPagination
-
-    def get_queryset(self):
+    def get(self, request, *args, **kwargs):
         try:
             queryset = Fideicomiso.objects.all()
             codigo_sfc = self.request.query_params.get('codigo_sfc', None)
@@ -72,13 +72,50 @@ class FideicomisoList(generics.ListAPIView):
                 if order_direction == 'desc':
                     order_by = '-' + order_by
                 queryset = queryset.order_by(order_by)
-
-            return queryset
+            serializer = self.serializer_class(queryset, many=True)
+            return Response(serializer.data)
         except ValidationError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+   
+    def post(self, request, *args, **kwargs):
+            try:
+                codigo_sfc = request.data.get('codigo_sfc', None)
+                nombre = request.data.get('nombre', None)
+                order_by = request.data.get('order_by', 'FechaCreacion')
+                order_direction = request.data.get('order_direction', 'asc')
 
+                queryset = Fideicomiso.objects.all()
+
+                if codigo_sfc is not None:
+                    queryset = queryset.filter(CodigoSFC__icontains=codigo_sfc)
+
+                if nombre is not None:
+                    queryset = queryset.filter(Nombre__icontains=nombre)
+
+                if order_by in ['CodigoSFC', 'FechaCreacion', 'Estado']:
+                    if order_direction == 'desc':
+                        order_by = '-' + order_by
+                    queryset = queryset.order_by(order_by)
+                page_size = request.data.get('page_size', 10)
+                page_number = request.data.get('page_number', 1)
+                paginator = PageNumberPagination()
+                paginator.page_size = page_size
+
+                # Set the page number in the request's query parameters
+                request.query_params._mutable = True
+                request.query_params['page'] = page_number
+                request.query_params._mutable = False
+                paginator = PageNumberPagination()
+                paginator.page_size = page_size
+                paginated_queryset = paginator.paginate_queryset(queryset, request)
+                serializer = FideicomisoSerializer(paginated_queryset, many=True)
+                return paginator.get_paginated_response(serializer.data)
+            except ValidationError as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 class UpdateFideicomisoView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
