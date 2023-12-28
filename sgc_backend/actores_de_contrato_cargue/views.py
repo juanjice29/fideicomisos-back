@@ -16,7 +16,7 @@ from rest_framework import status
 from django.utils import timezone
 from rest_framework import generics
 from .serializers import TipoActorDeContratoSerializer
-
+from django.db import IntegrityError
 def upload_file(request):
     if request.method == 'POST':
         form = UploadFileForm(request.POST, request.FILES)
@@ -81,19 +81,24 @@ class ActorDeContratoCreateView(APIView):
             if len(numero_identificacion) > 12:
                 return Response({'status': 'invalid request', 'message': 'NumeroIdentificacion debe ser de 12 caracteres o menos'}, status=status.HTTP_400_BAD_REQUEST)
 
-            actor = ActorDeContrato.objects.create(
-                TipoIdentificacion=tipo_documento_instance,
-                FideicomisoAsociado=fideicomiso,
-                NumeroIdentificacion=numero_identificacion,
-                TipoActor=tipo_actor,
-                Primer_Nombre=Primer_Nombre,
-                Segundo_Nombre=Segundo_Nombre,
-                Primer_Apellido=Primer_Apellido,
-                Segundo_Apellido=Segundo_Apellido,
-                Activo=True,
-                FechaActualizacion=timezone.now()
-            )
-
+            try:
+                actor = ActorDeContrato.objects.create(
+                    TipoIdentificacion=tipo_documento_instance,
+                    FideicomisoAsociado=fideicomiso,
+                    NumeroIdentificacion=numero_identificacion,
+                    TipoActor=tipo_actor,
+                    Primer_Nombre=Primer_Nombre,
+                    Segundo_Nombre=Segundo_Nombre,
+                    Primer_Apellido=Primer_Apellido,
+                    Segundo_Apellido=Segundo_Apellido,
+                    Activo=True,
+                    FechaActualizacion=timezone.now()
+                )
+            except IntegrityError:
+                return Response({
+                    'status': 'error',
+                    'message': 'La relación de NumeroIdentificacion con Fideicomiso ya existe'
+                }, status=status.HTTP_400_BAD_REQUEST)
             return Response({'status': 'success'}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

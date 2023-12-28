@@ -75,13 +75,8 @@ class FideicomisoList(generics.ListAPIView):
                 if order_direction == 'desc':
                     order_by = '-' + order_by
                 queryset = queryset.order_by(order_by, 'CodigoSFC')
-
-
             return queryset
         except ValidationError as e:
-
-        # ...
-
             raise ParseError(detail=str(e))
         except Exception as e:
             raise APIException(detail=str(e))
