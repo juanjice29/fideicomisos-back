@@ -5,6 +5,8 @@ from .views import *
 urlpatterns = [
     path('fideicomisos/', FideicomisoList.as_view(), name='fideicomiso-list'),
     path('tipodedocumento/', TipoDeDocumentoListView.as_view(), name='tipodedocumento-list'),
+    path('encargos/', EncargoListView.as_view(), name='encargo-list'),
+    path('fideicomiso/<str:codigo_sfc>/', FideicomisoDetailView.as_view(), name='fideicomiso_detail'),
     path('update_fideicomiso/', UpdateFideicomisoView.as_view(), name='update-fideicomiso'),
     path('update_encargo/', UpdateEncargoFromTemp.as_view(), name='update-encargo'),
     path('update_encargotemp/', UpdateEncargoTemp.as_view(), name='update-encargo-temp')

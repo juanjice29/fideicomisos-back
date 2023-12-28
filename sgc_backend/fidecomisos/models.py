@@ -23,7 +23,6 @@ class Fideicomiso(models.Model):
 class Encargo(models.Model):
     
     NumeroEncargo = models.CharField(max_length=50)
-    NumeroProducto = models.CharField(max_length=50)
     Fideicomiso = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE, related_name='encargos')
     Descripcion = models.CharField(max_length=300)
     class Meta:
@@ -31,7 +30,6 @@ class Encargo(models.Model):
 class EncargoTemporal(models.Model):
     
     NumeroEncargo = models.CharField(max_length=50)
-    NumeroProducto = models.CharField(max_length=50)
     Fideicomiso = models.CharField(max_length=50)
     Descripcion = models.CharField(max_length=300)
     class Meta:
