@@ -1,28 +1,27 @@
+import logging
 from rest_framework.permissions import BasePermission
+from django.core.exceptions import PermissionDenied
+from accounts.models import Permisos
+logger = logging.getLogger(__name__)
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
+class LoggingJWTAuthentication(JWTAuthentication):
+    def authenticate(self, request):
+        #logger.info('authenticate called')
+        result = super().authenticate(request)
+        #logger.info('authenticate result: %s', result)
+        return result
 class HasRolePermission(BasePermission):
-    """
-    Permission check based on the role in the Profile model.
-
-    This permission class checks if the user is authenticated and if the user's profile role is in the list of required roles.
-    """
-
+    
     def has_permission(self, request, view):
-        """
-        Determine if the user has permission to access the view.
-
-        The user has permission if they are authenticated and their profile role is in the list of required roles.
-        """
-        # Get the required roles from the view
-        required_roles = getattr(view, 'required_roles', [])
-
-        # If the view does not specify any required roles, allow access
-        if not required_roles:
-            return True
-
-        # Check if the user is authenticated
-        if not request.user.is_authenticated:
-            return False
-
-        # Check if the user's profile role is in the list of required roles
-        return request.user.profile.rol.name in required_roles
+        #logger.info('User: %s', request.user)
+        #logger.info('Is authenticated: %s', request.user.is_authenticated)
+        #logger.info('Has profile: %s', hasattr(request.user, 'profile'))
+        #logger.info('Has role: %s', hasattr(request.user.profile, 'rol') if hasattr(request.user, 'profile') else False)
+        if hasattr(request.user, 'profile') and hasattr(request.user.profile, 'rol'):
+            role_views = Permisos.objects.filter(role=request.user.profile.rol).values_list('view__name', flat=True)
+        else:
+            role_views = []
+        #logger.info('Current view: %s', view.__class__.__name__)
+        #logger.info('Can access view: %s', view.__class__.__name__ in role_views)
+        return request.user.is_authenticated and view.__class__.__name__ in role_views        

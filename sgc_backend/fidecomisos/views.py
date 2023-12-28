@@ -13,9 +13,6 @@ from dateutil.relativedelta import relativedelta
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 from .models import TipoDeDocumento
 from dateutil.relativedelta import relativedelta
 from django.shortcuts import get_object_or_404
@@ -28,14 +25,17 @@ from django.db import IntegrityError
 from django.contrib import messages
 import logging
 import hashlib
-from .pagination import CustomPageNumberPagination
+from sgc_backend.pagination import CustomPageNumberPagination
 from django.core.cache import cache
 from .serializers import TipoDeDocumentoSerializer
 from rest_framework.permissions import IsAuthenticated
-from .permissions import HasRolePermission, LoggingJWTAuthentication
+from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 import logging
 from django.core.paginator import Paginator
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import APIException
+
 class TipoDeDocumentoListView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -48,9 +48,7 @@ class EncargoListView(generics.ListAPIView):
     queryset = Encargo.objects.all()
     serializer_class = EncargoSerializer
 
-from .pagination import CustomPageNumberPagination
-from rest_framework.exceptions import ParseError
-from rest_framework.exceptions import APIException
+
 
 class FideicomisoList(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]

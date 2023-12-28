@@ -3,8 +3,10 @@ from django.http import JsonResponse
 from fidecomisos.models import Fideicomiso
 from .forms import UploadFileForm
 import pandas as pd
+from rest_framework.permissions import IsAuthenticated
 from .models import ActorDeContrato, TipoActorDeContrato
 from rest_framework import viewsets
+from django.core.exceptions import ValidationError
 from .models import ActorDeContrato
 from .serializers import ActorDeContratoSerializer
 from fidecomisos.models import Encargo, TipoDeDocumento
@@ -17,6 +19,10 @@ from django.utils import timezone
 from rest_framework import generics
 from .serializers import TipoActorDeContratoSerializer
 from django.db import IntegrityError
+from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
+from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import APIException
+from sgc_backend.pagination import CustomPageNumberPagination
 def upload_file(request):
     if request.method == 'POST':
         form = UploadFileForm(request.POST, request.FILES)
@@ -41,21 +47,42 @@ def upload_file(request):
     else:
         return JsonResponse({'status': 'invalid request'}, status=400)
 
-class EncargoListView(generics.ListAPIView):
-    serializer_class = EncargoSerializer
-
-    def get_queryset(self):
-        queryset = Encargo.objects.all().order_by('id')
-        codigo_sfc = self.request.query_params.get('CodigoSFC', None)
-        if codigo_sfc is not None:
-            queryset = queryset.filter(Fideicomiso__CodigoSFC=codigo_sfc)
-        return queryset
 class TipoActorDeContratoListView(generics.ListAPIView):
     queryset = TipoActorDeContrato.objects.all().order_by('id')
     serializer_class = TipoActorDeContratoSerializer
 class ActorDeContratoListView(generics.ListAPIView):
-    queryset = ActorDeContrato.objects.all().order_by('id')
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
     serializer_class = ActorDeContratoSerializer
+    pagination_class = CustomPageNumberPagination
+    def get_queryset(self):
+        try:
+            queryset = ActorDeContrato.objects.all()
+            FideicomisoAsociado = self.request.query_params.get('FideicomisoAsociado', None)
+            Primer_Nombre = self.request.query_params.get('Primer_Nombre', None)
+            Segundo_Nombre = self.request.query_params.get('Segundo_Nombre', None)
+            Primer_Apellido = self.request.query_params.get('Primer_Apellido', None)
+            Segundo_Apellido = self.request.query_params.get('Segundo_Apellido', None)
+            TipoActor = self.request.query_params.get('TipoActor', None)
+            FideicomisoAsociado = self.request.query_params.get('FideicomisoAsociado', None)
+            FechaActualizacion = self.request.query_params.get('FechaActualizacion', None)
+            Activo = self.request.query_params.get('Activo', None)
+            order_direction = self.request.query_params.get('order_direction', 'asc')
+            query_params = ['FideicomisoAsociado', 'Primer_Nombre', 'Segundo_Nombre', 'Primer_Apellido', 'Segundo_Apellido', 'TipoActor', 'FideicomisoAsociado', 'FechaActualizacion', 'Activo']
+            for param in query_params:
+                value = self.request.query_params.get(param, None)
+                if value is not None:
+                    model_field = param
+                    queryset = queryset.filter(**{f'{model_field}__icontains': value})
+            if order_by in ['FideicomisoAsociado', 'Primer_Nombre', 'Segundo_Nombre', 'Primer_Apellido', 'Segundo_Apellido', 'TipoActor', 'FideicomisoAsociado', 'FechaActualizacion', 'Activo']:
+                    if order_direction == 'desc':
+                        order_by = '-' + order_by
+                    queryset = queryset.order_by(order_by, 'FideicomisoAsociado')
+            return queryset
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e))
 class ActorDeContratoCreateView(APIView):
     def post(self, request):
         try:
