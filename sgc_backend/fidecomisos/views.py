@@ -59,14 +59,19 @@ class EncargoListView(APIView):
             raise NotFound('No existe ese fideicomiso .-.')
         except Exception as e:
             return Response({'error': str(e)}, status=500)
-        encargo = Encargo.objects.filter(Fideicomiso=fideicomiso).order_by('NumeroEncargo')
-        for field, value in request.query_params.items():
-            if field in [f.name for f in Encargo._meta.get_fields()]:
-                encargo = encargo.filter(**{field: value})
-        paginator = CustomPageNumberPagination()
-        paginated_encargo = paginator.paginate_queryset(encargo, request)
-        encargo_serializer = EncargoSerializer(paginated_encargo, many=True)
-        return paginator.get_paginated_response(encargo_serializer.data)
+        try:
+            encargo = Encargo.objects.filter(Fideicomiso=fideicomiso).order_by('NumeroEncargo')
+            for field, value in request.query_params.items():
+                if field in [f.name for f in Encargo._meta.get_fields()]:
+                    encargo = encargo.filter(**{field: value})
+            paginator = CustomPageNumberPagination()
+            paginated_encargo = paginator.paginate_queryset(encargo, request)
+            encargo_serializer = EncargoSerializer(paginated_encargo, many=True)
+            return paginator.get_paginated_response(encargo_serializer.data)
+        except ObjectDoesNotExist:
+            return Response({'error': 'No se encuentra encargos'}, status=404)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
 class FideicomisoDetailView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -105,19 +110,24 @@ class ActorFideicomisoListView(APIView):
     permission_classes = [IsAuthenticated, HasRolePermission]
 
     def get(self, request, numero_identificacion):
-        actor = ActorDeContrato.objects.get(NumeroIdentificacion=numero_identificacion)
-        fideicomisos = actor.FideicomisoAsociado.all()
+        try:
+            actor = ActorDeContrato.objects.get(NumeroIdentificacion=numero_identificacion)
+            fideicomisos = actor.FideicomisoAsociado.all()
 
-        for field, value in request.query_params.items():
-            if field in [f.name for f in Fideicomiso._meta.get_fields()]:
-                fideicomisos = fideicomisos.filter(**{field: value})
+            for field, value in request.query_params.items():
+                if field in [f.name for f in Fideicomiso._meta.get_fields()]:
+                    fideicomisos = fideicomisos.filter(**{field: value})
 
-        paginator = CustomPageNumberPagination()
-        paginator.page_size = 10  # set the page size here
-        paginated_fideicomisos = paginator.paginate_queryset(fideicomisos, request)
-        fideicomiso_serializer = FideicomisoSerializer(paginated_fideicomisos, many=True)
+            paginator = CustomPageNumberPagination()
+            paginator.page_size = 10  # set the page size here
+            paginated_fideicomisos = paginator.paginate_queryset(fideicomisos, request)
+            fideicomiso_serializer = FideicomisoSerializer(paginated_fideicomisos, many=True)
 
-        return paginator.get_paginated_response(fideicomiso_serializer.data)
+            return paginator.get_paginated_response(fideicomiso_serializer.data)
+        except ObjectDoesNotExist:
+            return Response({'error': 'No se encuentran los fideicomisos :O'}, status=404)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
 class FideicomisoList(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -238,7 +248,7 @@ class UpdateFideicomisoView(APIView):
             transaction.commit()
             cur.close()
             conn.close()
-            return Response({'status': 'success'}, status=status.HTTP_200_OK)
+            return Response({'status': 'Exito'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

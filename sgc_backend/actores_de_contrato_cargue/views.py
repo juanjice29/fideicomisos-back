@@ -64,14 +64,19 @@ class ActorDeContratoListView(generics.ListAPIView):
             raise NotFound('No existe ese fideicomiso .-.')
         except Exception as e:
             return Response({'error': str(e)}, status=500)
-        Actor = ActorDeContrato.objects.filter(FideicomisoAsociado__in=[fideicomiso]).order_by('NumeroIdentificacion')
-        for field, value in request.query_params.items():
-            if field in [f.name for f in  ActorDeContrato._meta.get_fields()]:
-                Actor = Actor.filter(**{field: value})
-        paginator = CustomPageNumberPagination()
-        paginated_actor = paginator.paginate_queryset(Actor, request)
-        actor_serializer = ActorDeContratoSerializer(paginated_actor, many=True)
-        return paginator.get_paginated_response(actor_serializer.data)
+        try:
+            Actor = ActorDeContrato.objects.filter(FideicomisoAsociado__in=[fideicomiso]).order_by('NumeroIdentificacion')
+            for field, value in request.query_params.items():
+                if field in [f.name for f in  ActorDeContrato._meta.get_fields()]:
+                    Actor = Actor.filter(**{field: value})
+            paginator = CustomPageNumberPagination()
+            paginated_actor = paginator.paginate_queryset(Actor, request)
+            actor_serializer = ActorDeContratoSerializer(paginated_actor, many=True)
+            return paginator.get_paginated_response(actor_serializer.data)
+        except ObjectDoesNotExist:
+            return Response({'error': 'No se encuentra el Actor de Contrato :('}, status=404)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
 class ActorDeContratoCreateView(APIView):
     def post(self, request):
         try:
