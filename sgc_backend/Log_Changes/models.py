@@ -61,8 +61,9 @@ def post_save_receiver(sender, instance, created, **kwargs):
             for field in instance._meta.fields:
                 field_name = field.name
                 new_value = getattr(instance, field_name)
+                user = User.objects.get(username=request.user.username)  # get the User instance
                 Log_Cambios_Create.objects.create(
-                    Usuario=request.user.username,
+                    Usuario=user,  # assign the User instance
                     Ip=get_client_ip(request),
                     Nombre_Modelo=sender.__name__,
                     Nombre_Campo=field_name,
@@ -96,9 +97,10 @@ def pre_save_receiver(sender, instance, **kwargs):
         for field in instance._meta.fields:
             old_value = getattr(old_instance, field.name)
             new_value = getattr(instance, field.name)
+            user = User.objects.get(username=request.user.username)
             if old_value != new_value:
                 Log_Cambios_Update.objects.create(
-                    Usuario=request.user.username,
+                    Usuario=user,
                     Ip=get_client_ip(request),
                     Nombre_Modelo=sender.__name__,
                     Nombre_Campo=field.name,
@@ -126,8 +128,9 @@ def pre_delete_receiver(sender, instance, **kwargs):
 
         for field in instance._meta.fields:
             old_value = getattr(instance, field.name)
+            user = User.objects.get(username=request.user.username)
             Log_Cambios_Delete.objects.create(
-                Usuario=request.user.username,
+                Usuario=user,
                 Ip=get_client_ip(request),
                 Nombre_Modelo=sender.__name__,
                 Nombre_Campo=field.name,

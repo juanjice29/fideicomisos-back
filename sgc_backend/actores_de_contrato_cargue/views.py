@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from fidecomisos.models import Fideicomiso
 from .forms import UploadFileForm
+from rest_framework.exceptions import NotFound
 import pandas as pd
 from rest_framework.permissions import IsAuthenticated
 from .models import ActorDeContrato, TipoActorDeContrato
@@ -23,6 +24,8 @@ from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 from rest_framework.exceptions import ParseError
 from rest_framework.exceptions import APIException
 from sgc_backend.pagination import CustomPageNumberPagination
+from fidecomisos.models import Fideicomiso
+
 def upload_file(request):
     if request.method == 'POST':
         form = UploadFileForm(request.POST, request.FILES)
@@ -53,36 +56,22 @@ class TipoActorDeContratoListView(generics.ListAPIView):
 class ActorDeContratoListView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
-    serializer_class = ActorDeContratoSerializer
     pagination_class = CustomPageNumberPagination
-    def get_queryset(self):
+    def get(self, request, codigo_sfc):
         try:
-            queryset = ActorDeContrato.objects.all()
-            FideicomisoAsociado = self.request.query_params.get('FideicomisoAsociado', None)
-            Primer_Nombre = self.request.query_params.get('Primer_Nombre', None)
-            Segundo_Nombre = self.request.query_params.get('Segundo_Nombre', None)
-            Primer_Apellido = self.request.query_params.get('Primer_Apellido', None)
-            Segundo_Apellido = self.request.query_params.get('Segundo_Apellido', None)
-            TipoActor = self.request.query_params.get('TipoActor', None)
-            FideicomisoAsociado = self.request.query_params.get('FideicomisoAsociado', None)
-            FechaActualizacion = self.request.query_params.get('FechaActualizacion', None)
-            Activo = self.request.query_params.get('Activo', None)
-            order_direction = self.request.query_params.get('order_direction', 'asc')
-            query_params = ['FideicomisoAsociado', 'Primer_Nombre', 'Segundo_Nombre', 'Primer_Apellido', 'Segundo_Apellido', 'TipoActor', 'FideicomisoAsociado', 'FechaActualizacion', 'Activo']
-            for param in query_params:
-                value = self.request.query_params.get(param, None)
-                if value is not None:
-                    model_field = param
-                    queryset = queryset.filter(**{f'{model_field}__icontains': value})
-            if order_by in ['FideicomisoAsociado', 'Primer_Nombre', 'Segundo_Nombre', 'Primer_Apellido', 'Segundo_Apellido', 'TipoActor', 'FideicomisoAsociado', 'FechaActualizacion', 'Activo']:
-                    if order_direction == 'desc':
-                        order_by = '-' + order_by
-                    queryset = queryset.order_by(order_by, 'FideicomisoAsociado')
-            return queryset
-        except ValidationError as e:
-            raise ParseError(detail=str(e))
+            fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo_sfc)
+        except ObjectDoesNotExist:
+            raise NotFound('No existe ese fideicomiso .-.')
         except Exception as e:
-            raise APIException(detail=str(e))
+            return Response({'error': str(e)}, status=500)
+        Actor = ActorDeContrato.objects.filter(FideicomisoAsociado__in=[fideicomiso]).order_by('NumeroIdentificacion')
+        for field, value in request.query_params.items():
+            if field in [f.name for f in  ActorDeContrato._meta.get_fields()]:
+                Actor = Actor.filter(**{field: value})
+        paginator = CustomPageNumberPagination()
+        paginated_actor = paginator.paginate_queryset(Actor, request)
+        actor_serializer = ActorDeContratoSerializer(paginated_actor, many=True)
+        return paginator.get_paginated_response(actor_serializer.data)
 class ActorDeContratoCreateView(APIView):
     def post(self, request):
         try:
@@ -111,7 +100,6 @@ class ActorDeContratoCreateView(APIView):
             try:
                 actor = ActorDeContrato.objects.create(
                     TipoIdentificacion=tipo_documento_instance,
-                    FideicomisoAsociado=fideicomiso,
                     NumeroIdentificacion=numero_identificacion,
                     TipoActor=tipo_actor,
                     Primer_Nombre=Primer_Nombre,
@@ -121,6 +109,7 @@ class ActorDeContratoCreateView(APIView):
                     Activo=True,
                     FechaActualizacion=timezone.now()
                 )
+                actor.FideicomisoAsociado.set([fideicomiso])
             except IntegrityError:
                 return Response({
                     'status': 'error',
