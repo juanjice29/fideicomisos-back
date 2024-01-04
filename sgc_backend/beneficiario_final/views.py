@@ -1,5 +1,6 @@
 
 from rest_framework import generics
+from django.db import connection
 from .serializers import Beneficiario_ReporteSerializer
 from rest_framework.response import Response
 from rest_framework import status
@@ -69,4 +70,45 @@ class UpdateBeneficiarioDianView(APIView):
                 }
             )    
         Beneficiario_Reporte_Dian.objects.exclude(client_id__in=id_cliente_set).delete()    
+        return Response(status=status.HTTP_200_OK)
+    
+class UpdateBeneficiarioReporteDianView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, format=None):
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                sql-here
+            """)
+            rows = cursor.fetchall()
+
+        for row in rows:
+            Id_Cliente = row[0]  # adjust the index based on  SQL query
+            Fecha_Creado = datetime.strptime(row[1], '%Y-%m-%d')  # adjust the index and date format based on  SQL query
+            Fecha_Añadido = datetime.now()
+
+            # calculate the period based on the current date
+            year = Fecha_Añadido.year
+            quarter = (Fecha_Añadido.month - 1) // 3 + 1
+            Periodo = f'{year}-{quarter}'
+
+            # determine the Tipo_Novedad based on whether the Id_Cliente exists in the last period
+            last_period = f'{year}-{quarter - 1 if quarter > 1 else 4}'
+            exists_in_last_period = Beneficiario_Reporte_Dian.objects.filter(client_id=Id_Cliente, Periodo=last_period).exists()
+            Tipo_Novedad = '2' if exists_in_last_period else '1'
+
+            # determine the Activo based on the Tipo_Novedad
+            Activo = Tipo_Novedad != '3'
+
+            Beneficiario_Reporte_Dian.objects.update_or_create(
+                client_id=Id_Cliente,
+                defaults={
+                    'Tipo_Novedad': Tipo_Novedad,
+                    'Tipo_Producto': '10',
+                    'Fecha_Añadido': Fecha_Añadido,
+                    'Fecha_Creado': Fecha_Creado,
+                    'Periodo': Periodo,
+                    'Activo': Activo
+                }
+            )
+
         return Response(status=status.HTTP_200_OK)
