@@ -22,3 +22,7 @@ class Beneficiario_Reporte_Dian(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['Id_Cliente', 'Tipo_Novedad', 'Tipo_Producto'], name='unique_identificacion_beneficiario')
         ]
+class File(models.Model):
+    file_name = models.CharField(max_length=255)
+    file_hash = models.CharField(max_length=32)
+    date_inserted = models.DateTimeField(auto_now_add=True)
