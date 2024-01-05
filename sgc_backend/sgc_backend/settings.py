@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from datetime import timedelta
 import datetime
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,7 +45,10 @@ LOGGING = {
     },
 }
 #remember to install redis
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
+#BROKER_URL = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@192.168.169.23:5672/')
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_CACHE_BACKEND = 'django-cache'
+#CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 INSTALLED_APPS = [
@@ -66,6 +70,7 @@ INSTALLED_APPS = [
     'beneficiario_final',
     'Log_Changes',
     'django_celery_beat',
+    'django_celery_results',
     
 ]
 

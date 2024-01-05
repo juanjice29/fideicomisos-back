@@ -18,6 +18,7 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import logging
 from .tasks import run_tasks_in_order
+
 class RunTasksView(APIView):
     def get(self, request, format=None):
         run_tasks_in_order.apply_async()

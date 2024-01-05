@@ -1,5 +1,7 @@
 from celery import Celery
 from celery import shared_task, chain
+import logging
+logger = logging.getLogger(__name__)
 celery = Celery()
 # Task 1
 @celery.task
@@ -33,3 +35,8 @@ def run_tasks_in_order():
 
     # Chain the tasks
     chain(task1 | task2 | task3).apply_async()
+    
+@celery.task
+def add(x, y):
+    logger.info("hpta")
+    return x + y

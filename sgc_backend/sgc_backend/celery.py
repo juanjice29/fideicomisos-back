@@ -24,8 +24,9 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=0, minute=0),
     },
     'beneficiario-final-task-every-3-months': {
-        'task': 'beneficiario_final.tasks.run_tasks_in_order',  # Replace with the name of your task
-        'schedule': crontab(month_of_year='*/3'),
+        'task': 'beneficiario_final.tasks.add',  # Replace with the name of your task
+        'schedule': crontab(minute="*/1"),
+        'args': (16, 16)
     },
     #Example of another task
     #'another-task-every-hour': {
