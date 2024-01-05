@@ -1,6 +1,6 @@
 /env
 /myenv
 /venv
-celerybeat-schedule.bak
-celerybeat-schedule.dat
-celerybeat-schedule.dir
+sgc_backend/celerybeat-schedule.bak
+sgc_backend/celerybeat-schedule.dat
+sgc_backend/celerybeat-schedule.dir
