@@ -1,7 +1,7 @@
 from django.utils import timezone
 from datetime import timedelta
-from your_app.models import Log_Cambios_Create, Log_Cambios_Update
-from your_project.celery import app
+from Log_Changes.models import Log_Cambios_Create, Log_Cambios_Update
+from sgc_backend.celery import app
 
 @app.task
 def cleanup_logs():
