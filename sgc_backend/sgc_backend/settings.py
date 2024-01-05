@@ -43,6 +43,10 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+#remember to install redis
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -60,6 +64,7 @@ INSTALLED_APPS = [
     'fidecomisos',
     'actores_de_contrato_cargue',
     'beneficiario_final',
+    'Log_Changes',
     
 ]
 
@@ -72,6 +77,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'sgc_backend.middleware.CurrentRequestMiddleware'
    
     
 ]

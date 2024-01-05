@@ -5,7 +5,8 @@ from django.http import JsonResponse
 from rest_framework.permissions import IsAuthenticated
 from sgc_backend.permissions import HasRolePermission
 from rest_framework.exceptions import PermissionDenied
-from accounts.models import Permisos# Import the Permission model
+from accounts.models import Permisos # Import the Permission model
+from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 class IndexView(APIView):
    
     def get(self, request, format=None):
@@ -15,12 +16,8 @@ class IndexView(APIView):
         return Response(content)
 
 class RestrictedView(APIView):
-    permission_classes = [HasRolePermission]
-    def check_permissions(self, request):
-        self.required_roles = list(Permisos.objects.filter(view__name='RestrictedView').values_list('role__name', flat=True))
-        if not request.user.profile.rol.name in self.required_roles:
-            raise PermissionDenied('You do not have permission to view this.')
-        return super().check_permissions(request)
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
 
     def get(self, request):
         return Response(data="Only for users with the authorized roles")

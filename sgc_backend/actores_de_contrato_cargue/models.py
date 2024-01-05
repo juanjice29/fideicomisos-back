@@ -17,11 +17,11 @@ class ActorDeContrato(models.Model):
     Primer_Apellido = models.CharField(max_length=100)
     Segundo_Apellido = models.CharField(max_length=100)
     TipoActor = models.ForeignKey(TipoActorDeContrato, on_delete=models.CASCADE)
-    FideicomisoAsociado = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE, null=False)
+    FideicomisoAsociado = models.ManyToManyField(Fideicomiso)
     FechaActualizacion = models.DateField()
     Activo = models.BooleanField(default=True)
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['NumeroIdentificacion', 'FideicomisoAsociado'], name='unique_identificacion_fideicomiso')
+            models.UniqueConstraint(fields=['NumeroIdentificacion'], name='unique_identificacion')
         ]
         

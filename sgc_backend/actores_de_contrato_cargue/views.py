@@ -2,9 +2,12 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from fidecomisos.models import Fideicomiso
 from .forms import UploadFileForm
+from rest_framework.exceptions import NotFound
 import pandas as pd
+from rest_framework.permissions import IsAuthenticated
 from .models import ActorDeContrato, TipoActorDeContrato
 from rest_framework import viewsets
+from django.core.exceptions import ValidationError
 from .models import ActorDeContrato
 from .serializers import ActorDeContratoSerializer
 from fidecomisos.models import Encargo, TipoDeDocumento
@@ -16,6 +19,12 @@ from rest_framework import status
 from django.utils import timezone
 from rest_framework import generics
 from .serializers import TipoActorDeContratoSerializer
+from django.db import IntegrityError
+from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
+from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import APIException
+from sgc_backend.pagination import CustomPageNumberPagination
+from fidecomisos.models import Fideicomiso
 
 def upload_file(request):
     if request.method == 'POST':
@@ -41,21 +50,33 @@ def upload_file(request):
     else:
         return JsonResponse({'status': 'invalid request'}, status=400)
 
-class EncargoListView(generics.ListAPIView):
-    serializer_class = EncargoSerializer
-
-    def get_queryset(self):
-        queryset = Encargo.objects.all().order_by('id')
-        codigo_sfc = self.request.query_params.get('CodigoSFC', None)
-        if codigo_sfc is not None:
-            queryset = queryset.filter(Fideicomiso__CodigoSFC=codigo_sfc)
-        return queryset
 class TipoActorDeContratoListView(generics.ListAPIView):
     queryset = TipoActorDeContrato.objects.all().order_by('id')
     serializer_class = TipoActorDeContratoSerializer
 class ActorDeContratoListView(generics.ListAPIView):
-    queryset = ActorDeContrato.objects.all().order_by('id')
-    serializer_class = ActorDeContratoSerializer
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
+    pagination_class = CustomPageNumberPagination
+    def get(self, request, codigo_sfc):
+        try:
+            fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo_sfc)
+        except ObjectDoesNotExist:
+            raise NotFound('No existe ese fideicomiso .-.')
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+        try:
+            Actor = ActorDeContrato.objects.filter(FideicomisoAsociado__in=[fideicomiso]).order_by('NumeroIdentificacion')
+            for field, value in request.query_params.items():
+                if field in [f.name for f in  ActorDeContrato._meta.get_fields()]:
+                    Actor = Actor.filter(**{field: value})
+            paginator = CustomPageNumberPagination()
+            paginated_actor = paginator.paginate_queryset(Actor, request)
+            actor_serializer = ActorDeContratoSerializer(paginated_actor, many=True)
+            return paginator.get_paginated_response(actor_serializer.data)
+        except ObjectDoesNotExist:
+            return Response({'error': 'No se encuentra el Actor de Contrato :('}, status=404)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
 class ActorDeContratoCreateView(APIView):
     def post(self, request):
         try:
@@ -81,19 +102,24 @@ class ActorDeContratoCreateView(APIView):
             if len(numero_identificacion) > 12:
                 return Response({'status': 'invalid request', 'message': 'NumeroIdentificacion debe ser de 12 caracteres o menos'}, status=status.HTTP_400_BAD_REQUEST)
 
-            actor = ActorDeContrato.objects.create(
-                TipoIdentificacion=tipo_documento_instance,
-                FideicomisoAsociado=fideicomiso,
-                NumeroIdentificacion=numero_identificacion,
-                TipoActor=tipo_actor,
-                Primer_Nombre=Primer_Nombre,
-                Segundo_Nombre=Segundo_Nombre,
-                Primer_Apellido=Primer_Apellido,
-                Segundo_Apellido=Segundo_Apellido,
-                Activo=True,
-                FechaActualizacion=timezone.now()
-            )
-
+            try:
+                actor = ActorDeContrato.objects.create(
+                    TipoIdentificacion=tipo_documento_instance,
+                    NumeroIdentificacion=numero_identificacion,
+                    TipoActor=tipo_actor,
+                    Primer_Nombre=Primer_Nombre,
+                    Segundo_Nombre=Segundo_Nombre,
+                    Primer_Apellido=Primer_Apellido,
+                    Segundo_Apellido=Segundo_Apellido,
+                    Activo=True,
+                    FechaActualizacion=timezone.now()
+                )
+                actor.FideicomisoAsociado.set([fideicomiso])
+            except IntegrityError:
+                return Response({
+                    'status': 'error',
+                    'message': 'La relación de NumeroIdentificacion con Fideicomiso ya existe'
+                }, status=status.HTTP_400_BAD_REQUEST)
             return Response({'status': 'success'}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

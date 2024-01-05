@@ -13,9 +13,6 @@ from dateutil.relativedelta import relativedelta
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 from .models import TipoDeDocumento
 from dateutil.relativedelta import relativedelta
 from django.shortcuts import get_object_or_404
@@ -28,30 +25,109 @@ from django.db import IntegrityError
 from django.contrib import messages
 import logging
 import hashlib
-from .pagination import CustomPageNumberPagination
+from sgc_backend.pagination import CustomPageNumberPagination, ActorDeContratoPagination, EncargoPagination
 from django.core.cache import cache
 from .serializers import TipoDeDocumentoSerializer
 from rest_framework.permissions import IsAuthenticated
-from .permissions import HasRolePermission, LoggingJWTAuthentication
+from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 import logging
 from django.core.paginator import Paginator
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import APIException
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from .serializers import EncargoSerializer
+from actores_de_contrato_cargue.serializers import ActorDeContratoSerializer
+from actores_de_contrato_cargue.models import ActorDeContrato
+from django.core.exceptions import ObjectDoesNotExist
+from rest_framework.exceptions import NotFound
 class TipoDeDocumentoListView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
     queryset = TipoDeDocumento.objects.all()
     serializer_class = TipoDeDocumentoSerializer   
 
-class EncargoListView(generics.ListAPIView):
+class EncargoListView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
-    queryset = Encargo.objects.all()
-    serializer_class = EncargoSerializer
+    pagination_class = CustomPageNumberPagination
+    def get(self, request, codigo_sfc):
+        try:
+            fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo_sfc)
+        except ObjectDoesNotExist:
+            raise NotFound('No existe ese fideicomiso .-.')
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+        try:
+            encargo = Encargo.objects.filter(Fideicomiso=fideicomiso).order_by('NumeroEncargo')
+            for field, value in request.query_params.items():
+                if field in [f.name for f in Encargo._meta.get_fields()]:
+                    encargo = encargo.filter(**{field: value})
+            paginator = CustomPageNumberPagination()
+            paginated_encargo = paginator.paginate_queryset(encargo, request)
+            encargo_serializer = EncargoSerializer(paginated_encargo, many=True)
+            return paginator.get_paginated_response(encargo_serializer.data)
+        except ObjectDoesNotExist:
+            return Response({'error': 'No se encuentra encargos'}, status=404)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+class FideicomisoDetailView(APIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
+    pagination_class = CustomPageNumberPagination
+    def get(self, request, codigo_sfc):
+        try:
+            fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo_sfc)
+        except ObjectDoesNotExist:
+            raise NotFound('No existe ese fideicomiso .-.')
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+        encargo_paginator = EncargoPagination()
+        encargo_paginator.page_size = 10
+        actores_de_contrato_paginator = ActorDeContratoPagination()
+        actores_de_contrato_paginator.page_size = 10
+        encargo = Encargo.objects.filter(Fideicomiso=fideicomiso).order_by('NumeroEncargo')
+        for field, value in request.query_params.items():
+            if field in [f.name for f in Encargo._meta.get_fields()]:
+                encargo = encargo.filter(**{field: value})
+        actores_de_contrato = ActorDeContrato.objects.filter(FideicomisoAsociado=fideicomiso).order_by('NumeroIdentificacion')
+        for field, value in request.query_params.items():
+            if field in [f.name for f in ActorDeContrato._meta.get_fields()]:
+                actores_de_contrato = actores_de_contrato.filter(**{field: value}) 
+        encargo = encargo_paginator.paginate_queryset(encargo, request)
+        actores_de_contrato = actores_de_contrato_paginator.paginate_queryset(actores_de_contrato, request)
+        encargo_serializer = EncargoSerializer(encargo, many=True)
+        actores_de_contrato_serializer = ActorDeContratoSerializer(actores_de_contrato, many=True)
+        return Response({
+            'encargo': encargo_serializer.data,
+            'actores_de_contrato': actores_de_contrato_serializer.data,
+            #'beneficiario_final': beneficiario_final_serializer.data,
+        })
 
-from .pagination import CustomPageNumberPagination
-from rest_framework.exceptions import ParseError
-from rest_framework.exceptions import APIException
+class ActorFideicomisoListView(APIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
 
+    def get(self, request, numero_identificacion):
+        try:
+            actor = ActorDeContrato.objects.get(NumeroIdentificacion=numero_identificacion)
+            fideicomisos = actor.FideicomisoAsociado.all()
+
+            for field, value in request.query_params.items():
+                if field in [f.name for f in Fideicomiso._meta.get_fields()]:
+                    fideicomisos = fideicomisos.filter(**{field: value})
+
+            paginator = CustomPageNumberPagination()
+            paginator.page_size = 10  # set the page size here
+            paginated_fideicomisos = paginator.paginate_queryset(fideicomisos, request)
+            fideicomiso_serializer = FideicomisoSerializer(paginated_fideicomisos, many=True)
+
+            return paginator.get_paginated_response(fideicomiso_serializer.data)
+        except ObjectDoesNotExist:
+            return Response({'error': 'No se encuentran los fideicomisos :O'}, status=404)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
 class FideicomisoList(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -75,13 +151,8 @@ class FideicomisoList(generics.ListAPIView):
                 if order_direction == 'desc':
                     order_by = '-' + order_by
                 queryset = queryset.order_by(order_by, 'CodigoSFC')
-
-
             return queryset
         except ValidationError as e:
-
-        # ...
-
             raise ParseError(detail=str(e))
         except Exception as e:
             raise APIException(detail=str(e))
@@ -108,8 +179,6 @@ class FideicomisoList(generics.ListAPIView):
                 page_number = request.data.get('page_number', 1)
                 paginator = PageNumberPagination()
                 paginator.page_size = page_size
-
-                # Set the page number in the request's query parameters
                 request.query_params._mutable = True
                 request.query_params['page'] = page_number
                 request.query_params._mutable = False
@@ -179,7 +248,7 @@ class UpdateFideicomisoView(APIView):
             transaction.commit()
             cur.close()
             conn.close()
-            return Response({'status': 'success'}, status=status.HTTP_200_OK)
+            return Response({'status': 'Exito'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
