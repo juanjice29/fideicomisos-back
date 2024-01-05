@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'actores_de_contrato_cargue',
     'beneficiario_final',
     'Log_Changes',
+    'django_celery_beat',
     
 ]
 

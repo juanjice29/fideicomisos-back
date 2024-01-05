@@ -16,6 +16,12 @@ from rest_framework.parsers import MultiPartParser, FormParser
 import hashlib
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+import logging
+from .tasks import run_tasks_in_order
+class RunTasksView(APIView):
+    def get(self, request, format=None):
+        run_tasks_in_order.apply_async()
+        return Response({'status': 'Tasks started'})
 class BeneficiarioDianCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     queryset = Beneficiario_Reporte_Dian.objects.all()
@@ -31,6 +37,8 @@ class BeneficiarioDianByUserTypeView(generics.ListAPIView):
     def get_queryset(self):
         user_type = self.kwargs.get('Tipo_Novedad')
         return Beneficiario_Reporte_Dian.objects.filter(user_type=user_type)
+
+logger = logging.getLogger(__name__)
 class UpdateBeneficiarioDianView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
@@ -51,20 +59,26 @@ class UpdateBeneficiarioDianView(APIView):
         xml_data = ET.fromstring(file_content)
         product = request.data.get('FONDO')
         period = request.data.get('PERIODO_REPORTADO')
-        for item in xml_data.findall('item'):
-            Id_Cliente = item.find('niben').text
-            Tipo_Novedad = item.find('tnov').text
-            TIPO_IDENTIF = item.find('tdocben').text
-            id_cliente_set = set()
-            RPBF_HISTORICO.objects.update_or_create(
-                NRO_IDENTIF=Id_Cliente,
+        for item in xml_data.findall('bene'):
+            NRO_IDENTIF = item.get('niben')
+            Tipo_Novedad = item.get('tnov')
+            TIPO_IDENTIF = item.get('tdocben')
+            NRO_IDENTIF_set = set()
+            period_instance = RPBF_PERIODOS.objects.get(PERIODO=period)
+            obj, created = RPBF_HISTORICO.objects.update_or_create(
+                NRO_IDENTIF=NRO_IDENTIF,
                 defaults={
                     'TIPO_NOVEDAD': Tipo_Novedad,
+                    'TIPO_IDENTIF': TIPO_IDENTIF,
                     'FONDO': product,
-                    'PERIODO_REPORTADO': period,
+                    'PERIODO_REPORTADO': period_instance,
                 
                 }
-            )    
+            )
+            if created:
+                logger.info(f'Created record with NRO_IDENTIF={NRO_IDENTIF}')
+            else:
+                logger.info(f'Updated record with NRO_IDENTIF={NRO_IDENTIF}')    
         return Response(status=status.HTTP_200_OK)
     
 class UpdateBeneficiarioReporteDianView(APIView):
@@ -163,3 +177,4 @@ class CheckIntegrityView(View):
 
         # return a response indicating that the integrity check is complete
         return JsonResponse({'status': 'Integrity check complete'})
+    
