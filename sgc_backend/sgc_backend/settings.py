@@ -44,8 +44,11 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+##multiple workers celery -A your_project_name worker --loglevel=info -n worker1@%h
 #remember to install redis
 #BROKER_URL = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@192.168.169.23:5672/')
+CELERY_BROKER_URL = 'amqp://localhost'
+CELERY_TASK_RESULT_EXPIRES = None
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
 #CELERY_BROKER_URL = 'redis://localhost:6379/0'

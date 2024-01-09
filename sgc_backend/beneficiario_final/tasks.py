@@ -1,8 +1,11 @@
 from celery import Celery
 from celery import shared_task, chain
 import logging
+import pdb 
 logger = logging.getLogger(__name__)
 celery = Celery()
+def progress_callback(current, total):
+    print('Task progress: {}%'.format(current / total * 100))
 # Task 1
 @celery.task
 def compare_with_db():
@@ -40,3 +43,31 @@ def run_tasks_in_order():
 def add(x, y):
     logger.info("hpta")
     return x + y
+
+logger = logging.getLogger(__name__)
+
+@shared_task
+def create_role(total_roles):
+    try:
+        from accounts.models import Role
+        for i in range(total_roles):
+            Role.objects.create(name='sap')
+        progress_callback(i+1, total_roles)
+        logger.info("Role 'sap' created.")
+        pdb.set_trace()
+    except Exception as e:
+        logger.error(f"Error creating role 'sap': {e}")
+        pdb.set_trace()
+@shared_task
+def create_random_user_accounts(total):
+    import string
+    from django.contrib.auth.models import User
+    from django.utils.crypto import get_random_string
+    from celery import shared_task
+    pdb.set_trace()
+    for i in range(total):
+        username = 'user_{}'.format(get_random_string(10, string.ascii_letters))
+        email = '{}@example.com'.format(username)
+        password = get_random_string(50)
+        User.objects.create_user(username=username, email=email, password=password)
+    return '{} random users created with success!'.format(total)

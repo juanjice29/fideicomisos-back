@@ -3,6 +3,7 @@ import os
 from celery import Celery
 from celery import shared_task, chain
 from beneficiario_final.tasks import compare_with_db, generate_xml, replace_table
+import json
 from celery.schedules import crontab
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sgc_backend.settings')
@@ -17,16 +18,15 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
 
-
 app.conf.beat_schedule = {
     'cleanup-every-midnight': {
         'task': 'Log_Changes.tasks.cleanup_logs',
         'schedule': crontab(hour=0, minute=0),
     },
-    'beneficiario-final-task-every-3-months': {
-        'task': 'beneficiario_final.tasks.add',  # Replace with the name of your task
+    'beneficiario-final': {
+        'task': 'beneficiario_final.tasks.create_role',  # Replace with the name of your task
         'schedule': crontab(minute="*/1"),
-        'args': (16, 16)
+        'args': (10,),
     },
     #Example of another task
     #'another-task-every-hour': {
