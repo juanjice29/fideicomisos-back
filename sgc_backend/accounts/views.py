@@ -54,7 +54,7 @@ class LoginView(APIView):
         data = serializer.validated_data
 
         # Fetch the views that the user's role has permission to access
-        views = list(Permisos.objects.filter(role__name=user.profile.rol.name).values_list('view__name', flat=True))
+        views = list(Permisos.objects.filter(role__name=user.profile.Rol.Nombre).values_list('view__name', flat=True))
 
         response_data = {
             'user': {

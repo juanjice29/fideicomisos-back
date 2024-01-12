@@ -16,26 +16,26 @@ import logging
 class Log_Cambios_Create(models.Model):
     Usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     Ip = models.GenericIPAddressField()
-    Tiempo_Accion = models.DateTimeField(auto_now_add=True)
-    Nombre_Modelo = models.CharField(max_length=50)
-    Nombre_Campo = models.CharField(max_length=50)
-    Nuevo_Valor = models.TextField(null=True)
+    TiempoAccion = models.DateTimeField(auto_now_add=True)
+    NombreModelo = models.CharField(max_length=50)
+    NombreCampo = models.CharField(max_length=50)
+    NuevoValor = models.TextField(null=True)
 
 class Log_Cambios_Update(models.Model):
     Usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     Ip = models.GenericIPAddressField()
-    Tiempo_Accion = models.DateTimeField(auto_now_add=True)
-    Nombre_Modelo = models.CharField(max_length=50)
-    Nombre_Campo = models.CharField(max_length=50)
-    Antiguo_Valor = models.TextField(null=True)
-    Nuevo_Valor = models.TextField(null=True)
+    TiempoAccion = models.DateTimeField(auto_now_add=True)
+    NombreModelo = models.CharField(max_length=50)
+    NombreCampo = models.CharField(max_length=50)
+    AntiguoValor = models.TextField(null=True)
+    NuevoValor = models.TextField(null=True)
 
 class Log_Cambios_Delete(models.Model):
     Usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     Ip = models.GenericIPAddressField()
-    Tiempo_Accion = models.DateTimeField(auto_now_add=True)
-    Nombre_Modelo = models.CharField(max_length=50)   
-    Antiguo_Valor = models.TextField(null=True) 
+    TiempoAccion = models.DateTimeField(auto_now_add=True)
+    NombreModelo = models.CharField(max_length=50)   
+    AntiguoValor = models.TextField(null=True) 
 
 
 # Function to get client's IP address
@@ -65,9 +65,9 @@ def post_save_receiver(sender, instance, created, **kwargs):
                 Log_Cambios_Create.objects.create(
                     Usuario=user,  # assign the User instance
                     Ip=get_client_ip(request),
-                    Nombre_Modelo=sender.__name__,
-                    Nombre_Campo=field_name,
-                    Nuevo_Valor=str(new_value),
+                    NombreModelo=sender.__name__,
+                    NombreCampo=field_name,
+                    NuevoValor=str(new_value),
                 )
     except IntegrityError:
         # Handle the case where the instance violates a database constraint
@@ -132,9 +132,9 @@ def pre_delete_receiver(sender, instance, **kwargs):
             Log_Cambios_Delete.objects.create(
                 Usuario=user,
                 Ip=get_client_ip(request),
-                Nombre_Modelo=sender.__name__,
-                Nombre_Campo=field.name,
-                Antiguo_Valor=str(old_value),
+                NombreModelo=sender.__name__,
+                NombreCampo=field.name,
+                AntiguoValor=str(old_value),
             )
     except IntegrityError:
         # Handle the case where the instance violates a database constraint

@@ -17,6 +17,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as AuthUserAdmin
+from django.contrib import admin
 
 class UserAdminForm(forms.ModelForm):
     class Meta:
@@ -35,7 +36,7 @@ class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False
     verbose_name_plural = 'Profile'
-    fk_name = 'user'
+    fk_name = 'Usuario'
 
 class CustomUserAdmin(AuthUserAdmin):
     form = UserAdminForm
@@ -53,11 +54,11 @@ admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
 @admin.register(Role)
 class RolAdmin(admin.ModelAdmin):
-    list_display = ['name']
+    list_display = ['Nombre']
 @admin.register(Permisos)
 class PermisosAdmin(admin.ModelAdmin):
-    list_display = ['role', 'view']
+    list_display = ['Rol', 'Vista']
     
 @admin.register(View)
 class ViewAdmin(admin.ModelAdmin):
-    list_display = ['name']
+    list_display = ['Nombre']

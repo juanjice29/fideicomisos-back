@@ -82,11 +82,11 @@ class ActorDeContratoCreateView(APIView):
         try:
             codigo_sfc = request.data.get('FideicomisoAsociado')
             tipo_actor_id = request.data.get('TipoActor')
-            Primer_Nombre = request.data.get('Primer_Nombre')
-            Segundo_Nombre = request.data.get('Segundo_Nombre')
-            Primer_Apellido = request.data.get('Primer_Apellido')
-            Segundo_Apellido = request.data.get('Segundo_Apellido')
-            numero_identificacion = request.data.get('NumeroIdentificacion')
+            PrimerNombre = request.data.get('PrimerNombre')
+            SegundoNombre = request.data.get('SegundoNombre')
+            PrimerApellido = request.data.get('PrimerApellido')
+            SegundoApellido = request.data.get('SegundoApellido')
+            numeroidentificacion = request.data.get('NumeroIdentificacion')
             try:
                 tipo_documento_instance = TipoDeDocumento.objects.get(TipoDocumento=request.data['TipoIdentificacion'])
             except TipoDeDocumento.DoesNotExist:
@@ -99,18 +99,18 @@ class ActorDeContratoCreateView(APIView):
             if not tipo_actor:
                 return Response({'status': 'invalid request', 'message': 'TipoActor no existe'}, status=status.HTTP_400_BAD_REQUEST)
 
-            if len(numero_identificacion) > 12:
+            if len(numeroidentificacion) > 12:
                 return Response({'status': 'invalid request', 'message': 'NumeroIdentificacion debe ser de 12 caracteres o menos'}, status=status.HTTP_400_BAD_REQUEST)
 
             try:
                 actor = ActorDeContrato.objects.create(
                     TipoIdentificacion=tipo_documento_instance,
-                    NumeroIdentificacion=numero_identificacion,
+                    NumeroIdentificacion=numeroidentificacion,
                     TipoActor=tipo_actor,
-                    Primer_Nombre=Primer_Nombre,
-                    Segundo_Nombre=Segundo_Nombre,
-                    Primer_Apellido=Primer_Apellido,
-                    Segundo_Apellido=Segundo_Apellido,
+                    PrimerNombre=PrimerNombre,
+                    SegundoNombre=SegundoNombre,
+                    PrimerApellido=PrimerApellido,
+                    SegundoApellido=SegundoApellido,
                     Activo=True,
                     FechaActualizacion=timezone.now()
                 )
@@ -141,10 +141,10 @@ class ActorDeContratoUpdateView(generics.UpdateAPIView):
             instance.FideicomisoAsociado = fideicomiso
             instance.NumeroIdentificacion = data['NumeroIdentificacion']
             instance.TipoActor = tipo_actor
-            instance.Primer_Nombre=data['Primer_Nombre']
-            instance.Segundo_Nombre=data['Segundo_Nombre']
-            instance.Primer_Apellido=data['Primer_Apellido']
-            instance.Segundo_Apellido=data['Segundo_Apellido']
+            instance.PrimerNombre=data['PrimerNombre']
+            instance.SegundoNombre=data['SegundoNombre']
+            instance.PrimerApellido=data['PrimerApellido']
+            instance.SegundoApellido=data['SegundoApellido']
             instance.FechaActualizacion = timezone.now()
             instance.Activo=data['Activo']
             instance.save()

@@ -5,7 +5,7 @@ import pdb
 logger = logging.getLogger(__name__)
 celery = Celery()
 def progress_callback(current, total):
-    print('Task progress: {}%'.format(current / total * 100))
+    logger.info('Task progress: {}%'.format(current / total * 100))
 # Task 1
 @celery.task
 def compare_with_db():
@@ -48,23 +48,25 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def create_role(total_roles):
+    logger.info("create_role task started")
     try:
         from accounts.models import Role
         for i in range(total_roles):
             Role.objects.create(name='sap')
-        progress_callback(i+1, total_roles)
+            progress_callback(i+1, total_roles)
         logger.info("Role 'sap' created.")
-        pdb.set_trace()
+        
     except Exception as e:
-        logger.error(f"Error creating role 'sap': {e}")
-        pdb.set_trace()
+        logger.error(f"Error creating role 'sap': {e}")   
+    logger.info("create_role task finished")
+       
 @shared_task
 def create_random_user_accounts(total):
     import string
     from django.contrib.auth.models import User
     from django.utils.crypto import get_random_string
     from celery import shared_task
-    pdb.set_trace()
+  
     for i in range(total):
         username = 'user_{}'.format(get_random_string(10, string.ascii_letters))
         email = '{}@example.com'.format(username)

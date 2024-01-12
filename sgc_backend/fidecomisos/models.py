@@ -2,9 +2,9 @@ from django.db import models
 from django.db.models import Max
 from django.db.models.functions import Cast
 class TipoDePersona(models.Model):
-    id = models.AutoField(primary_key=True)
-    tipoPersona = models.CharField(max_length=3)
-    description = models.CharField(max_length=100)
+    Id = models.AutoField(primary_key=True)
+    TipoPersona = models.CharField(max_length=3)
+    Description = models.CharField(max_length=100)
 
 class TipoDeDocumento(models.Model):
     TipoDocumento = models.CharField(max_length=3, primary_key=True)

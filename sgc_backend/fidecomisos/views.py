@@ -199,7 +199,7 @@ class UpdateFideicomisoView(APIView):
         try:
             # Connect to the Oracle database
             dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIUN43')
-            conn = cx_Oracle.connect(user='VU_SFI', password='vu_sfi', dsn=dsn_tns)
+            conn = cx_Oracle.connect(user='VU_SFI', password='VU_SFI43', dsn=dsn_tns)
             cur = conn.cursor()
 
             # Determine the number of rows in the table
