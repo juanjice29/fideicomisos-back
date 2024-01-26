@@ -24,11 +24,11 @@ app.conf.beat_schedule = {
     #    'task': 'Log_Changes.tasks.cleanup_logs',
     #    'schedule': crontab(hour=0, minute=0),
     #},
-    'beneficiario-final': {
-        'task': 'beneficiario_final.tasks.create_role',  # Replace with the name of your task
-        'schedule': crontab(minute="*/1"),
-        'args': (1,),
-    },
+    #'beneficiario-final': {
+    #    'task': 'beneficiario_final.tasks.create_role',  # Replace with the name of your task
+    #    'schedule': crontab(minute="*/1"),
+    #    'args': (1,),
+    #},
     #Example of another task
     #'another-task-every-hour': {
     #    'task': 'my_app.tasks.another_task',

@@ -74,9 +74,9 @@ class ActorDeContratoListView(generics.ListAPIView):
             actor_serializer = ActorDeContratoSerializer(paginated_actor, many=True)
             return paginator.get_paginated_response(actor_serializer.data)
         except ObjectDoesNotExist:
-            return Response({'error': 'No se encuentra el Actor de Contrato :('}, status=404)
+            return Response({'error':'invalid request','message': 'No se encuentra el Actor de Contrato :('}, status=404)
         except Exception as e:
-            return Response({'error': str(e)}, status=500)
+            return Response({'error':'invalid request', 'message':str(e)}, status=500)
 class ActorDeContratoCreateView(APIView):
     def post(self, request):
         try:
