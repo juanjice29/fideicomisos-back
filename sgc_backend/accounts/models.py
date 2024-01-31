@@ -26,6 +26,13 @@ class Profile(models.Model):
 def create_or_update_user_profile(sender, instance, created, **kwargs):
     if created:
         Profile.objects.create(user=instance)
+    else:
+        try:
+            instance.profile.save()
+        except Profile.DoesNotExist:
+            Profile.objects.create(user=instance)
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
     instance.profile.save()
 class View(models.Model):
     Nombre = models.CharField(max_length=255)
@@ -40,5 +47,5 @@ class Permisos(models.Model):
             models.UniqueConstraint(fields=['Rol', 'Vista'], name='unique_rol_vista')
         ]
     def __str__(self):
-        return f'Role: {self.Rol.Nombre}, View: {self.Vista.Nombre}'
+        return f'Rol: {self.Rol.Nombre}, Vista: {self.Vista.Nombre}'
     
