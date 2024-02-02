@@ -76,6 +76,8 @@ INSTALLED_APPS = [
     'Log_Changes',
     'django_celery_beat',
     'django_celery_results',
+    'django_extensions'
+    
     
 ]
 

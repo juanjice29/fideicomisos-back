@@ -1,13 +1,38 @@
+from .models import RPBF_PERIODOS,RPBF_HISTORICO
 from celery import Celery
 from celery import shared_task, chain
 import logging
+from .utils import *
 import pdb 
+import pandas as pd
+from django.http import JsonResponse
+
 logger = logging.getLogger(__name__)
-celery = Celery()
 def progress_callback(current, total):
     logger.info('Task progress: {}%'.format(current / total * 100))
+
+#Task 1 extract data. 
+@shared_task 
+def test_task():
+    
+    print("hola mundo")
+    try:
+        current_period=get_current_period()
+        last_report_period= add_period(current_period,-3)        
+        last_report_regs=RPBF_HISTORICO.objects.filter(PERIODO_REPORTADO=last_report_period) 
+        df=pd.DataFrame.from_records(last_report_regs.values())
+        nov_1=df[df["TIPO_NOVEDAD"]=="1"]
+        nov_2=df[df["TIPO_NOVEDAD"]=="2"]
+        nov_3=df[df["TIPO_NOVEDAD"]=="3"]
+        print(nov_1)    
+    except Exception as err:
+        raise Exception("failed to cksjda:" +str(err))
+    
+    #nov_2=
+    #nov_3=
+    
 # Task 1
-@celery.task
+@shared_task 
 def compare_with_db():
     # Query the database
     db_data = query_database()
@@ -17,7 +42,7 @@ def compare_with_db():
     new_records = compare_data(db_data, rpbf_data)
     # Pass the new records to the next task and start it
     generate_xml.delay(new_records)
-@celery.task
+@shared_task 
 def generate_xml(new_records):
     # Generate XML from new records
     xml_data = generate_xml_from_records(new_records)
@@ -25,7 +50,7 @@ def generate_xml(new_records):
     replace_table.delay(xml_data)
 celery = Celery()
 # Task 3
-@celery.task
+@shared_task 
 def replace_table(xml_data):
     # Replace RPBF_HISTORICO table with new data
     replace_rpbf_table(xml_data)
@@ -39,7 +64,7 @@ def run_tasks_in_order():
     # Chain the tasks
     chain(task1 | task2 | task3).apply_async()
     
-@celery.task
+@shared_task 
 def add(x, y):
     logger.info("hpta")
     return x + y

@@ -26,3 +26,4 @@ def update_fideicomiso(rows):
                 }
             )
         cache.set('fideicomiso_hash', new_hash)
+

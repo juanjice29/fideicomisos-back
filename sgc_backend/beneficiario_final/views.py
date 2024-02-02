@@ -17,7 +17,7 @@ import hashlib
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import logging
-from .tasks import run_tasks_in_order
+from .tasks import run_tasks_in_order,test_task
 
 class RunTasksView(APIView):
     def get(self, request, format=None):
@@ -179,3 +179,10 @@ class CheckIntegrityView(View):
         # return a response indicating that the integrity check is complete
         return JsonResponse({'status': 'Integrity check complete'})
     
+class TestTaskView(APIView):
+    def get(self, request, *args, **kwargs):
+        result=test_task.apply_async()
+        
+        
+        return Response({"status":"200"}) 
+        
