@@ -102,10 +102,10 @@ def pre_save_receiver(sender, instance, **kwargs):
                 Log_Cambios_Update.objects.create(
                     Usuario=user,
                     Ip=get_client_ip(request),
-                    Nombre_Modelo=sender.__name__,
-                    Nombre_Campo=field.name,
-                    Antiguo_Valor=str(old_value),
-                    Nuevo_Valor=str(new_value),
+                    NombreModelo=sender.__name__,
+                    NombreCampo=field.name,
+                    AntiguoValor=str(old_value),
+                    NuevoValor=str(new_value),
                 )
     except IntegrityError:
         # Handle the case where the instance violates a database constraint
