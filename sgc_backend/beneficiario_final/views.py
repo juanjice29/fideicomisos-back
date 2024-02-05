@@ -18,7 +18,38 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import logging
 from .tasks import run_tasks_in_order,test_task
+from .utils import *
+from .querys import semilla
+import cx_Oracle
+import pandas as pd
 
+
+class TestTaskView(APIView):
+    def get(self, request, *args, **kwargs):
+        result=test_task.apply_async()
+        
+        current_period=get_current_period()
+        last_report_period= add_period(current_period,-3)        
+        last_report_regs=RPBF_HISTORICO.objects.filter(PERIODO_REPORTADO=last_report_period) 
+        df=pd.DataFrame.from_records(last_report_regs.values())
+        
+        nov_1=df[df["TIPO_NOVEDAD"]=="1"]
+        nov_2=df[df["TIPO_NOVEDAD"]=="2"]
+        nov_3=df[df["TIPO_NOVEDAD"]=="3"]
+            
+        dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIVAL')
+        conn = cx_Oracle.connect(user='VU_SFI', password='VU_SFI', dsn=dsn_tns)
+        cur = conn.cursor()     
+        cur.execute(semilla.query.format("10000","2023-12-31","12"))        
+        rows=cur.fetchall()
+        columns = [desc[0] for desc in cur.description]
+        cur.close()
+        conn.close()
+        df_current = pd.DataFrame(rows, columns=columns)
+        logger.info("esta es la row",df_current)       
+                
+        return Response({"status":"200"}) 
+    
 class RunTasksView(APIView):
     def get(self, request, format=None):
         run_tasks_in_order.apply_async()
@@ -179,10 +210,5 @@ class CheckIntegrityView(View):
         # return a response indicating that the integrity check is complete
         return JsonResponse({'status': 'Integrity check complete'})
     
-class TestTaskView(APIView):
-    def get(self, request, *args, **kwargs):
-        result=test_task.apply_async()
-        
-        
-        return Response({"status":"200"}) 
+
         

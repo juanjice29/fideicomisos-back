@@ -56,7 +56,8 @@ CELERY_TASK_IGNORE_RESULT = False
 #CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-INSTALLED_APPS = [
+INSTALLED_APPS = [    
+    'django_extensions',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -75,8 +76,7 @@ INSTALLED_APPS = [
     'beneficiario_final',
     'Log_Changes',
     'django_celery_beat',
-    'django_celery_results',
-    'django_extensions'
+    'django_celery_results'
     
     
 ]
@@ -94,7 +94,7 @@ MIDDLEWARE = [
    
     
 ]
-
+SHELL_PLUS = "ipython"
 ROOT_URLCONF = 'sgc_backend.urls'
 
 TEMPLATES = [
@@ -127,9 +127,25 @@ DATABASES = {
         "PASSWORD": "SGC_SOFTWARE_DEV_F",
         "HOST": "localhost",
         "PORT": "1522",
+    },
+    "sifi":{
+        "NAME": "SIFIVAL",
+        "ENGINE": "django.db.backends.oracle",
+        "USER": "VU_SFI",
+        "PASSWORD": "VU_SFI",
+        "HOST":"192.168.168.175",
+        "PORT": "1521",
+    },
+    "sgc":{
+        "NAME": "SIFIVAL",
+        "ENGINE": "django.db.backends.oracle",
+        "USER": "FS_SGC_US",
+        "PASSWORD": "FS_SGC_US",
+        "HOST":"192.168.168.175",
+        "PORT": "1521",
     }
+    
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
