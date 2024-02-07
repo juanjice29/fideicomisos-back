@@ -26,29 +26,63 @@ import pandas as pd
 
 class TestTaskView(APIView):
     def get(self, request, *args, **kwargs):
-        result=test_task.apply_async()
+        fondo="14"
+        novedades=[1,2,3]  
+        #result=test_task.apply_async()        
+        #current_period=get_current_period()
+        #last_report_period= add_period(current_period,-3)        
+        last_report_regs=RPBF_HISTORICO.objects.filter(FONDO=fondo) 
+        df_historico=pd.DataFrame.from_records(last_report_regs.values())        
+        df_historico["PERIODO_REPORTADO_id"]=df_historico["PERIODO_REPORTADO_id"].apply(lambda x: int("".join(x.split("-"))))
+        logger.info("dataframe historico %",df_historico)
+        #nov_1=df[df["TIPO_NOVEDAD"]=="1"]
+        #nov_2=df[df["TIPO_NOVEDAD"]=="2"]
+        #nov_3=df[df["TIPO_NOVEDAD"]=="3"]
         
-        current_period=get_current_period()
-        last_report_period= add_period(current_period,-3)        
-        last_report_regs=RPBF_HISTORICO.objects.filter(PERIODO_REPORTADO=last_report_period) 
-        df=pd.DataFrame.from_records(last_report_regs.values())
-        
-        nov_1=df[df["TIPO_NOVEDAD"]=="1"]
-        nov_2=df[df["TIPO_NOVEDAD"]=="2"]
-        nov_3=df[df["TIPO_NOVEDAD"]=="3"]
-            
+          
         dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIVAL')
         conn = cx_Oracle.connect(user='VU_SFI', password='VU_SFI', dsn=dsn_tns)
-        cur = conn.cursor()     
-        cur.execute(semilla.query.format("10000","2023-12-31","12"))        
+        cur = conn.cursor()
+        
+        sql_delete_candidates="DELETE FROM TEMP_RPBF_CANDIDATES"   
+        cur.execute(sql_delete_candidates)
+        conn.commit()
+        
+        saldo= cur.execute(semilla.saldo_fondo.format("2023-12-31",fondo)).fetchone()
+        saldo=str(saldo[0]).replace(",",".")             
+         
+        cur.execute(semilla.query.format(saldo,"2023-12-31",fondo))        
         rows=cur.fetchall()
         columns = [desc[0] for desc in cur.description]
-        cur.close()
-        conn.close()
+        
+        
         df_current = pd.DataFrame(rows, columns=columns)
-        logger.info("esta es la row",df_current)       
-                
-        return Response({"status":"200"}) 
+        result=[]
+        for index,row in df_current.iterrows():
+            nro_identif=row["NRO_IDENTIF"]            
+            filtered_df=df_historico[df_historico["NRO_IDENTIF"]==str(nro_identif)]
+            
+            if(len(filtered_df)>0):
+                max_index=filtered_df["PERIODO_REPORTADO_id"].idxmax()            
+                last_state=filtered_df.loc[max_index]
+                if(last_state["TIPO_NOVEDAD"]=="1"):
+                    result.append((nro_identif,2))
+                if(last_state["TIPO_NOVEDAD"]=="2"):
+                    result.append((nro_identif,2))
+                if(last_state["TIPO_NOVEDAD"]=="3"):
+                    result.append((nro_identif,1))    
+            else:
+                result.append((nro_identif,1))
+        sql_insert = "INSERT INTO TEMP_RPBF_CANDIDATES (NRO_IDENTIF, NOVEDAD) VALUES (:1, :2)"
+
+        # Ejecutar la sentencia SQL con la lista de registros
+        cur.executemany(sql_insert, result)    
+        conn.commit()   
+        cur.close()
+        conn.close()      
+        return Response({"status":"200","longitud":len(result)}) 
+    
+
     
 class RunTasksView(APIView):
     def get(self, request, format=None):
