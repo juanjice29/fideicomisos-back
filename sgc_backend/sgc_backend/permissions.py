@@ -19,7 +19,7 @@ class HasRolePermission(BasePermission):
         #logger.info('Has profile: %s', hasattr(request.user, 'profile'))
         #logger.info('Has role: %s', hasattr(request.user.profile, 'rol') if hasattr(request.user, 'profile') else False)
         if hasattr(request.user, 'profile') and hasattr(request.user.profile, 'rol'):
-            role_views = Permisos.objects.filter(role=request.user.profile.rol).values_list('view__name', flat=True)
+            role_views = Permisos.objects.filter(role=request.user.profile.Rol).values_list('Vista__Nombre', flat=True)
         else:
             role_views = []
         #logger.info('Current view: %s', view.__class__.__name__)
