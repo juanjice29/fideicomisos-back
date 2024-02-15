@@ -76,7 +76,7 @@ INSTALLED_APPS = [
     'Log_Changes',
     'django_celery_beat',
     'django_celery_results',
-    
+    'django_extensions'
 ]
 
 MIDDLEWARE = [
@@ -124,7 +124,7 @@ DATABASES = {
         "USER": "SGC_SOFTWARE_DEV_F",
         "PASSWORD": "SGC_SOFTWARE_DEV_F",
         "HOST": "localhost",
-        "PORT": "1521",
+        "PORT": "1522",
     }
 }
 
