@@ -1,4 +1,6 @@
-
+from sqlalchemy import create_engine, Table, MetaData
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import update
 from rest_framework import generics
 from django.db import connection
 from .serializers import Beneficiario_ReporteSerializer
@@ -22,7 +24,18 @@ from .utils import *
 from .querys import semilla
 import cx_Oracle
 import pandas as pd
+import subprocess
 
+
+class RunJarView(View):
+    def get(self, request, *args, **kwargs):
+        # Run the jar file
+        result = subprocess.run(['java', '-jar', 'path_to_your_jar_file.jar'], check=True)
+
+        # After the jar file has finished running, you can continue with the next task
+        # For example, insert the Excel data into the database
+
+        return HttpResponse('Jar file has been run.')
 
 class TestTaskView(APIView):
     def get(self, request, *args, **kwargs):
@@ -97,9 +110,42 @@ class VerifyDataIntegrityView():
         return Response({"status":"200"})
 
 class FillPostalCodeView():
-    pass
+    def get(self, request, *args, **kwargs):
+        dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIVAL')
+        conn = cx_Oracle.connect(user='FS_SGC_US', password='fs_sgc_us', dsn=dsn_tns)
+        cur = conn.cursor()
+        sql ="""
+        SELECT NRO_IDENTIF ID_CLIENTE,CIUD_DEPTO||CIUD_DANE AS ID_CIUD_RESIDENCIA,CIUD_DEPTO AS ID_DPTO_RESIDENCIA,'COL' AS ID_PAIS_RESIDENCIA,
+        DIREC_DIRECCION AS DIRECCION_RECIDENCIAL,NVL(DIREC_BARRIO,'-') BARRIO_DIR_RESIDENCIAL
+        FROM TEMP_RPBF_CANDIDATES 
+        INNER JOIN CL_TDIREC D1 ON D1.DIREC_NROIDENT=NRO_IDENTIF
+        INNER JOIN (SELECT DIREC_NROIDENT,MAX(DIREC_DIREC) MAX_DIREC FROM CL_TDIREC 
+        WHERE DIREC_POSTAL IS NULL AND DIREC_ESTADO='ACT' AND DIREC_TPDIR='RES'  AND DIREC_DIRECCION IS NOT NULL
+        GROUP BY DIREC_NROIDENT) D2 ON D1.DIREC_DIREC=D2.MAX_DIREC
+        INNER JOIN GE_TCIUD ON DIREC_CIUD=CIUD_CIUD
+        INNER JOIN GE_TDEPTO ON DEPTO_DEPTO=CIUD_DEPTO
+        INNER JOIN GE_TPAIS ON PAIS_PAIS=DEPTO_PAIS
+        """
+        df = pd.read_sql(sql, conn)
+        df.to_excel('cod_postal.xlsx', index=False)
+        cur = conn.cursor()
+        return Response({"status":"200"})
 
-   
+
+class RunJarView(View):
+    def get(self, request, *args, **kwargs):
+        result = subprocess.run(['java', '-jar', 'cp.jar', '-separador', ',', '-entrada', 'cod_postal.xlsx', '-salida', 'salida.csv'], check=True)
+        df = pd.read_csv('salida.csv')
+        engine = create_engine('oracle+cx_oracle://FS_SGC_US:fs_sgc_us@192.168.168.175:1521/?service_name=SIFIVAL') 
+        metadata = MetaData(bind=engine)
+        cl_tdirec = Table('cl_tdirec', metadata, autoload_with=engine)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        for index, row in df.iterrows():
+            stmt = update(cl_tdirec).where(cl_tdirec.c.direc_direc == row['direc_direc']).values(cod_postal=row['direc_postal'])
+            session.execute(stmt)
+        session.commit()
+        return HttpResponse('Jar ejecutado con exito')     
 class RunTasksView(APIView):
     def get(self, request, format=None):
         run_tasks_in_order.apply_async()
