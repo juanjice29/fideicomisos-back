@@ -41,7 +41,7 @@ class TestTaskView(APIView):
         
           
         dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIVAL')
-        conn = cx_Oracle.connect(user='VU_SFI', password='VU_SFI', dsn=dsn_tns)
+        conn = cx_Oracle.connect(user='FS_SGC_US', password='fs_sgc_us', dsn=dsn_tns)
         cur = conn.cursor()
         
         sql_delete_candidates="DELETE FROM TEMP_RPBF_CANDIDATES"   
@@ -61,19 +61,26 @@ class TestTaskView(APIView):
         for index,row in df_current.iterrows():
             nro_identif=row["NRO_IDENTIF"]            
             filtered_df=df_historico[df_historico["NRO_IDENTIF"]==str(nro_identif)]
+            novedad_t="1"
             
             if(len(filtered_df)>0):
                 max_index=filtered_df["PERIODO_REPORTADO_id"].idxmax()            
                 last_state=filtered_df.loc[max_index]
+                
                 if(last_state["TIPO_NOVEDAD"]=="1"):
-                    result.append((nro_identif,2))
+                    novedad_t="2"
                 if(last_state["TIPO_NOVEDAD"]=="2"):
-                    result.append((nro_identif,2))
+                    novedad_t="2"
                 if(last_state["TIPO_NOVEDAD"]=="3"):
-                    result.append((nro_identif,1))    
+                    novedad_t="1"     
+                                  
+                  
+                
             else:
-                result.append((nro_identif,1))
-        sql_insert = "INSERT INTO TEMP_RPBF_CANDIDATES (NRO_IDENTIF, NOVEDAD) VALUES (:1, :2)"
+                novedad_t="1"                
+            result.append((nro_identif,novedad_t,fondo))
+            
+        sql_insert = "INSERT INTO TEMP_RPBF_CANDIDATES (NRO_IDENTIF, NOVEDAD,FONDO) VALUES (:1, :2, :3)"
 
         # Ejecutar la sentencia SQL con la lista de registros
         cur.executemany(sql_insert, result)    
@@ -82,8 +89,17 @@ class TestTaskView(APIView):
         conn.close()      
         return Response({"status":"200","longitud":len(result)}) 
     
+class VerifyDataIntegrityView():
+    def get(self, request, *args, **kwargs):
+        dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIVAL')
+        conn = cx_Oracle.connect(user='FS_SGC_US', password='fs_sgc_us', dsn=dsn_tns)
+        cur = conn.cursor()
+        return Response({"status":"200"})
 
-    
+class FillPostalCodeView():
+    pass
+
+   
 class RunTasksView(APIView):
     def get(self, request, format=None):
         run_tasks_in_order.apply_async()
