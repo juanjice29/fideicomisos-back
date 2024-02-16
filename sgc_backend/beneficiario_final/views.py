@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import update
+from rest_framework.renderers import JSONRenderer
 from rest_framework import generics
 from django.db import connection
 from .serializers import Beneficiario_ReporteSerializer
@@ -101,11 +102,9 @@ class VerifyDataIntegrityView():
         cur = conn.cursor()
         return Response({"status":"200"})
 
-class FillPostalCodeView():
+class FillPostalCodeView(APIView):
     def get(self, request, *args, **kwargs):
-        dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIVAL')
-        conn = cx_Oracle.connect(user='FS_SGC_US', password='fs_sgc_us', dsn=dsn_tns)
-        cur = conn.cursor()
+        engine = create_engine('oracle+cx_oracle://FS_SGC_US:fs_sgc_us@192.168.168.175:1521/?service_name=SIFIVAL')
         sql ="""
         SELECT NRO_IDENTIF ID_CLIENTE,CIUD_DEPTO||CIUD_DANE AS ID_CIUD_RESIDENCIA,CIUD_DEPTO AS ID_DPTO_RESIDENCIA,'COL' AS ID_PAIS_RESIDENCIA,
         DIREC_DIRECCION AS DIRECCION_RECIDENCIAL,NVL(DIREC_BARRIO,'-') BARRIO_DIR_RESIDENCIAL
@@ -118,13 +117,13 @@ class FillPostalCodeView():
         INNER JOIN GE_TDEPTO ON DEPTO_DEPTO=CIUD_DEPTO
         INNER JOIN GE_TPAIS ON PAIS_PAIS=DEPTO_PAIS
         """
-        df = pd.read_sql(sql, conn)
+        df = pd.read_sql(sql, engine)
         df.to_excel('cod_postal.xlsx', index=False)
-        cur = conn.cursor()
         return Response({"status":"200"})
 
 
-class RunJarView(View):
+class RunJarView(APIView):
+    renderer_classes = [JSONRenderer]
     def get(self, request, *args, **kwargs):
         result = subprocess.run(['java', '-jar', 'cp.jar', '-separador', ',', '-entrada', 'cod_postal.xlsx', '-salida', 'salida.csv'], check=True)
         df = pd.read_csv('salida.csv')
@@ -137,7 +136,7 @@ class RunJarView(View):
             stmt = update(cl_tdirec).where(cl_tdirec.c.direc_direc == row['direc_direc']).values(cod_postal=row['direc_postal'])
             session.execute(stmt)
         session.commit()
-        return HttpResponse('Jar ejecutado con exito')     
+        return Response({"status":"200"})   
 class RunTasksView(APIView):
     def get(self, request, format=None):
         run_tasks_in_order.apply_async()
