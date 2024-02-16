@@ -27,15 +27,7 @@ import pandas as pd
 import subprocess
 
 
-class RunJarView(View):
-    def get(self, request, *args, **kwargs):
-        # Run the jar file
-        result = subprocess.run(['java', '-jar', 'path_to_your_jar_file.jar'], check=True)
 
-        # After the jar file has finished running, you can continue with the next task
-        # For example, insert the Excel data into the database
-
-        return HttpResponse('Jar file has been run.')
 
 class TestTaskView(APIView):
     def get(self, request, *args, **kwargs):
