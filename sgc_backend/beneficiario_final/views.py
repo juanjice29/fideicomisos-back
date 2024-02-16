@@ -106,7 +106,7 @@ class FillPostalCodeView(APIView):
     def get(self, request, *args, **kwargs):
         engine = create_engine('oracle+cx_oracle://FS_SGC_US:fs_sgc_us@192.168.168.175:1521/?service_name=SIFIVAL')
         sql ="""
-        SELECT NRO_IDENTIF ID_CLIENTE,CIUD_DEPTO||CIUD_DANE AS ID_CIUD_RESIDENCIA,CIUD_DEPTO AS ID_DPTO_RESIDENCIA,'COL' AS ID_PAIS_RESIDENCIA,
+        SELECT DIREC_DIREC ID_CLIENTE,CIUD_DEPTO||CIUD_DANE AS ID_CIUDAD_RESIDENCIA,CIUD_DEPTO AS ID_DPTO_RESIDENCIA,'COL' AS ID_PAIS_RESIDENCIA,
         DIREC_DIRECCION AS DIRECCION_RECIDENCIAL,NVL(DIREC_BARRIO,'-') BARRIO_DIR_RESIDENCIAL
         FROM TEMP_RPBF_CANDIDATES 
         INNER JOIN CL_TDIREC D1 ON D1.DIREC_NROIDENT=NRO_IDENTIF
@@ -118,23 +118,32 @@ class FillPostalCodeView(APIView):
         INNER JOIN GE_TPAIS ON PAIS_PAIS=DEPTO_PAIS
         """
         df = pd.read_sql(sql, engine)
+        df.columns = df.columns.str.upper()
+        df = df.astype(str)
         df.to_excel('cod_postal.xlsx', index=False)
         return Response({"status":"200"})
+import logging
 
-
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 class RunJarView(APIView):
     renderer_classes = [JSONRenderer]
     def get(self, request, *args, **kwargs):
-        result = subprocess.run(['java', '-jar', 'cp.jar', '-separador', ',', '-entrada', 'cod_postal.xlsx', '-salida', 'salida.csv'], check=True)
+        result = subprocess.run(['java', '-Dhttp.proxyHost=10.1.5.2', '-Dhttp.proxyPort=80', '-Dhttps.proxyHost=10.1.5.2', '-Dhttps.proxyPort=80', '-jar', 'cp.jar', '-separador', ',', '-entrada', 'cod_postal.xlsx', '-salida', 'salida.csv'], check=True)
         df = pd.read_csv('salida.csv')
         engine = create_engine('oracle+cx_oracle://FS_SGC_US:fs_sgc_us@192.168.168.175:1521/?service_name=SIFIVAL') 
-        metadata = MetaData(bind=engine)
+        metadata = MetaData()
+        metadata.bind = engine
         cl_tdirec = Table('cl_tdirec', metadata, autoload_with=engine)
         Session = sessionmaker(bind=engine)
         session = Session()
         for index, row in df.iterrows():
-            stmt = update(cl_tdirec).where(cl_tdirec.c.direc_direc == row['direc_direc']).values(cod_postal=row['direc_postal'])
+            logger.info(f"Data Enter cl_tdirec: direc_direc={row['ID_CLIENTE']}, direc_postal={row['CP']}")
+            if pd.isnull(row['CP']):
+                continue
+            stmt = update(cl_tdirec).where(cl_tdirec.c.direc_direc == row['ID_CLIENTE']).values(direc_postal=row['CP'])
             session.execute(stmt)
+            logger.info(f"Updated cl_tdirec: direc_direc={row['ID_CLIENTE']}, direc_postal={row['CP']}")
         session.commit()
         return Response({"status":"200"})   
 class RunTasksView(APIView):
