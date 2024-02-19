@@ -138,7 +138,6 @@ class RunJarView(APIView):
         Session = sessionmaker(bind=engine)
         session = Session()
         for index, row in df.iterrows():
-            logger.info(f"Data Enter cl_tdirec: direc_direc={row['ID_CLIENTE']}, direc_postal={row['CP']}")
             if pd.isnull(row['CP']):
                 continue
             stmt = update(cl_tdirec).where(cl_tdirec.c.direc_direc == row['ID_CLIENTE']).values(direc_postal=row['CP'])
