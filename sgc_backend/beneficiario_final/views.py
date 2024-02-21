@@ -1,4 +1,7 @@
-
+from sqlalchemy import create_engine, Table, MetaData
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import update
+from rest_framework.renderers import JSONRenderer
 from rest_framework import generics
 from django.db import connection
 from .serializers import Beneficiario_ReporteSerializer
@@ -28,6 +31,12 @@ import datetime
 from .variables import *
 import os
 import zipfile
+import subprocess
+
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class CalculateBFCandidates(APIView):
     def get(self, request, *args, **kwargs):
@@ -222,16 +231,53 @@ class DownloadDianReport(APIView):
         else:
             # Devolver una respuesta indicando que el archivo no existe
             return Response({'error': 'El archivo no existe.'}, status=status.HTTP_404_NOT_FOUND)
-        
-class FillPostalCodeView():
-    
-    pass
 
-   
+class FillPostalCodeView(APIView):
+    def get(self, request, *args, **kwargs):
+        engine = create_engine('oracle+cx_oracle://FS_SGC_US:fs_sgc_us@192.168.168.175:1521/?service_name=SIFIVAL')
+        sql ="""
+        SELECT DIREC_DIREC ID_CLIENTE,CIUD_DEPTO||CIUD_DANE AS ID_CIUDAD_RESIDENCIA,CIUD_DEPTO AS ID_DPTO_RESIDENCIA,'COL' AS ID_PAIS_RESIDENCIA,
+        DIREC_DIRECCION AS DIRECCION_RECIDENCIAL,NVL(DIREC_BARRIO,'-') BARRIO_DIR_RESIDENCIAL
+        FROM TEMP_RPBF_CANDIDATES 
+        INNER JOIN CL_TDIREC D1 ON D1.DIREC_NROIDENT=NRO_IDENTIF
+        INNER JOIN (SELECT DIREC_NROIDENT,MAX(DIREC_DIREC) MAX_DIREC FROM CL_TDIREC 
+        WHERE DIREC_POSTAL IS NULL AND DIREC_ESTADO='ACT' AND DIREC_TPDIR='RES'  AND DIREC_DIRECCION IS NOT NULL
+        GROUP BY DIREC_NROIDENT) D2 ON D1.DIREC_DIREC=D2.MAX_DIREC
+        INNER JOIN GE_TCIUD ON DIREC_CIUD=CIUD_CIUD
+        INNER JOIN GE_TDEPTO ON DEPTO_DEPTO=CIUD_DEPTO
+        INNER JOIN GE_TPAIS ON PAIS_PAIS=DEPTO_PAIS
+        """
+        df = pd.read_sql(sql, engine)
+        df.columns = df.columns.str.upper()
+        df = df.astype(str)
+        df.to_excel('cod_postal.xlsx', index=False)
+        return Response({"status":"200"})
+
+class RunJarView(APIView):
+    renderer_classes = [JSONRenderer]
+    def get(self, request, *args, **kwargs):
+        result = subprocess.run(['java', '-Dhttp.proxyHost=10.1.5.2', '-Dhttp.proxyPort=80', '-Dhttps.proxyHost=10.1.5.2', '-Dhttps.proxyPort=80', '-jar', 'cp.jar', '-separador', ',', '-entrada', 'cod_postal.xlsx', '-salida', 'salida.csv'], check=True)
+        df = pd.read_csv('salida.csv')
+        engine = create_engine('oracle+cx_oracle://FS_SGC_US:fs_sgc_us@192.168.168.175:1521/?service_name=SIFIVAL') 
+        metadata = MetaData()
+        metadata.bind = engine
+        cl_tdirec = Table('cl_tdirec', metadata, autoload_with=engine)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        for index, row in df.iterrows():
+            if pd.isnull(row['CP']):
+                continue
+            stmt = update(cl_tdirec).where(cl_tdirec.c.direc_direc == row['ID_CLIENTE']).values(direc_postal=row['CP'])
+            session.execute(stmt)
+            logger.info(f"Updated cl_tdirec: direc_direc={row['ID_CLIENTE']}, direc_postal={row['CP']}")
+        session.commit()
+        return Response({"status":"200"})   
+    
 class RunTasksView(APIView):
     def get(self, request, format=None):
         run_tasks_in_order.apply_async()
         return Response({'status': 'Tasks started'})
+    
 class BeneficiarioDianCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     queryset = Beneficiario_Reporte_Dian.objects.all()
@@ -241,15 +287,16 @@ class BeneficiarioDianDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Beneficiario_Reporte_Dian.objects.all()
     serializer_class = Beneficiario_ReporteSerializer
     lookup_field = 'Id_Cliente'
-class BeneficiarioDianByUserTypeView(generics.ListAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = Beneficiario_ReporteSerializer
-    def get_queryset(self):
-        user_type = self.kwargs.get('Tipo_Novedad')
-        return Beneficiario_Reporte_Dian.objects.filter(user_type=user_type)
+    
+#class BeneficiarioDianByUserTypeView(generics.ListAPIView):
+#    permission_classes = [IsAuthenticated]
+#    serializer_class = Beneficiario_ReporteSerializer
+#    def get_queryset(self):
+#        user_type = self.kwargs.get('Tipo_Novedad')
+#        return Beneficiario_Reporte_Dian.objects.filter(user_type=user_type)
 
 logger = logging.getLogger(__name__)
-class UpdateBeneficiarioDianView(APIView):
+'''class UpdateBeneficiarioDianView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -289,7 +336,7 @@ class UpdateBeneficiarioDianView(APIView):
                 logger.info(f'Created record with NRO_IDENTIF={NRO_IDENTIF}')
             else:
                 logger.info(f'Updated record with NRO_IDENTIF={NRO_IDENTIF}')    
-        return Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_200_OK)'''
     
 class UpdateBeneficiarioReporteDianView(APIView):
     permission_classes = [IsAuthenticated]
