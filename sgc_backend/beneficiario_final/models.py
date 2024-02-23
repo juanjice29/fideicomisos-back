@@ -33,8 +33,12 @@ class RPBF_HISTORICO(models.Model):
     TIPO_IDENTIF = models.CharField(max_length=3)
     NRO_IDENTIF = models.CharField(max_length=20)
     FONDO = models.CharField(max_length=2)
-    PERIODO_REPORTADO = models.ForeignKey(RPBF_PERIODOS, on_delete=models.CASCADE)
     TIPO_NOVEDAD = models.CharField(max_length=2)
+    PORCENTAJE_SALDO = models.CharField(max_length=100,blank=True)
+    FECHA_CREACION= models.CharField(max_length=10,blank=True)
+    FECHA_CANCELACION=models.CharField(max_length=10,blank=True)
+    PERIODO_REPORTADO = models.ForeignKey(RPBF_PERIODOS, on_delete=models.CASCADE)
+    
 
     class Meta:
         constraints = [

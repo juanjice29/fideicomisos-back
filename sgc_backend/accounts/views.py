@@ -54,16 +54,26 @@ class LoginView(APIView):
         data = serializer.validated_data
 
         # Fetch the views that the user's role has permission to access
+<<<<<<< HEAD
         Vista = list(Permisos.objects.filter(Rol__Nombre=user.profile.Rol.Nombre).values_list('Vista__Nombre', flat=True))
+=======
+        views = list(Permisos.objects.filter(Rol__Nombre=user.profile.Rol.Nombre).values_list('Vista__Nombre', flat=True))
+>>>>>>> feat/bf-jobs
 
         response_data = {
             'user': {
                 'first_name': user.first_name,
                 'last_name': user.last_name,
                 'email': user.email,
+<<<<<<< HEAD
                 'Usuario': user.username,
                 'Rol': user.profile.Rol.Nombre,
                 'Vista': Vista,  # Add the views to the response data
+=======
+                'username': user.username,
+                'rol': user.profile.Rol.Nombre,
+                'views': views,  # Add the views to the response data
+>>>>>>> feat/bf-jobs
             },
             'access': data['access'],
             'refresh': data['refresh'],
