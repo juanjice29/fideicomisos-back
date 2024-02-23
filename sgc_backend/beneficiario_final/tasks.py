@@ -235,19 +235,6 @@ def ZipFile():
 
     return Response({"status": "200"})
 
-
-@shared_task
-def DownloadDianReport():
-    ruta_archivo = 'D:/BENEFICIARIO_FINAL2024/resultados.zip'
-    if os.path.exists(ruta_archivo):
-        # Abrir el archivo y devolverlo como respuesta
-        archivo = open(ruta_archivo, 'rb')
-        return FileResponse(archivo, as_attachment=True, filename=os.path.basename(ruta_archivo))
-    else:
-        # Devolver una respuesta indicando que el archivo no existe
-        return Response({'error': 'El archivo no existe.'}, status=status.HTTP_404_NOT_FOUND)
-
-
 @shared_task
 def FillPostalCodeView():
     engine = create_engine(

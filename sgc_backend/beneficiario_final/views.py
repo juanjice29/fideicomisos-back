@@ -4,7 +4,7 @@ from django.db import connection
 from .serializers import Beneficiario_ReporteSerializer
 from rest_framework.response import Response
 from rest_framework import status
-from django.http import  JsonResponse
+from django.http import  JsonResponse,FileResponse
 from .models import Beneficiario_Reporte_Dian, File, RPBF_HISTORICO, RPBF_PERIODOS
 from rest_framework.views import APIView, View
 from rest_framework.permissions import IsAuthenticated
@@ -12,7 +12,7 @@ import logging
 from .utils import *
 from .variables import *
 from celery.result import AsyncResult
-from .tasks import calculate_bf_candidates, VerifyDataIntegrityView, TableToXmlView, ZipFile, DownloadDianReport, FillPostalCodeView, RunJarView
+from .tasks import calculate_bf_candidates, VerifyDataIntegrityView, TableToXmlView, ZipFile, FillPostalCodeView, RunJarView
 from celery import chain
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,11 +27,12 @@ class RunAllTasksView(APIView):
             FillPostalCodeView.s(),
             TableToXmlView.s(),
             ZipFile.s(),
-            DownloadDianReport.s(),
+            
         )
         result = job.apply_async()
         request.session['task_id'] = result.id
         return Response({"status": "Tasks started", "task_id": result.id})
+    
 class TaskStatusView(APIView):
     def get(self, request, *args, **kwargs):
         task_id = request.session.get('task_id')
@@ -46,7 +47,20 @@ class TaskStatusView(APIView):
             response_data["exception"] = str(result.traceback)
         return Response(response_data)
 
-
+class DownloadDianReport(APIView):
+    
+    def get(self, request, *args, **kwargs):
+        
+        ruta_archivo = 'D:/BENEFICIARIO_FINAL2024/resultados.zip'
+        
+        if os.path.exists(ruta_archivo):
+            # Abrir el archivo y devolverlo como respuesta
+            archivo = open(ruta_archivo, 'rb')
+            return FileResponse(archivo, as_attachment=True, filename=os.path.basename(ruta_archivo))
+        else:
+            # Devolver una respuesta indicando que el archivo no existe
+            return Response({'error': 'El archivo no existe.'}, status=status.HTTP_404_NOT_FOUND)
+        
 class BeneficiarioDianCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     queryset = Beneficiario_Reporte_Dian.objects.all()
