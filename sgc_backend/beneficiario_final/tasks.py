@@ -8,7 +8,6 @@ from celery import shared_task, chain
 from django.http import JsonResponse
 from django.http import FileResponse
 from rest_framework import status
-from cx_Oracle import Session
 import cx_Oracle
 import logging
 from .querys import semilla
@@ -209,8 +208,7 @@ def TableToXmlView():
                 xml_str = ET.tostring(root, encoding="ISO-8859-1")
                 dom = xml.dom.minidom.parseString(xml_str)
                 formatted_xml_str = dom.toprettyxml(indent="\t")
-                directorio = f"D:/BENEFICIARIO_FINAL2024/resultados/fondo_{
-                    clave_fondo}/novedad_{clave_novedad}"
+                directorio = f"D:/BENEFICIARIO_FINAL2024/resultados/fondo_{clave_fondo}/novedad_{clave_novedad}"
                 os.makedirs(directorio, exist_ok=True)
                 with open(f"{directorio}/"+file_name.format(str(numero_envio)), "wb") as file:
                     file.write(formatted_xml_str.encode("iso-8859-1"))
@@ -291,7 +289,6 @@ def RunJarView():
         stmt = update(cl_tdirec).where(cl_tdirec.c.direc_direc ==
                                        row['ID_CLIENTE']).values(direc_postal=row['CP'])
         session.execute(stmt)
-        logger.info(f"Updated cl_tdirec: direc_direc={
-                    row['ID_CLIENTE']}, direc_postal={row['CP']}")
+        logger.info(f"Updated cl_tdirec: direc_direc={row['ID_CLIENTE']}, direc_postal={row['CP']}")
     session.commit()
     return Response({"status": "200"})

@@ -1,41 +1,18 @@
-from sqlalchemy import create_engine, Table, MetaData
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import update
-from rest_framework.renderers import JSONRenderer
+
 from rest_framework import generics
 from django.db import connection
 from .serializers import Beneficiario_ReporteSerializer
 from rest_framework.response import Response
 from rest_framework import status
-from django.http import HttpResponse, JsonResponse, FileResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.http import  JsonResponse
 from .models import Beneficiario_Reporte_Dian, File, RPBF_HISTORICO, RPBF_PERIODOS
-from xml.etree import ElementTree as ET
-from datetime import datetime
 from rest_framework.views import APIView, View
 from rest_framework.permissions import IsAuthenticated
-from django.http import FileResponse
-from rest_framework.parsers import MultiPartParser, FormParser
-import hashlib
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
 import logging
-from .tasks import run_tasks_in_order, test_task
 from .utils import *
-from .querys import semilla
-import cx_Oracle
-import pandas as pd
-import xml.etree.ElementTree as ET
-import xml.dom.minidom
-import datetime
 from .variables import *
-import os
-import zipfile
-import subprocess
-from celery import shared_task
 from celery.result import AsyncResult
 from .tasks import calculate_bf_candidates, VerifyDataIntegrityView, TableToXmlView, ZipFile, DownloadDianReport, FillPostalCodeView, RunJarView
-from celery import group
 from celery import chain
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -143,8 +120,7 @@ class UpdateBeneficiarioReporteDianView(APIView):
 
         # calculate the last period taking into account the year change
         year, quarter = map(int, current_period.split('-'))
-        last_period = f'{year - 1 if quarter ==
-                         1 else year}-{4 if quarter == 1 else quarter - 1}'
+        last_period = f'{year - 1 if quarter == 1 else year}-{4 if quarter == 1 else quarter - 1}'
 
         with connection.cursor() as cursor:
             cursor.execute("""
@@ -197,8 +173,7 @@ class CheckIntegrityView(View):
         for current_period in periods:
             # calculate the last period taking into account the year change
             year, quarter = map(int, current_period.split('-'))
-            last_period = f'{year - 1 if quarter ==
-                             1 else year}-{4 if quarter == 1 else quarter - 1}'
+            last_period = f'{year - 1 if quarter == 1 else year}-{4 if quarter == 1 else quarter - 1}'
 
             # retrieve all active records from the last period
             last_period_records = RPBF_HISTORICO.objects.filter(

@@ -1,13 +1,6 @@
 from django.urls import path
-#from .views import BeneficiarioDianByUserTypeView
-#from .views import UpdateBeneficiarioDianView
-
 from .views import RunAllTasksView
-from .views import TableToXmlView
 from .views import TaskStatusView
-from .views import DownloadDianReport
-from .views import RunJarView
-from .views import FillPostalCodeView
 
 from rest_framework.urlpatterns import format_suffix_patterns
 

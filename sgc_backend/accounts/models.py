@@ -25,7 +25,7 @@ class Profile(models.Model):
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
     if created:
-        Profile.objects.create(user=instance)
+        Profile.objects.create(Usuario=instance)
     instance.profile.save()
 class View(models.Model):
     Nombre = models.CharField(max_length=255)
