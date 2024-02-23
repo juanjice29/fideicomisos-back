@@ -1,11 +1,8 @@
-<<<<<<< HEAD
-=======
 from .models import RPBF_PERIODOS,RPBF_HISTORICO
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import update
 from rest_framework.renderers import JSONRenderer
->>>>>>> feat/bf-jobs
 from celery import Celery
 from celery import shared_task, chain
 from django.http import JsonResponse
@@ -13,8 +10,6 @@ from django.http import FileResponse
 from rest_framework import status
 import cx_Oracle
 import logging
-<<<<<<< HEAD
-=======
 from .querys import semilla
 from rest_framework.response import Response
 from .utils import *
@@ -26,7 +21,6 @@ import os
 import zipfile
 import subprocess
 from .variables import *
->>>>>>> feat/bf-jobs
 import pdb 
 logger = logging.getLogger(__name__)
 celery = Celery()
