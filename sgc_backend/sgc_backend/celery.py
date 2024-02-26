@@ -2,7 +2,6 @@ from __future__ import absolute_import, unicode_literals
 import os
 from celery import Celery
 from celery import shared_task, chain
-from beneficiario_final.tasks import compare_with_db, generate_xml, replace_table, create_role
 import json
 from celery.schedules import crontab
 # set the default Django settings module for the 'celery' program.
