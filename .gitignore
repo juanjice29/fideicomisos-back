@@ -3,9 +3,6 @@
 /venv
 /sgc_backend/celerybeat-schedule.bak
 /sgc_backend/celerybeat-schedule.dat
-<<<<<<< HEAD
-/sgc_backend/celerybeat-schedule.dir
-=======
 /sgc_backend/celerybeat-schedule.dir
 __pycache__/
 
@@ -170,4 +167,3 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 *.csv
->>>>>>> feat/bf-jobs

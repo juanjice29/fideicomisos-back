@@ -22,6 +22,7 @@ import zipfile
 import subprocess
 from .variables import *
 import pdb 
+
 logger = logging.getLogger(__name__)
 celery = Celery()
 def progress_callback(current, total):

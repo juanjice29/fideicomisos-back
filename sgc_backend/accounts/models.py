@@ -26,7 +26,6 @@ class Profile(models.Model):
 def create_or_update_user_profile(sender, instance, created, **kwargs):
     if created:
         Profile.objects.create(Usuario=instance)
-<<<<<<< HEAD
     else:
         try:
             instance.profile.save()
@@ -34,8 +33,6 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
             Profile.objects.create(Usuario=instance)
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
-=======
->>>>>>> feat/bf-jobs
     instance.profile.save()
 class View(models.Model):
     Nombre = models.CharField(max_length=255)
