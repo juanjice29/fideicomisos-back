@@ -29,7 +29,7 @@ def progress_callback(current, total):
     logger.info('Task progress: {}%'.format(current / total * 100))
 @shared_task
 def calculate_bf_candidates():
-    fondos = ["14", "12"]
+    fondos = ["14", "12","10"]
     dsn_tns = cx_Oracle.makedsn(
         '192.168.168.175', '1521', service_name='SIFIVAL')
     conn = cx_Oracle.connect(
@@ -98,6 +98,10 @@ def calculate_bf_candidates():
         if (fondo == "12"):
             cancelaciones_df = cur.execute(
                 semilla.cancelaciones_rentafacil.format("2023-12-31"))
+            
+        if (fondo == "10"):
+            cancelaciones_df = cur.execute(
+                semilla.cancelaciones_universitas.format("2023-12-31"))
 
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
