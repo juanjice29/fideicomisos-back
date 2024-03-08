@@ -147,7 +147,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
+ALLOWED_HOSTS = ['*']
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
@@ -197,7 +197,13 @@ CORS_ALLOWED_ORIGINS = [
     "https://example.com",
     "https://sub.example.com",
     "http://localhost:4200",
+    "http://127.0.0.1:8000",
     "http://127.0.0.1:9000",
+    "http://192.168.169.23:9000",
+    "http://192.168.169.23:4200",
+    "http://192.168.169.23",
+    "http://10.5.44.216:4200",
+    "http://localhost:4200",
 ]
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -207,6 +213,7 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOW_HEADERS = [
     'accept',

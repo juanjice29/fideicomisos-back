@@ -25,31 +25,39 @@ from rest_framework.exceptions import ParseError
 from rest_framework.exceptions import APIException
 from sgc_backend.pagination import CustomPageNumberPagination
 from fidecomisos.models import Fideicomiso
+from django.db import transaction
+from rest_framework.parsers import FileUploadParser
+class FileUploadView(APIView):
+    parser_class = (FileUploadParser,)
 
-def upload_file(request):
-    if request.method == 'POST':
-        form = UploadFileForm(request.POST, request.FILES)
-        if form.is_valid():
-            excel_file = request.FILES['file']
-            data = pd.read_excel(excel_file)
-            for index, row in data.iterrows():
-                try:
-                    fideicomiso = Fideicomiso.objects.get(CodigoSFC=row['FideicomisoAsociado'])
-                except ObjectDoesNotExist:
-                    return JsonResponse({'status': 'error', 'message': f'Fideicomiso {row["FideicomisoAsociado"]} no existe'}, status=400)
+    def post(self, request, *args, **kwargs):
+        excel_file = request.data['file']
+        data = pd.read_excel(excel_file)
 
-                ActorDeContrato.objects.create(
-                    TipoIdentificacion=row['TipoIdentificacion'],
-                    NumeroIdentificacion=row['NumeroIdentificacion'],
-                    Nombre=row['Nombre'],
-                    TipoActor=row['TipoActor'],
-                    FideicomisoAsociado=fideicomiso,
-                    FechaActualizacion=pd.to_datetime(row['FechaActualizacion'])
+        actors = []
+
+        with transaction.atomic():
+            for _, row in data.iterrows():
+                tipo_identificacion = TipoDeDocumento.objects.get(id=row["TipoIdentificacion"])
+                tipo_actor = TipoActorDeContrato.objects.get(id=row["TipoActor"])
+                fideicomiso_asociado = Fideicomiso.objects.filter(id__in=row["FideicomisoAsociado"].split(','))
+
+                actor = ActorDeContrato(
+                    TipoIdentificacion=tipo_identificacion,
+                    NumeroIdentificacion=row["NumeroIdentificacion"],
+                    PrimerNombre=row["PrimerNombre"],
+                    SegundoNombre=row["SegundoNombre"],
+                    PrimerApellido=row["PrimerApellido"],
+                    SegundoApellido=row["SegundoApellido"],
+                    TipoActor=tipo_actor,
+                    FechaActualizacion=row["FechaActualizacion"],
+                    Activo=row["Activo"]
                 )
-            return JsonResponse({'status': 'success'})
-    else:
-        return JsonResponse({'status': 'invalid request'}, status=400)
+                actor.save()
+                actor.FideicomisoAsociado.set(fideicomiso_asociado)
+                actors.append(actor)
 
+        return Response({"actors": [actor.id for actor in actors]}, status=status.HTTP_201_CREATED)
 class TipoActorDeContratoListView(generics.ListAPIView):
     queryset = TipoActorDeContrato.objects.all().order_by('id')
     serializer_class = TipoActorDeContratoSerializer
