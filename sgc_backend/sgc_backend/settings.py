@@ -124,7 +124,7 @@ DATABASES = {
         "USER": "SGC_SOFTWARE_DEV_F",
         "PASSWORD": "SGC_SOFTWARE_DEV_F",
         "HOST": "localhost",
-        "PORT": "1522",
+        "PORT": "1521",
     }
 }
 

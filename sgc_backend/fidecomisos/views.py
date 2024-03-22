@@ -43,6 +43,8 @@ from actores_de_contrato_cargue.models import ActorDeContrato
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.exceptions import NotFound
 from .tasks import update_fideicomiso
+from rest_framework import filters
+
 class TipoDeDocumentoListView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -131,28 +133,18 @@ class ActorFideicomisoListView(APIView):
             return Response({'error': str(e)}, status=500)
 class FideicomisoList(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
-    permission_classes = [IsAuthenticated, HasRolePermission]
+    permission_classes = [IsAuthenticated, HasRolePermission]  
+    
+    search_fields=["CodigoSFC","Nombre"]
+    ordering = ['-FechaCreacion']  
+    filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
+    queryset = Fideicomiso.objects.all()   
     serializer_class = FideicomisoSerializer
-    pagination_class = CustomPageNumberPagination
+    pagination_class = CustomPageNumberPagination             
+    
     def get_queryset(self):
         try:
-            queryset = Fideicomiso.objects.all()
-            codigo_sfc = self.request.query_params.get('codigo_sfc', None)
-            nombre = self.request.query_params.get('nombre', None)
-            order_by = self.request.query_params.get('order_by', 'FechaCreacion')
-            order_direction = self.request.query_params.get('order_direction', 'asc')
-
-            if codigo_sfc is not None:
-                queryset = queryset.filter(CodigoSFC__icontains=codigo_sfc)
-
-            if nombre is not None:
-                queryset = queryset.filter(Nombre__icontains=nombre)
-
-            if order_by in ['CodigoSFC', 'FechaCreacion', 'Estado']:
-                if order_direction == 'desc':
-                    order_by = '-' + order_by
-                queryset = queryset.order_by(order_by, 'CodigoSFC')
-            return queryset
+            return self.queryset
         except ValidationError as e:
             raise ParseError(detail=str(e))
         except Exception as e:
