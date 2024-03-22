@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import *
 
 urlpatterns = [
-    path('upload/', upload_file, name='upload_file'),
+    path('upload/', FileUploadView.as_view(), name='upload_file'),
     path('actordecontratolist/<str:codigo_sfc>/', ActorDeContratoListView.as_view(), name='actordecontrato-list'),
     path('tipoactordecontrato/', TipoActorDeContratoListView.as_view(), name='tipoactordecontrato-list'),
     path('crearactordecontrato/', ActorDeContratoCreateView.as_view(), name='crearactordecontrato'),
