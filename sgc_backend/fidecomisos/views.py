@@ -44,7 +44,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.exceptions import NotFound
 from .tasks import update_fideicomiso
 from rest_framework import filters
-
+from conn import *
 class TipoDeDocumentoListView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -75,6 +75,7 @@ class EncargoListView(APIView):
             return Response({'error': 'No se encuentra encargos'}, status=404)
         except Exception as e:
             return Response({'error': str(e)}, status=500)
+        
 class FideicomisoDetailView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -190,8 +191,8 @@ class UpdateFideicomisoView(APIView):
     def get(self, request, *args, **kwargs):
         try:
             # Connect to the Oracle database
-            dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIUN43')
-            conn = cx_Oracle.connect(user='VU_SFI', password='VU_SFI43', dsn=dsn_tns)
+            dsn_tns = cx_Oracle.makedsn(url, port, service_name=service_name)
+            conn = cx_Oracle.connect(user=user, password=password, dsn=dsn_tns)
             cur = conn.cursor()
 
             # Determine the number of rows in the table
@@ -233,8 +234,8 @@ class UpdateEncargoTemp(APIView):
         try:
             # Connect to the Oracle database
             
-            dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIUN43')
-            conn = cx_Oracle.connect(user='VU_SFI', password='vu_sfi', dsn=dsn_tns)
+            dsn_tns = cx_Oracle.makedsn(url, port, service_name=service_name)
+            conn = cx_Oracle.connect(user=user, password=password, dsn=dsn_tns)
             cur = conn.cursor()
 
             cur.execute("""

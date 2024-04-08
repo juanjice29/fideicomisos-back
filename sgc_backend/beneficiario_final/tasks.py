@@ -22,6 +22,7 @@ import zipfile
 import subprocess
 from .variables import *
 import pdb 
+from querys.conn import *
 
 logger = logging.getLogger(__name__)
 celery = Celery()
@@ -31,9 +32,9 @@ def progress_callback(current, total):
 def calculate_bf_candidates():
     fondos = ["14", "12","10"]
     dsn_tns = cx_Oracle.makedsn(
-        '192.168.168.175', '1521', service_name='SIFIVAL')
+        url, port, service_name=service_name)
     conn = cx_Oracle.connect(
-        user='FS_SGC_US', password='fs_sgc_us', dsn=dsn_tns)
+        user=user, password=password, dsn=dsn_tns)
     cur = conn.cursor()
     sql_delete_candidates = "DELETE FROM RPBF_CANDIDATES"
     cur.execute(sql_delete_candidates)
@@ -140,9 +141,9 @@ def calculate_bf_candidates():
 @shared_task
 def VerifyDataIntegrityView():
     dsn_tns = cx_Oracle.makedsn(
-        '192.168.168.175', '1521', service_name='SIFIVAL')
+        url, port, service_name=service_name)
     conn = cx_Oracle.connect(
-        user='FS_SGC_US', password='fs_sgc_us', dsn=dsn_tns)
+        user=user, password=password, dsn=dsn_tns)
     cur = conn.cursor()
     return Response({"status": "200"})
 
@@ -150,9 +151,9 @@ def VerifyDataIntegrityView():
 @shared_task
 def TableToXmlView():
     dsn_tns = cx_Oracle.makedsn(
-        '192.168.168.175', '1521', service_name='SIFIVAL')
+        url, port, service_name=service_name)
     conn = cx_Oracle.connect(
-        user='FS_SGC_US', password='fs_sgc_us', dsn=dsn_tns)
+        user=user, password=password, dsn=dsn_tns)
     cur = conn.cursor()
 
     cur.execute("SELECT * FROM RPBF_REPORTE_FINAL")
@@ -240,7 +241,7 @@ def ZipFile():
 @shared_task
 def FillPostalCodeView():
     engine = create_engine(
-        'oracle+cx_oracle://FS_SGC_US:fs_sgc_us@192.168.168.175:1521/?service_name=SIFIVAL')
+        f'oracle+cx_oracle://{user}":{password}@{url}:{port}/?service_name={service_name}')
     sql = """
         SELECT DIREC_DIREC ID_CLIENTE,CIUD_DEPTO||CIUD_DANE AS ID_CIUDAD_RESIDENCIA,CIUD_DEPTO AS ID_DPTO_RESIDENCIA,'COL' AS ID_PAIS_RESIDENCIA,
         DIREC_DIRECCION AS DIRECCION_RECIDENCIAL,NVL(DIREC_BARRIO,'-') BARRIO_DIR_RESIDENCIAL
@@ -266,7 +267,7 @@ def RunJarView():
                                 '-Dhttps.proxyPort=80', '-jar', 'cp.jar', '-separador', ',', '-entrada', 'cod_postal.xlsx', '-salida', 'salida.csv'], check=True)
     df = pd.read_csv('salida.csv')
     engine = create_engine(
-            'oracle+cx_oracle://FS_SGC_US:fs_sgc_us@192.168.168.175:1521/?service_name=SIFIVAL')
+             f'oracle+cx_oracle://{user}":{password}@{url}:{port}/?service_name={service_name}')
     metadata = MetaData()
     metadata.bind = engine
     cl_tdirec = Table('cl_tdirec', metadata, autoload_with=engine)
