@@ -44,7 +44,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.exceptions import NotFound
 from .tasks import update_fideicomiso
 from rest_framework import filters
-from .conn import *
+
 class TipoDeDocumentoListView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -75,7 +75,6 @@ class EncargoListView(APIView):
             return Response({'error': 'No se encuentra encargos'}, status=404)
         except Exception as e:
             return Response({'error': str(e)}, status=500)
-        
 class FideicomisoDetailView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -132,6 +131,7 @@ class ActorFideicomisoListView(APIView):
             return Response({'error': 'No se encuentran los fideicomisos :O'}, status=404)
         except Exception as e:
             return Response({'error': str(e)}, status=500)
+        
 class FideicomisoList(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]  
@@ -140,16 +140,18 @@ class FideicomisoList(generics.ListAPIView):
     ordering = ['-FechaCreacion']  
     filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
     queryset = Fideicomiso.objects.all()   
+    
     serializer_class = FideicomisoSerializer
-    pagination_class = CustomPageNumberPagination             
+    pagination_class = CustomPageNumberPagination
     
     def get_queryset(self):
-        try:
+        try:            
             return self.queryset
         except ValidationError as e:
             raise ParseError(detail=str(e))
         except Exception as e:
             raise APIException(detail=str(e))
+        
     def post(self, request, *args, **kwargs):
             try:
                 codigo_sfc = request.data.get('codigo_sfc', None)
@@ -185,14 +187,15 @@ class FideicomisoList(generics.ListAPIView):
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
 class UpdateFideicomisoView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
     def get(self, request, *args, **kwargs):
         try:
             # Connect to the Oracle database
-            dsn_tns = cx_Oracle.makedsn(url, port, service_name=service_name)
-            conn = cx_Oracle.connect(user=user, password=password, dsn=dsn_tns)
+            dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIUN43')
+            conn = cx_Oracle.connect(user='VU_SFI', password='VU_SFI43', dsn=dsn_tns)
             cur = conn.cursor()
 
             # Determine the number of rows in the table
@@ -227,6 +230,7 @@ class UpdateFideicomisoView(APIView):
             return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 logger = logging.getLogger(__name__)
+
 class UpdateEncargoTemp(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -234,8 +238,8 @@ class UpdateEncargoTemp(APIView):
         try:
             # Connect to the Oracle database
             
-            dsn_tns = cx_Oracle.makedsn(url, port, service_name=service_name)
-            conn = cx_Oracle.connect(user=user, password=password, dsn=dsn_tns)
+            dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIUN43')
+            conn = cx_Oracle.connect(user='VU_SFI', password='vu_sfi', dsn=dsn_tns)
             cur = conn.cursor()
 
             cur.execute("""
@@ -277,6 +281,7 @@ class UpdateEncargoTemp(APIView):
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 class UpdateEncargoFromTemp(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
