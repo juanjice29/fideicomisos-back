@@ -44,7 +44,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.exceptions import NotFound
 from .tasks import update_fideicomiso
 from rest_framework import filters
-from conn import *
+from .conn import *
 class TipoDeDocumentoListView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]

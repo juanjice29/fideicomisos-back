@@ -22,7 +22,7 @@ import zipfile
 import subprocess
 from .variables import *
 import pdb 
-from querys.conn import *
+from .querys.conn import *
 
 logger = logging.getLogger(__name__)
 celery = Celery()
