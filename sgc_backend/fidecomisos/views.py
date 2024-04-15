@@ -75,6 +75,7 @@ class EncargoListView(APIView):
             return Response({'error': 'No se encuentra encargos'}, status=404)
         except Exception as e:
             return Response({'error': str(e)}, status=500)
+        
 class FideicomisoDetailView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -83,7 +84,7 @@ class FideicomisoDetailView(APIView):
         try:
             fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo_sfc)
         except ObjectDoesNotExist:
-            raise NotFound('No existe ese fideicomiso .-.')
+            raise NotFound('No existe ese fideicomiso.')
         except Exception as e:
             return Response({'error': str(e)}, status=500)
         encargo_paginator = EncargoPagination()
@@ -91,23 +92,28 @@ class FideicomisoDetailView(APIView):
         actores_de_contrato_paginator = ActorDeContratoPagination()
         actores_de_contrato_paginator.page_size = 10
         encargo = Encargo.objects.filter(Fideicomiso=fideicomiso).order_by('NumeroEncargo')
+        
         for field, value in request.query_params.items():
             if field in [f.name for f in Encargo._meta.get_fields()]:
                 encargo = encargo.filter(**{field: value})
         actores_de_contrato = ActorDeContrato.objects.filter(FideicomisoAsociado=fideicomiso).order_by('NumeroIdentificacion')
+        
         for field, value in request.query_params.items():
             if field in [f.name for f in ActorDeContrato._meta.get_fields()]:
                 actores_de_contrato = actores_de_contrato.filter(**{field: value}) 
+        
+        fideicomiso_serializer=FideicomisoSerializer(fideicomiso,many=False)    
         encargo = encargo_paginator.paginate_queryset(encargo, request)
         actores_de_contrato = actores_de_contrato_paginator.paginate_queryset(actores_de_contrato, request)
         encargo_serializer = EncargoSerializer(encargo, many=True)
         actores_de_contrato_serializer = ActorDeContratoSerializer(actores_de_contrato, many=True)
         return Response({
+            "fideicomiso":fideicomiso_serializer.data,
             'encargo': encargo_serializer.data,
             'actores_de_contrato': actores_de_contrato_serializer.data,
             #'beneficiario_final': beneficiario_final_serializer.data,
         })
-
+    
 class ActorFideicomisoListView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]

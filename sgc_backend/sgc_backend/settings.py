@@ -190,7 +190,7 @@ REST_FRAMEWORK = {
 
 JWT_AUTH = {
     'JWT_ALLOW_REFRESH': True,
-    'JWT_EXPIRATION_DELTA': datetime.timedelta(seconds=20),
+    'JWT_EXPIRATION_DELTA': datetime.timedelta(seconds=36000),
 }
 #LOGIN_REDIRECT_URL='/'
 

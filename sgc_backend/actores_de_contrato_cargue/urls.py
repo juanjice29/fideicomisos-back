@@ -5,6 +5,7 @@ from .views import *
 urlpatterns = [
     path('upload/', FileUploadView.as_view(), name='upload_file'),
     path('actordecontratolist/<str:codigo_sfc>/', ActorDeContratoListView.as_view(), name='actordecontrato-list'),
+    path('actordecontratolist/', ActorDeContratoListAllView.as_view(), name='actordecontrato-list-all'),
     path('tipoactordecontrato/', TipoActorDeContratoListView.as_view(), name='tipoactordecontrato-list'),
     path('crearactordecontrato/', ActorDeContratoCreateView.as_view(), name='crearactordecontrato'),
     #path('encargo/', EncargoListView.as_view(), name='encargo-list'), #http://127.0.0.1:8000/actores/encargo/?CodigoSFC=116788

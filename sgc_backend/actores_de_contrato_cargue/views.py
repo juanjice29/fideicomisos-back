@@ -58,9 +58,26 @@ class FileUploadView(APIView):
                 actors.append(actor)
 
         return Response({"actors": [actor.id for actor in actors]}, status=status.HTTP_201_CREATED)
+    
 class TipoActorDeContratoListView(generics.ListAPIView):
     queryset = TipoActorDeContrato.objects.all().order_by('id')
     serializer_class = TipoActorDeContratoSerializer
+    
+class ActorDeContratoListAllView(generics.ListAPIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
+    pagination_class = CustomPageNumberPagination
+    def get(self,request):
+        try:
+            Actor = ActorDeContrato.objects.order_by('NumeroIdentificacion')
+            paginator = CustomPageNumberPagination()
+            paginated_actor = paginator.paginate_queryset(Actor, request)
+            actor_serializer = ActorDeContratoSerializer(paginated_actor, many=True)
+            return paginator.get_paginated_response(actor_serializer.data)
+        
+        except Exception as e:
+            return Response({'error':'invalid request', 'message':str(e)}, status=500)
+    
 class ActorDeContratoListView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -69,7 +86,7 @@ class ActorDeContratoListView(generics.ListAPIView):
         try:
             fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo_sfc)
         except ObjectDoesNotExist:
-            raise NotFound('No existe ese fideicomiso .-.')
+            raise NotFound('No existe ese fideicomiso ')
         except Exception as e:
             return Response({'error': str(e)}, status=500)
         try:
