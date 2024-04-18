@@ -139,13 +139,15 @@ class ActorDeContratoCreateView(APIView):
                     PrimerApellido=PrimerApellido,
                     SegundoApellido=SegundoApellido,
                     Activo=True,
-                    FechaActualizacion=timezone.now()
+                    FechaActualizacion=timezone.now(),
+                    FechaCreacion=timezone.now() 
                 )
                 actor.FideicomisoAsociado.set([fideicomiso])
-            except IntegrityError:
+            except IntegrityError as e:
                 return Response({
                     'status': 'error',
-                    'message': 'La relación de NumeroIdentificacion con Fideicomiso ya existe'
+                    'message': 'La relación de NumeroIdentificacion con Fideicomiso ya existe',
+                    'error': str(e)
                 }, status=status.HTTP_400_BAD_REQUEST)
             return Response({'status': 'success'}, status=status.HTTP_201_CREATED)
         except Exception as e:
