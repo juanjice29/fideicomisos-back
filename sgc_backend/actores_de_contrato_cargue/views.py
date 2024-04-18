@@ -140,7 +140,7 @@ class ActorDeContratoCreateView(APIView):
                     SegundoApellido=SegundoApellido,
                     Activo=True,
                     FechaActualizacion=timezone.now(),
-                    FechaCreacion=timezone.now() 
+                    
                 )
                 actor.FideicomisoAsociado.set([fideicomiso])
             except IntegrityError as e:
