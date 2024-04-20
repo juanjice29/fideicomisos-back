@@ -28,7 +28,7 @@ import hashlib
 from sgc_backend.pagination import CustomPageNumberPagination, ActorDeContratoPagination, EncargoPagination
 from django.core.cache import cache
 from .serializers import TipoDeDocumentoSerializer
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 import logging
 from django.core.paginator import Paginator
@@ -44,12 +44,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.exceptions import NotFound
 from .tasks import update_fideicomiso
 from rest_framework import filters
-
-class TipoDeDocumentoListView(generics.ListAPIView):
-    authentication_classes = [LoggingJWTAuthentication]
-    permission_classes = [IsAuthenticated, HasRolePermission]
-    queryset = TipoDeDocumento.objects.all()
-    serializer_class = TipoDeDocumentoSerializer   
 
 class EncargoListView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
@@ -137,7 +131,19 @@ class ActorFideicomisoListView(APIView):
             return Response({'error': 'No se encuentran los fideicomisos :O'}, status=404)
         except Exception as e:
             return Response({'error': str(e)}, status=500)
-        
+
+class TipoDeDocumentoListView(APIView): 
+    permission_classes = [IsAuthenticatedOrReadOnly] 
+    def get(self,request) :        
+        try:  
+            queryset = TipoDeDocumento.objects.all()  
+            queryset_serializer=TipoDeDocumentoSerializer(queryset,many=True)        
+            return Response(queryset_serializer.data)
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e))
+             
 class FideicomisoList(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]  
@@ -145,7 +151,7 @@ class FideicomisoList(generics.ListAPIView):
     search_fields=["CodigoSFC","Nombre"]
     ordering = ['-FechaCreacion']  
     filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
-    queryset = Fideicomiso.objects.all()   
+    queryset = Fideicomiso.objects.all() 
     
     serializer_class = FideicomisoSerializer
     pagination_class = CustomPageNumberPagination
@@ -287,6 +293,8 @@ class UpdateEncargoTemp(APIView):
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
         
 class UpdateEncargoFromTemp(APIView):
     authentication_classes = [LoggingJWTAuthentication]

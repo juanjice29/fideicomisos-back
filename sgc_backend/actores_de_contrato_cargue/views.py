@@ -107,7 +107,7 @@ class ActorDeContratoListView(generics.ListAPIView):
 class ActorDeContratoCreateView(APIView):
     def post(self, request):
         try:
-            codigos_sfc = request.data.get('FideicomisoAsociado')
+            codigo_sfc = request.data.get('FideicomisoAsociado')
             tipo_actor_id = request.data.get('TipoActor')
             PrimerNombre = request.data.get('PrimerNombre')
             SegundoNombre = request.data.get('SegundoNombre')
@@ -118,8 +118,8 @@ class ActorDeContratoCreateView(APIView):
                 tipo_documento_instance = TipoDeDocumento.objects.get(TipoDocumento=request.data['TipoIdentificacion'])
             except TipoDeDocumento.DoesNotExist:
                 return Response({'status': 'invalid request', 'message': 'TipoDeDocumento no existe'}, status=status.HTTP_400_BAD_REQUEST)
-            fideicomisos = Fideicomiso.objects.filter(CodigoSFC__in=codigos_sfc).first()
-            if not fideicomisos:
+            fideicomiso = Fideicomiso.objects.filter(CodigoSFC=codigo_sfc).first()
+            if not fideicomiso:
                 return Response({'status': 'invalid request', 'message': 'Fideicomiso no existe'}, status=status.HTTP_400_BAD_REQUEST)
 
             tipo_actor = TipoActorDeContrato.objects.filter(id=tipo_actor_id).first()
@@ -142,7 +142,7 @@ class ActorDeContratoCreateView(APIView):
                     FechaActualizacion=timezone.now(),
                     
                 )
-                actor.FideicomisoAsociado.set([fideicomisos])
+                actor.FideicomisoAsociado.set([fideicomiso])
             except IntegrityError as e:
                 return Response({
                     'status': 'error',
