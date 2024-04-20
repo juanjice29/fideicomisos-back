@@ -5,7 +5,7 @@ from fidecomisos.models import Fideicomiso
 from .forms import UploadFileForm
 from rest_framework.exceptions import NotFound
 import pandas as pd
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 from .models import ActorDeContrato, TipoActorDeContrato
 from rest_framework import viewsets
 from django.core.exceptions import ValidationError
@@ -29,6 +29,7 @@ from sgc_backend.pagination import CustomPageNumberPagination
 from fidecomisos.models import Fideicomiso
 from django.db import transaction
 from rest_framework.parsers import FileUploadParser
+
 class FileUploadView(APIView):
     parser_class = (FileUploadParser,)
 
@@ -61,9 +62,18 @@ class FileUploadView(APIView):
 
         return Response({"actors": [actor.id for actor in actors]}, status=status.HTTP_201_CREATED)
     
-class TipoActorDeContratoListView(generics.ListAPIView):
-    queryset = TipoActorDeContrato.objects.all().order_by('id')
-    serializer_class = TipoActorDeContratoSerializer
+class TipoActorDeContratoListView(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]  
+    def get(self,request):
+        try:        
+            queryset = TipoActorDeContrato.objects.all().order_by('id')
+            queryset_serializer=TipoActorDeContratoSerializer(queryset,many=True)  
+            return Response(queryset_serializer.data)
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e))
+    
     
 class ActorDeContratoListAllView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]

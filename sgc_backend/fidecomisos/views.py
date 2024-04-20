@@ -90,7 +90,7 @@ class FideicomisoDetailView(APIView):
         for field, value in request.query_params.items():
             if field in [f.name for f in Encargo._meta.get_fields()]:
                 encargo = encargo.filter(**{field: value})
-        actores_de_contrato = ActorDeContrato.objects.filter(FideicomisoAsociado=fideicomiso).order_by('NumeroIdentificacion')
+        actores_de_contrato = ActorDeContrato.objects.filter(FideicomisoAsociado=fideicomiso).order_by('-FechaCreacion')
         
         for field, value in request.query_params.items():
             if field in [f.name for f in ActorDeContrato._meta.get_fields()]:
@@ -104,7 +104,7 @@ class FideicomisoDetailView(APIView):
         return Response({
             "fideicomiso":fideicomiso_serializer.data,
             'encargo': encargo_serializer.data,
-            'actores_de_contrato': actores_de_contrato_serializer.data,
+            'actoresDeContrato': actores_de_contrato_serializer.data,
             #'beneficiario_final': beneficiario_final_serializer.data,
         })
     
@@ -133,10 +133,10 @@ class ActorFideicomisoListView(APIView):
             return Response({'error': str(e)}, status=500)
 
 class TipoDeDocumentoListView(APIView): 
-    permission_classes = [IsAuthenticatedOrReadOnly] 
+    permission_classes = [IsAuthenticatedOrReadOnly]     
     def get(self,request) :        
         try:  
-            queryset = TipoDeDocumento.objects.all()  
+            queryset = TipoDeDocumento.objects.all().order_by('-idTipoPersona','TipoDocumento')
             queryset_serializer=TipoDeDocumentoSerializer(queryset,many=True)        
             return Response(queryset_serializer.data)
         except ValidationError as e:
