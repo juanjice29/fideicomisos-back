@@ -11,15 +11,19 @@ class EncargoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Encargo
         fields = '__all__'
+        
 class TipoActorDeContratoSerializer(serializers.ModelSerializer):
     class Meta:
         model = TipoActorDeContrato
         fields = '__all__'
+
 class ActorDeContratoSerializer(serializers.ModelSerializer):
     TipoActor=TipoActorDeContratoSerializer()
     class Meta:
         model = ActorDeContrato
-        fields = '__all__'
-        
+        fields = '__all__'       
     
-   
+class ActorDeContratoCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActorDeContrato
+        fields = '__all__' 
