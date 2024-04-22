@@ -10,7 +10,9 @@ from sgc_backend.middleware import get_current_request
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 import logging
-
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+import uuid
 
 # Create your models here.
 class Log_Cambios_Create(models.Model):
@@ -20,6 +22,10 @@ class Log_Cambios_Create(models.Model):
     NombreModelo = models.CharField(max_length=50)
     NombreCampo = models.CharField(max_length=50)
     NuevoValor = models.TextField(null=True)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+    request_id = models.CharField(max_length=36, default=uuid.uuid4,null=True)
 
 class Log_Cambios_Update(models.Model):
     Usuario = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -29,14 +35,22 @@ class Log_Cambios_Update(models.Model):
     NombreCampo = models.CharField(max_length=50)
     AntiguoValor = models.TextField(null=True)
     NuevoValor = models.TextField(null=True)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
+    object_id = models.PositiveIntegerField(null=True)
+    content_object = GenericForeignKey('content_type', 'object_id')
+    request_id = models.CharField(max_length=36, default=uuid.uuid4,null=True)
 
 class Log_Cambios_Delete(models.Model):
     Usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     Ip = models.GenericIPAddressField()
     TiempoAccion = models.DateTimeField(auto_now_add=True)
-    NombreModelo = models.CharField(max_length=50)   
+    NombreModelo = models.CharField(max_length=50)
+    NombreCampo = models.CharField(max_length=255)
     AntiguoValor = models.TextField(null=True) 
-
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE,null=True)
+    object_id = models.PositiveIntegerField(null=True)
+    content_object = GenericForeignKey('content_type', 'object_id')
+    request_id = models.CharField(max_length=36, default=uuid.uuid4,null=True)
 
 # Function to get client's IP address
 def get_client_ip(request):
@@ -49,6 +63,7 @@ def get_client_ip(request):
 logger = logging.getLogger(__name__)
 @receiver(post_save)
 def post_save_receiver(sender, instance, created, **kwargs):
+    request_id = str(uuid.uuid4())
     try:
         if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete]:
             return
@@ -63,6 +78,8 @@ def post_save_receiver(sender, instance, created, **kwargs):
                 new_value = getattr(instance, field_name)
                 user = User.objects.get(username=request.user.username)  # get the User instance
                 Log_Cambios_Create.objects.create(
+                    request_id=request_id,
+                    content_object=instance,
                     Usuario=user,  # assign the User instance
                     Ip=get_client_ip(request),
                     NombreModelo=sender.__name__,
@@ -80,6 +97,7 @@ def post_save_receiver(sender, instance, created, **kwargs):
         logger.info(f"Un error ocurrio: {str(e)}")
 @receiver(pre_save)
 def pre_save_receiver(sender, instance, **kwargs):
+    request_id = str(uuid.uuid4())
     try:
         if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete]:
             return
@@ -100,6 +118,8 @@ def pre_save_receiver(sender, instance, **kwargs):
             user = User.objects.get(username=request.user.username)
             if old_value != new_value:
                 Log_Cambios_Update.objects.create(
+                    request_id=request_id,
+                    content_object=instance,
                     Usuario=user,
                     Ip=get_client_ip(request),
                     NombreModelo=sender.__name__,
@@ -118,6 +138,7 @@ def pre_save_receiver(sender, instance, **kwargs):
         logger.info(f"Un error ocurrio: {str(e)}")
 @receiver(pre_delete)
 def pre_delete_receiver(sender, instance, **kwargs):
+    request_id = str(uuid.uuid4())
     try:
         if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete]:
             return
@@ -130,6 +151,8 @@ def pre_delete_receiver(sender, instance, **kwargs):
             old_value = getattr(instance, field.name)
             user = User.objects.get(username=request.user.username)
             Log_Cambios_Delete.objects.create(
+                request_id=request_id,
+                content_object=instance,
                 Usuario=user,
                 Ip=get_client_ip(request),
                 NombreModelo=sender.__name__,
@@ -145,3 +168,4 @@ def pre_delete_receiver(sender, instance, **kwargs):
     except Exception as e:
         # Handle all other types of errors
         logger.info(f"Un error ocurrio: {str(e)}")
+        
