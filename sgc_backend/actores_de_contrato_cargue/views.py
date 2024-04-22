@@ -124,7 +124,7 @@ class ActorDeContratoListView(generics.ListAPIView):
         except Exception as e:
             return Response({'error':'invalid request', 'message':str(e)}, status=500)
 
-class ActorDeContratoView(APIView):
+class ActorDeContratoViewExcel(APIView):
     def post(self, request):
         try:
             file = request.data['file']
