@@ -29,6 +29,7 @@ from sgc_backend.pagination import CustomPageNumberPagination
 from fidecomisos.models import Fideicomiso
 from django.db import transaction
 from rest_framework.parsers import FileUploadParser
+from rest_framework import filters
 
 class FileUploadView(APIView):
     parser_class = (FileUploadParser,)
@@ -77,15 +78,19 @@ class TipoActorDeContratoListView(APIView):
 class ActorDeContratoListAllView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
+    
+    
+    search_fields=["NumeroIdentificacion","PrimerNombre","SegundoNombre","PrimerApellido","SegundoApellido","TipoActor__Descripcion"]
+    ordering = ['-FechaCreacion']  
+    filter_backends=[filters.SearchFilter,filters.OrderingFilter]
+    queryset = ActorDeContrato.objects.all()
+    
+    serializer_class=ActorDeContratoSerializer
     pagination_class = CustomPageNumberPagination
-    def get(self,request):
+    
+    def get_queryset(self):
         try:
-            Actor = ActorDeContrato.objects.order_by('NumeroIdentificacion')
-            paginator = CustomPageNumberPagination()
-            paginated_actor = paginator.paginate_queryset(Actor, request)
-            actor_serializer = ActorDeContratoSerializer(paginated_actor, many=True)
-            return paginator.get_paginated_response(actor_serializer.data)
-        
+            return self.queryset        
         except Exception as e:
             return Response({'error':'invalid request', 'message':str(e)}, status=500)
 

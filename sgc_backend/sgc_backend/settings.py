@@ -13,7 +13,7 @@ from datetime import timedelta
 import datetime
 from pathlib import Path
 import os
-
+from .db_conn import *
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -120,11 +120,11 @@ WSGI_APPLICATION = 'sgc_backend.wsgi.application'
 DATABASES = {
     'default': {
         "ENGINE": "django.db.backends.oracle",
-        "NAME": "xe",
-        "USER": "SGC_SOFTWARE_DEV_F",
-        "PASSWORD": "SGC_SOFTWARE_DEV_F",
-        "HOST": "localhost",
-        "PORT": "1521",
+        "NAME": db_name,
+        "USER": db_user,
+        "PASSWORD":db_pass,
+        "HOST": db_host,
+        "PORT": db_port,
     }
 }
 

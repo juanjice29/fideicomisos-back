@@ -17,6 +17,7 @@ class TipoActorDeContratoSerializer(serializers.ModelSerializer):
         model = TipoActorDeContrato
         fields = '__all__'
 
+
 class ActorDeContratoSerializer(serializers.ModelSerializer):
     TipoActor=TipoActorDeContratoSerializer()
     class Meta:

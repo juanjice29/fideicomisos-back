@@ -13,13 +13,13 @@ class ActorDeContrato(models.Model):
     TipoIdentificacion = models.ForeignKey(TipoDeDocumento, on_delete=models.CASCADE)
     NumeroIdentificacion = models.CharField(max_length=12)
     PrimerNombre = models.CharField(max_length=100)
-    SegundoNombre = models.CharField(max_length=100)
+    SegundoNombre = models.CharField(max_length=100,null=True,blank=True)
     PrimerApellido = models.CharField(max_length=100)
-    SegundoApellido = models.CharField(max_length=100)
+    SegundoApellido = models.CharField(max_length=100,null=True,blank=True)
     TipoActor = models.ForeignKey(TipoActorDeContrato, on_delete=models.CASCADE)
     FideicomisoAsociado = models.ManyToManyField(Fideicomiso)
     FechaCreacion = models.DateTimeField(auto_now_add=True)
-    FechaActualizacion = models.DateTimeField(auto_now_add=True)
+    FechaActualizacion = models.DateTimeField(auto_now=True)
     
     Activo = models.BooleanField(default=True)
     class Meta:
