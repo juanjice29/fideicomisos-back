@@ -128,6 +128,44 @@ class ActorDeContratoListView(generics.ListAPIView):
             return Response({'error':'invalid request','message': 'No se encuentra el Actor de Contrato :('}, status=404)
         except Exception as e:
             return Response({'error':'invalid request', 'message':str(e)}, status=500)
+
+class ActorDeContratoViewExcel(APIView):
+    def post(self, request):
+        try:
+            file = request.data['file']
+            data = pd.read_excel(file)
+            response_data = []
+            for index, row in data.iterrows():
+                actor_data = {
+                    'TipoIdentificacion': row['TipoIdentificacion'],
+                    'NumeroIdentificacion': row['NumeroIdentificacion'],
+                    'TipoActor': row['TipoActor'],
+                    'PrimerNombre': row['PrimerNombre'],
+                    'SegundoNombre': row['SegundoNombre'],
+                    'PrimerApellido': row['PrimerApellido'],
+                    'SegundoApellido': row['SegundoApellido'],
+                    'Activo': True,
+                    'FechaActualizacion': timezone.now(),
+                }
+                fideicomiso_codigos = row['FideicomisoAsociado'].split(',')  # assuming FideicomisoAsociado is a comma-separated string
+                fideicomisos = Fideicomiso.objects.filter(CodigoSFC__in=fideicomiso_codigos)
+                actor, created = ActorDeContrato.objects.update_or_create(
+                    NumeroIdentificacion=actor_data['NumeroIdentificacion'],
+                    defaults=actor_data
+                )
+                actor.FideicomisoAsociado.set(fideicomisos)
+                if created:
+                    status = 'created'
+                else:
+                    status = 'updated'
+                response_data.append({
+                    'NumeroIdentificacion': actor_data['NumeroIdentificacion'],
+                    'status': status
+                })
+            return Response(response_data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         
 class ActorDeContratoView(APIView):
     def post(self, request):
@@ -166,6 +204,16 @@ class ActorDeContratoView(APIView):
         except Exception as e:
             print(e)
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def delete(self, request, numero_identificacion):
+        try:
+            actor = ActorDeContrato.objects.get(NumeroIdentificacion=numero_identificacion)
+            actor.delete()
+            return Response({'status': 'success', 'message': 'Actor de contrato deleted successfully'}, status=status.HTTP_200_OK)
+        except ActorDeContrato.DoesNotExist:
+            return Response({'status': 'error', 'message': 'Actor de contrato not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
+        
     
 class ListFideicomisosOfActorView(generics.ListAPIView):
     serializer_class = FideicomisoSerializer
