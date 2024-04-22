@@ -72,8 +72,7 @@ class TipoActorDeContratoListView(APIView):
         except ValidationError as e:
             raise ParseError(detail=str(e))
         except Exception as e:
-            raise APIException(detail=str(e))
-    
+            raise APIException(detail=str(e))    
     
 class ActorDeContratoListAllView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
@@ -89,7 +88,17 @@ class ActorDeContratoListAllView(generics.ListAPIView):
         
         except Exception as e:
             return Response({'error':'invalid request', 'message':str(e)}, status=500)
+
+class GetActorView(generics.ListAPIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
+    serializer_class = ActorDeContratoSerializer
     
+    def get_queryset(self):             
+        nro_ident= self.kwargs['nro_ident']     
+        return ActorDeContrato.objects.filter(NumeroIdentificacion=nro_ident)
+    
+
 class ActorDeContratoListView(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -152,9 +161,7 @@ class ActorDeContratoView(APIView):
         except Exception as e:
             print(e)
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-
-        
+    
 class ListFideicomisosOfActorView(generics.ListAPIView):
     serializer_class = FideicomisoSerializer
 

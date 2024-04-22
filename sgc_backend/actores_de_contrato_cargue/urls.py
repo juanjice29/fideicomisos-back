@@ -9,5 +9,6 @@ urlpatterns = [
     path('actorfidelist/', ListFideicomisosOfActorView.as_view(), name='actordecontratfide-list-all'),
     path('tipoactordecontrato/', TipoActorDeContratoListView.as_view(), name='tipoactordecontrato-list'),
     path('crearactordecontrato/', ActorDeContratoView.as_view(), name='crearactordecontrato'),
-    path('añadirfide/', AddFideicomisosToActorView.as_view(), name='addfideact')
+    path('add-fide/', AddFideicomisosToActorView.as_view(), name='addfideact'),
+    path('actor/<str:nro_ident>/',GetActorView.as_view(), name='checkactor')
 ]
