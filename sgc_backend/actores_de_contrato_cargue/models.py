@@ -18,9 +18,10 @@ class ActorDeContrato(models.Model):
     SegundoApellido = models.CharField(max_length=100)
     TipoActor = models.ForeignKey(TipoActorDeContrato, on_delete=models.CASCADE)
     FideicomisoAsociado = models.ManyToManyField(Fideicomiso)
-    FechaActualizacion = models.DateField()
-    Activo = models.BooleanField(default=True)
     FechaCreacion = models.DateTimeField(auto_now_add=True)
+    FechaActualizacion = models.DateTimeField(auto_now_add=True)
+    
+    Activo = models.BooleanField(default=True)
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['NumeroIdentificacion'], name='unique_identificacion')

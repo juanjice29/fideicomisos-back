@@ -9,9 +9,7 @@ urlpatterns = [
     path('actor_de_contrato_excel/', ActorDeContratoCreateViewExcel.as_view(), name='actor_de_contrato_excel'),
     path('actorfidelist/', ListFideicomisosOfActorView.as_view(), name='actordecontratfide-list-all'),
     path('tipoactordecontrato/', TipoActorDeContratoListView.as_view(), name='tipoactordecontrato-list'),
-    path('crearactordecontrato/', ActorDeContratoCreateView.as_view(), name='crearactordecontrato'),
-    path('añadirfide/', AddFideicomisosToActorView.as_view(), name='addfideact'),
-    #path('encargo/', EncargoListView.as_view(), name='encargo-list'), #http://127.0.0.1:8000/actores/encargo/?CodigoSFC=116788
-    path('actordecontrato/<int:id>/', ActorDeContratoUpdateView.as_view(), name='actordecontrato-update'),
-    path('actordecontrato/<int:id>/delete/', ActorDeContratoDeleteView.as_view(), name='actordecontrato-delete'),
+    path('crearactordecontrato/', ActorDeContratoView.as_view(), name='crearactordecontrato'),
+    path('add-fide/', AddFideicomisosToActorView.as_view(), name='addfideact'),
+    path('actor/<str:nro_ident>/',GetActorView.as_view(), name='checkactor')
 ]
