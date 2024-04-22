@@ -124,71 +124,40 @@ class ActorDeContratoListView(generics.ListAPIView):
         except Exception as e:
             return Response({'error':'invalid request', 'message':str(e)}, status=500)
 
-class ActorDeContratoCreateViewExcel(APIView):
+class ActorDeContratoView(APIView):
     def post(self, request):
-        try: 
+        try:
             file = request.data['file']
             data = pd.read_excel(file)
             response_data = []
             for index, row in data.iterrows():
-                codigos_sfc = row['FideicomisoAsociado']
-                tipo_actor_id = row['TipoActor']
-                PrimerNombre = row['PrimerNombre']
-                SegundoNombre = row['SegundoNombre']
-                PrimerApellido = row['PrimerApellido']
-                SegundoApellido =row['SegundoApellido']
-                numeroidentificacion = row['NumeroIdentificacion']
-                try:
-                    tipo_documento_instance = TipoDeDocumento.objects.get(TipoDocumento=row['TipoIdentificacion'])
-                except TipoDeDocumento.DoesNotExist:
-                    response_data.append({
-                        'NumeroIdentificacion': numeroidentificacion,
-                        'status': 'error',
-                        'message': 'TipoDeDocumento no existe'
-                    })
-                    continue
-                fideicomisos = Fideicomiso.objects.filter(CodigoSFC__exact=codigos_sfc)
-                if not fideicomisos.exists():
-                    response_data.append({
-                        'NumeroIdentificacion': numeroidentificacion,
-                        'status': 'error',
-                        'message': 'Fideicomiso no existe'
-                    })
-                    continue
-                tipo_actor = TipoActorDeContrato.objects.filter(id=tipo_actor_id).first()
-                if not tipo_actor:
-                    response_data.append({
-                        'NumeroIdentificacion': numeroidentificacion,
-                        'status': 'error',
-                        'message': 'TipoActor no existe'
-                    })
-                    continue
-                try:
-                    actor = ActorDeContrato.objects.create(
-                        TipoIdentificacion=tipo_documento_instance,
-                        NumeroIdentificacion=numeroidentificacion,
-                        TipoActor=tipo_actor,
-                        PrimerNombre=PrimerNombre,
-                        SegundoNombre=SegundoNombre,
-                        PrimerApellido=PrimerApellido,
-                        SegundoApellido=SegundoApellido,
-                        Activo=True,
-                        FechaActualizacion=timezone.now(),
-                        
-                    )
-                    actor.FideicomisoAsociado.set(fideicomisos)
-                    response_data.append({
-                        'NumeroIdentificacion': numeroidentificacion,
-                        'status': 'success'
-                    })
-                except IntegrityError as e:
-                    return Response({
-                        'NumeroIdentificacion': numeroidentificacion,
-                        'status': 'error',
-                        'message': 'La relación de NumeroIdentificacion con Fideicomiso ya existe',
-                        'error': str(e)
-                    })
-                return Response({'status': 'success'}, status=status.HTTP_201_CREATED)
+                actor_data = {
+                    'TipoIdentificacion': row['TipoIdentificacion'],
+                    'NumeroIdentificacion': row['NumeroIdentificacion'],
+                    'TipoActor': row['TipoActor'],
+                    'PrimerNombre': row['PrimerNombre'],
+                    'SegundoNombre': row['SegundoNombre'],
+                    'PrimerApellido': row['PrimerApellido'],
+                    'SegundoApellido': row['SegundoApellido'],
+                    'Activo': True,
+                    'FechaActualizacion': timezone.now(),
+                }
+                fideicomiso_codigos = row['FideicomisoAsociado'].split(',')  # assuming FideicomisoAsociado is a comma-separated string
+                fideicomisos = Fideicomiso.objects.filter(CodigoSFC__in=fideicomiso_codigos)
+                actor, created = ActorDeContrato.objects.update_or_create(
+                    NumeroIdentificacion=actor_data['NumeroIdentificacion'],
+                    defaults=actor_data
+                )
+                actor.FideicomisoAsociado.set(fideicomisos)
+                if created:
+                    status = 'created'
+                else:
+                    status = 'updated'
+                response_data.append({
+                    'NumeroIdentificacion': actor_data['NumeroIdentificacion'],
+                    'status': status
+                })
+            return Response(response_data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
