@@ -204,9 +204,10 @@ class ActorDeContratoView(APIView):
         except Exception as e:
             print(e)
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    def delete(self, request, numero_identificacion):
+        
+    def delete(self, request):
         try:
-            actor = ActorDeContrato.objects.get(NumeroIdentificacion=numero_identificacion)
+            actor = ActorDeContrato.objects.get(NumeroIdentificacion=request.data.get('NumeroIdentificacion'))
             actor.delete()
             return Response({'status': 'success', 'message': 'Actor de contrato deleted successfully'}, status=status.HTTP_200_OK)
         except ActorDeContrato.DoesNotExist:
