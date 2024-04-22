@@ -115,7 +115,7 @@ class ActorDeContratoListView(generics.ListAPIView):
         except Exception as e:
             return Response({'error':'invalid request', 'message':str(e)}, status=500)
         
-class ActorDeContratoCreateView(APIView):
+class ActorDeContratoView(APIView):
     def post(self, request):
         try:
             actor = request.data    
@@ -169,6 +169,7 @@ class ListFideicomisosOfActorView(generics.ListAPIView):
             return Response({'status': 'invalid request', 'message': 'ActorDeContrato no existe'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 class AddFideicomisosToActorView(generics.UpdateAPIView):
     queryset = ActorDeContrato.objects.all()
 
@@ -191,42 +192,3 @@ class AddFideicomisosToActorView(generics.UpdateAPIView):
             return Response({'status': 'invalid request', 'message': 'Fideicomiso no existe'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-class ActorDeContratoUpdateView(generics.UpdateAPIView):
-    queryset = ActorDeContrato.objects.all()
-    serializer_class = ActorDeContratoSerializer
-    lookup_field = 'id'
-    def put(self, request, *args, **kwargs):
-        try:
-            instance = self.get_object()
-
-            # request.data is the JSON object sent from the Angular frontend
-            data = request.data
-
-            tipo_documento_instance = TipoDeDocumento.objects.get(TipoDocumento=data['TipoIdentificacion'])
-            fideicomiso = Fideicomiso.objects.get(CodigoSFC=data['FideicomisoAsociado'])
-            tipo_actor = TipoActorDeContrato.objects.get(id=data['TipoActor'])
-            instance.TipoIdentificacion = tipo_documento_instance
-            instance.FideicomisoAsociado = fideicomiso
-            instance.NumeroIdentificacion = data['NumeroIdentificacion']
-            instance.TipoActor = tipo_actor
-            instance.PrimerNombre=data['PrimerNombre']
-            instance.SegundoNombre=data['SegundoNombre']
-            instance.PrimerApellido=data['PrimerApellido']
-            instance.SegundoApellido=data['SegundoApellido']
-            instance.FechaActualizacion = timezone.now()
-            instance.Activo=data['Activo']
-            instance.save()
-
-            return Response({'status': 'success'}, status=status.HTTP_200_OK)
-        except TipoDeDocumento.DoesNotExist:
-            return Response({'status': 'invalid request', 'message': 'TipoDeDocumento no existe'}, status=status.HTTP_400_BAD_REQUEST)
-        except Fideicomiso.DoesNotExist:
-            return Response({'status': 'invalid request', 'message': 'Fideicomiso no existe'}, status=status.HTTP_400_BAD_REQUEST)
-        except TipoActorDeContrato.DoesNotExist:
-            return Response({'status': 'invalid request', 'message': 'TipoActor no existe'}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-class ActorDeContratoDeleteView(generics.DestroyAPIView):
-    queryset = ActorDeContrato.objects.all()
-    lookup_field = 'id'
-    
