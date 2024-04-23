@@ -145,7 +145,6 @@ class ActorDeContratoViewExcel(APIView):
                     'PrimerApellido': row['PrimerApellido'],
                     'SegundoApellido': row['SegundoApellido'],
                     'Activo': True,
-                    'FechaActualizacion': timezone.now(),
                 }
                 fideicomiso_codigos = row['FideicomisoAsociado'].split(',')  # assuming FideicomisoAsociado is a comma-separated string
                 fideicomisos = Fideicomiso.objects.filter(CodigoSFC__in=fideicomiso_codigos)
