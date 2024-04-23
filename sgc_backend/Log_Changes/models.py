@@ -52,6 +52,7 @@ class Log_Cambios_Delete(models.Model):
     content_object = GenericForeignKey('content_type', 'object_id')
     request_id = models.CharField(max_length=36, default=uuid.uuid4,null=True)
 
+
 # Function to get client's IP address
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -61,6 +62,7 @@ def get_client_ip(request):
         ip = request.META.get('REMOTE_ADDR')
     return ip
 logger = logging.getLogger(__name__)
+
 @receiver(post_save)
 def post_save_receiver(sender, instance, created, **kwargs):
     request_id = str(uuid.uuid4())
@@ -95,9 +97,10 @@ def post_save_receiver(sender, instance, created, **kwargs):
     except Exception as e:
         # Handle all other types of errors
         logger.info(f"Un error ocurrio: {str(e)}")
+
 @receiver(pre_save)
 def pre_save_receiver(sender, instance, **kwargs):
-    request_id = str(uuid.uuid4())
+    
     try:
         if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete]:
             return
@@ -111,14 +114,14 @@ def pre_save_receiver(sender, instance, **kwargs):
             return
 
         old_instance = sender.objects.get(pk=instance.pk)
-
+        log_request_id=str(uuid.uuid4())
         for field in instance._meta.fields:
             old_value = getattr(old_instance, field.name)
             new_value = getattr(instance, field.name)
             user = User.objects.get(username=request.user.username)
             if old_value != new_value:
                 Log_Cambios_Update.objects.create(
-                    request_id=request_id,
+                    request_id=log_request_id,
                     content_object=instance,
                     Usuario=user,
                     Ip=get_client_ip(request),
@@ -167,5 +170,4 @@ def pre_delete_receiver(sender, instance, **kwargs):
         logger.info("Un campo contiene un valor invalido")
     except Exception as e:
         # Handle all other types of errors
-        logger.info(f"Un error ocurrio: {str(e)}")
-        
+        logger.info(f"Un error ocurrio: {str(e)}")   
