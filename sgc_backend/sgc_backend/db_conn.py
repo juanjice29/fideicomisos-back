@@ -1,5 +1,5 @@
 db_name="xe"
-db_user="SGC_SOFTWARE_DEV_JJ"
-db_pass="SGC_SOFTWARE_DEV_JJ"
+db_user="SGC_SOFTWARE_DEV_F"
+db_pass="SGC_SOFTWARE_DEV_F"
 db_host="localhost"
-db_port="1521"
+db_port="1522"
