@@ -28,32 +28,99 @@ class LogView(APIView):
 class ChangesView(APIView):
     def post(self, request):
         # Get the numeroidentificacion from the data
-        NumeroIdentificacion = request.data.get('NumeroIdentificacion')
+        try:
+            model=request.data.get('model')
+            key=request.data.get('key')
+            key_value=request.data.get('keyValue')
+            object_id=Log_Cambios_Create.objects.filter(NombreModelo=model,NombreCampo=key,NuevoValor=key_value).first()
+            #NumeroIdentificacion = request.data.get('NumeroIdentificacion')
+            if object_id:
+                object_id=object_id.object_id
+            else:
+                return Response({'status': 'error', 'message': 'No se encontro historial de cambios'}, status=status.HTTP_404_NOT_FOUND)
+            # Get the ActorDeContrato object with the given numeroidentificacion
+            #actor = ActorDeContrato.objects.get(NumeroIdentificacion=NumeroIdentificacion)
 
-        # Get the ActorDeContrato object with the given numeroidentificacion
-        actor = ActorDeContrato.objects.get(NumeroIdentificacion=NumeroIdentificacion)
+            # Get the changes from the create, update, and delete logs
+            create_logs = Log_Cambios_Create.objects.filter(object_id=object_id).order_by('TiempoAccion')
+            update_logs = Log_Cambios_Update.objects.filter(object_id=object_id).order_by('TiempoAccion')
+            delete_logs = Log_Cambios_Delete.objects.filter(object_id=object_id).order_by('TiempoAccion')
 
-        # Get the changes from the create, update, and delete logs
-        create_logs = Log_Cambios_Create.objects.filter(object_id=actor.id).order_by('TiempoAccion')
-        update_logs = Log_Cambios_Update.objects.filter(object_id=actor.id).order_by('TiempoAccion')
-        delete_logs = Log_Cambios_Delete.objects.filter(object_id=actor.id).order_by('TiempoAccion')
+            changes_by_request = defaultdict(lambda: {'create': [], 'update': [], 'delete': [], 'timestamp': None})
+            response_dict={"create":[],"update":[],"delete":[]}
+            log_cambios_serializer=LogCreateSerializer(create_logs, many=True)
+            log_update_serializer=LogUpdateSerializer(update_logs, many=True)           
+            
+            individual_logs_id_create=[]
+            individual_log_create=[]
+            for log in log_cambios_serializer.data:
+                request_id = log["request_id"]
+                if request_id not in individual_logs_id_create:
+                    individual_log_create.append({"requestId":request_id,
+                                           "user":log["Usuario"],
+                                           "timeAction":log["TiempoAccion"],
+                                           "ip":log["Ip"],
+                                           "modelName":log["NombreModelo"],
+                                           "changes":[]})
+                    individual_logs_id_create.append(request_id)   
 
-        changes_by_request = defaultdict(lambda: {'create': [], 'update': [], 'delete': [], 'timestamp': None})
-        for log in create_logs:
-            request_id = log.request_id
-            changes_by_request[request_id]['create'].append(model_to_dict(log))
-            if changes_by_request[request_id]['timestamp'] is None:
-                changes_by_request[request_id]['timestamp'] = log.TiempoAccion.strftime('%Y-%m-%d %H:%M:%S')
-        for log in update_logs:
-            request_id = log.request_id
-            changes_by_request[request_id]['update'].append(model_to_dict(log))
-            if changes_by_request[request_id]['timestamp'] is None:
-                changes_by_request[request_id]['timestamp'] = log.TiempoAccion.strftime('%Y-%m-%d %H:%M:%S')
-        for log in delete_logs:
-            request_id = log.request_id
-            changes_by_request[request_id]['delete'].append(model_to_dict(log))
-            if changes_by_request[request_id]['timestamp'] is None:
-                changes_by_request[request_id]['timestamp'] = log.TiempoAccion.strftime('%Y-%m-%d %H:%M:%S')
+                for ind_log in individual_log_create:
+                    if ind_log["requestId"]==request_id:
+                        ind_log["changes"].append({
+                            "id":log["id"],
+                            "field":log["NombreCampo"],                            
+                            "newValue":log["NuevoValor"]
+                        })                
+            response_dict["create"]=individual_log_create  
 
-        # Return the changes as a JSON response
-        return Response(dict(changes_by_request))        
+            individual_logs_id_update=[]
+            individual_log_update=[]                
+            for log in log_update_serializer.data:
+                request_id = log["request_id"]
+                if request_id not in individual_logs_id_update:
+                    individual_log_update.append({"requestId":request_id,
+                                           "user":log["Usuario"],
+                                           "timeAction":log["TiempoAccion"],
+                                           "ip":log["Ip"],
+                                           "modelName":log["NombreModelo"],
+                                           "changes":[]})
+                    individual_logs_id_update.append(request_id)
+
+                for ind_log in individual_log_update:
+                    if ind_log["requestId"]==request_id:
+                        ind_log["changes"].append({
+                            "id":log["id"],
+                            "field":log["NombreCampo"],
+                            "oldValue":log["AntiguoValor"],
+                            "newValue":log["NuevoValor"]
+                        })    
+            response_dict["update"]=individual_log_update
+
+
+            individual_logs_id_delete=[]
+            individual_log_delete=[]
+            for log in delete_logs:
+                request_id = log["request_id"]
+                if request_id not in individual_logs_id_delete:
+                    response_dict["delete"].append({"requestId":request_id,
+                                           "user":log["Usuario"],
+                                           "timeAction":log["TiempoAccion"],
+                                           "ip":log["Ip"],
+                                           "modelName":log["NombreModelo"],
+                                           "changes":[]})
+                    individual_logs_id_delete.append(request_id)
+
+                for ind_log in individual_log_delete:
+                    if ind_log["requestId"]==request_id:
+                        ind_log["changes"].append({
+                            "id":log["id"],
+                            "field":log["NombreCampo"],
+                            "oldValue":log["AntiguoValor"]
+                        })
+
+            response_dict["delete"]=individual_log_delete
+
+            return Response(response_dict)        
+            
+        except Exception as e:
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
