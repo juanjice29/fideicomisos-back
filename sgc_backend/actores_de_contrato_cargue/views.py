@@ -166,6 +166,26 @@ class ActorDeContratoViewExcel(APIView):
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         
+class UpdateActorView(APIView):
+    def put(self, request):
+        try:
+            actor = request.data    
+            codigos_sfc = list(set(actor.get('FideicomisoAsociado')))
+            numero_identificacion = actor.get('NumeroIdentificacion')           
+            fideicomiso = Fideicomiso.objects.filter(CodigoSFC__in=codigos_sfc)            
+            if len(codigos_sfc)!=len(fideicomiso):
+                return Response({'status': 'invalid request', 'message': 'Fideicomiso no existe'}, status=status.HTTP_400_BAD_REQUEST)               
+            actor_object=ActorDeContrato.objects.get(NumeroIdentificacion=numero_identificacion)               
+            actor["FideicomisoAsociado"]=codigos_sfc    
+            actor_serializer = ActorDeContratoCreateSerializer(actor_object,data=actor)
+            if actor_serializer.is_valid():    
+                actor_serializer.save()
+                return Response(actor_serializer.data, status=status.HTTP_201_CREATED)
+            return Response(actor_serializer.errors, status=status.HTTP_400_BAD_REQUEST)            
+        except Exception as e:
+            print(e)
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 class ActorDeContratoView(APIView):
     def post(self, request):
         try:

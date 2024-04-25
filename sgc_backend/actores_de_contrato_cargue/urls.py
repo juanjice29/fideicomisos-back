@@ -11,5 +11,6 @@ urlpatterns = [
     path('tipoactordecontrato/', TipoActorDeContratoListView.as_view(), name='tipoactordecontrato-list'),
     path('crearactordecontrato/', ActorDeContratoView.as_view(), name='crearactordecontrato'),    
     path('add-fide/', AddFideicomisosToActorView.as_view(), name='addfideact'),
-    path('actor/<str:nro_ident>/',GetActorView.as_view(), name='checkactor')
+    path('actor/<str:nro_ident>/',GetActorView.as_view(), name='checkactor'),
+    path('updateactor/', UpdateActorView.as_view(), name='update-actor'),
 ]

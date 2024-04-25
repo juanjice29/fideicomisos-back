@@ -11,8 +11,8 @@ urlpatterns = [
     path('update_encargo/', UpdateEncargoFromTemp.as_view(), name='update-encargo'),
     path('update_encargotemp/', UpdateEncargoTemp.as_view(), name='update-encargo-temp'),
     path('actor/<str:numero_identificacion>/', ActorFideicomisoListView.as_view(), name='actor-fideicomisos'),
+    path('fideicomiso-list-by-list/',GetFideicomisoByList.as_view(), name='fideicomiso-list-by-list'),
     
-
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

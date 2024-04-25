@@ -131,7 +131,22 @@ class ActorFideicomisoListView(APIView):
             return Response({'error': 'No se encuentran los fideicomisos :O'}, status=404)
         except Exception as e:
             return Response({'error': str(e)}, status=500)
-
+        
+class GetFideicomisoByList(APIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
+     
+    def post(self, request):
+        try:
+            codigos = request.data.get('codigosSFC', None)
+            if not codigos:
+                return Response({'error': 'No se proporcionaron códigos'}, status=status.HTTP_400_BAD_REQUEST)
+            queryset = Fideicomiso.objects.filter(CodigoSFC__in=codigos)
+            serializer = FideicomisoSerializer(queryset, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 class TipoDeDocumentoListView(APIView): 
     permission_classes = [IsAuthenticatedOrReadOnly]     
     def get(self,request) :        
