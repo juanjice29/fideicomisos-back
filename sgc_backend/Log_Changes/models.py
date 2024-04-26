@@ -3,7 +3,7 @@ from accounts.models import User
 from django.shortcuts import render
 from django.db import models
 from django.contrib.auth.models import User
-from django.db.models.signals import pre_save, post_save, pre_delete
+from django.db.models.signals import pre_save, post_save, pre_delete,m2m_changed
 from django.dispatch import receiver
 from django.core.exceptions import ObjectDoesNotExist
 from sgc_backend.middleware import get_current_request
@@ -52,6 +52,20 @@ class Log_Cambios_Delete(models.Model):
     content_object = GenericForeignKey('content_type', 'object_id')
     request_id = models.CharField(max_length=36, default=uuid.uuid4,null=True)
 
+class Log_Cambios_M2M(models.Model):
+    Usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    Ip = models.GenericIPAddressField()
+    TiempoAccion = models.DateTimeField(auto_now_add=True)
+    NombreModelo = models.CharField(max_length=50)
+    NombreCampo = models.CharField(max_length=50)
+    Valor = models.TextField(null=True)
+    JsonValue=models.TextField(null=True)
+    Action=models.CharField(max_length=50,null=True)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+    request_id = models.CharField(max_length=36, default=uuid.uuid4,null=True)
+
 
 # Function to get client's IP address
 def get_client_ip(request):
@@ -67,7 +81,7 @@ logger = logging.getLogger(__name__)
 def post_save_receiver(sender, instance, created, **kwargs):
     request_id = str(uuid.uuid4())
     try:
-        if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete]:
+        if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M]:
             return
         request = get_current_request()
         if request is None:
@@ -102,7 +116,7 @@ def post_save_receiver(sender, instance, created, **kwargs):
 def pre_save_receiver(sender, instance, **kwargs):
     
     try:
-        if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete]:
+        if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M]:
             return
         request = get_current_request()
         if request is None:
@@ -143,7 +157,7 @@ def pre_save_receiver(sender, instance, **kwargs):
 def pre_delete_receiver(sender, instance, **kwargs):
     request_id = str(uuid.uuid4())
     try:
-        if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete]:
+        if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M]:
             return
         request = get_current_request()
         if request is None:
@@ -171,3 +185,72 @@ def pre_delete_receiver(sender, instance, **kwargs):
     except Exception as e:
         # Handle all other types of errors
         logger.info(f"Un error ocurrio: {str(e)}")   
+
+@receiver(m2m_changed)
+def m2m_changed_receiver(sender, instance, action, model, pk_set, **kwargs):
+    try:
+        if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete, Log_Cambios_M2M,Log_Cambios_M2M]:
+            return
+        request = get_current_request()
+        if request is None:
+            # No current request
+            return
+
+        request_id = str(uuid.uuid4())
+        user = User.objects.get(username=request.user.username)
+        print("=========================m2m_reciber",sender,action)
+        if action == 'pre_add':
+            for pk in pk_set:
+                obj = model.objects.get(pk=pk)
+                obj_dict = vars(obj)
+                if '_state' in obj_dict:
+                    del obj_dict['_state']
+                for key, value in obj_dict.items():
+                    if not isinstance(value, (str, int, float, bool, type(None))):
+                        obj_dict[key] = str(value)
+                field_name = None
+                for field in instance._meta.many_to_many:
+                    field_name= field.attname
+                    break
+
+                Log_Cambios_M2M.objects.create(
+                    request_id=request_id,
+                    content_object=instance,
+                    Usuario=user,
+                    Ip=get_client_ip(request),
+                    NombreModelo=sender.__name__,
+                    NombreCampo=field_name,
+                    Valor=str(pk),
+                    JsonValue=str(obj_dict),
+                    Action=action
+                    )
+        elif action == 'pre_remove':
+            for pk in pk_set:
+                obj = model.objects.get(pk=pk)
+                field_name = None
+
+                obj_dict = vars(obj)
+                if '_state' in obj_dict:
+                    del obj_dict['_state']
+                for key, value in obj_dict.items():
+                    if not isinstance(value, (str, int, float, bool, type(None))):
+                        obj_dict[key] = str(value)
+
+                for field in instance._meta.many_to_many:
+                    field_name = field.attname
+                    break
+
+                if field_name: 
+                    Log_Cambios_M2M.objects.create(
+                        request_id=request_id,
+                        content_object=instance,
+                        Usuario=user,
+                        Ip=get_client_ip(request),
+                        NombreModelo=sender.__name__,
+                        NombreCampo=field_name,
+                        Valor=str(pk),
+                        JsonValue=str(obj_dict),
+                        Action=action
+                    )
+    except Exception as e:
+        logger.error(f"Error occurred: {str(e)}")
