@@ -125,7 +125,7 @@ class ChangesView(APIView):
                             "newValue":log["Valor"],
                             "jsonValue":log["JsonValue"]
                         }) 
-            sorted_update=sorted(individual_log_update,key=lambda x:x["timeAction"])
+            sorted_update=sorted(individual_log_update,key=lambda x:x["timeAction"],reverse=True)
             response_dict["update"]=sorted_update
             
 
@@ -174,7 +174,7 @@ class ChangesView(APIView):
                             "newValue":None,
                             "jsonValue":log["JsonValue"]
                         })
-            sorted_delete=sorted(individual_log_delete,key=lambda x:x["timeAction"])
+            sorted_delete=sorted(individual_log_delete,key=lambda x:x["timeAction"],reverse=True)
             response_dict["delete"]=sorted_delete
 
             return Response(response_dict)        
