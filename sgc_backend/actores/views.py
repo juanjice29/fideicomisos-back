@@ -43,7 +43,7 @@ class ActorView(APIView):
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)   
     def get_object(self,tipo_id,nro_id):
         try:
-            return ActorDeContrato.objects.get(TipoIdentificacion=tipo_id,NumeroIdentificacion=nro_id)        
+            return ActorDeContrato.objects.get(tipoIdentificacion=tipo_id,numeroIdentificacion=nro_id)        
         except  ActorDeContrato.DoesNotExist:
             raise Response({'status': 'error', 'message': 'Actor de contrato no encontraro'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:

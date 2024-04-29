@@ -38,8 +38,8 @@ from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .serializers import EncargoSerializer
-from actores_de_contrato_cargue.serializers import ActorDeContratoSerializer
-from actores_de_contrato_cargue.models import ActorDeContrato
+from actores.serializers import ActorDeContratoSerializer
+from actores.models import ActorDeContrato
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.exceptions import NotFound
 from .tasks import update_fideicomiso
@@ -51,13 +51,13 @@ class EncargoListView(APIView):
     pagination_class = CustomPageNumberPagination
     def get(self, request, codigo_sfc):
         try:
-            fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo_sfc)
+            fideicomiso = Fideicomiso.objects.get(codigoSFC=codigo_sfc)
         except ObjectDoesNotExist:
             raise NotFound('No existe ese fideicomiso .-.')
         except Exception as e:
             return Response({'error': str(e)}, status=500)
         try:
-            encargo = Encargo.objects.filter(Fideicomiso=fideicomiso).order_by('NumeroEncargo')
+            encargo = Encargo.objects.filter(fideicomiso=fideicomiso).order_by('NumeroEncargo')
             for field, value in request.query_params.items():
                 if field in [f.name for f in Encargo._meta.get_fields()]:
                     encargo = encargo.filter(**{field: value})
@@ -76,7 +76,7 @@ class FideicomisoDetailView(APIView):
     pagination_class = CustomPageNumberPagination
     def get(self, request, codigo_sfc):
         try:
-            fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo_sfc)
+            fideicomiso = Fideicomiso.objects.get(codigoSFC=codigo_sfc)
         except ObjectDoesNotExist:
             raise NotFound('No existe ese fideicomiso.')
         except Exception as e:
@@ -85,7 +85,7 @@ class FideicomisoDetailView(APIView):
         encargo_paginator.page_size = 10
         actores_de_contrato_paginator = ActorDeContratoPagination()
         actores_de_contrato_paginator.page_size = 10
-        encargo = Encargo.objects.filter(Fideicomiso=fideicomiso).order_by('NumeroEncargo')
+        encargo = Encargo.objects.filter(fideicomiso=fideicomiso).order_by('NumeroEncargo')
         
         for field, value in request.query_params.items():
             if field in [f.name for f in Encargo._meta.get_fields()]:
@@ -141,7 +141,7 @@ class GetFideicomisoByList(APIView):
             codigos = request.data.get('codigosSFC', None)
             if not codigos:
                 return Response({'error': 'No se proporcionaron códigos'}, status=status.HTTP_400_BAD_REQUEST)
-            queryset = Fideicomiso.objects.filter(CodigoSFC__in=codigos)
+            queryset = Fideicomiso.objects.filter(codigoSFC__in=codigos)
             serializer = FideicomisoSerializer(queryset, many=True)
             return Response(serializer.data)
         except Exception as e:
@@ -163,7 +163,7 @@ class FideicomisoList(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]  
     
-    search_fields=["CodigoSFC","Nombre"]
+    search_fields=["codigoSFC","Nombre"]
     ordering = ['-FechaCreacion']  
     filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
     queryset = Fideicomiso.objects.all() 
@@ -189,12 +189,12 @@ class FideicomisoList(generics.ListAPIView):
                 queryset = Fideicomiso.objects.all()
 
                 if codigo_sfc is not None:
-                    queryset = queryset.filter(CodigoSFC__icontains=codigo_sfc)
+                    queryset = queryset.filter(codigoSFC__icontains=codigo_sfc)
 
                 if nombre is not None:
                     queryset = queryset.filter(Nombre__icontains=nombre)
 
-                if order_by in ['CodigoSFC', 'FechaCreacion', 'Estado']:
+                if order_by in ['codigoSFC', 'FechaCreacion', 'Estado']:
                     if order_direction == 'desc':
                         order_by = '-' + order_by
                     queryset = queryset.order_by(order_by)
@@ -291,7 +291,7 @@ class UpdateEncargoTemp(APIView):
                 for i, row in enumerate(rows, start=1):
                     encargotemporal, created = EncargoTemporal.objects.update_or_create(
                         NumeroEncargo=row[1],
-                        Fideicomiso=row[0],
+                        fideicomiso=row[0],
                         defaults={
                             'Descripcion': row[2]
                             }
@@ -332,12 +332,12 @@ class UpdateEncargoFromTemp(APIView):
         encargos_temp = EncargoTemporal.objects.all()
         for encargo_temp in encargos_temp:
             try:
-                # Get the Fideicomiso instance by comparing the Fideicomiso of the EncargoTemp to CodigoSFC of Fideicomiso model
-                fideicomiso_instance = Fideicomiso.objects.get(CodigoSFC=encargo_temp.Fideicomiso)
+                # Get the Fideicomiso instance by comparing the Fideicomiso of the EncargoTemp to codigoSFC of Fideicomiso model
+                fideicomiso_instance = Fideicomiso.objects.get(codigoSFC=encargo_temp.Fideicomiso)
                 # Update or create the Encargo instance
                 try:
                     Encargo.objects.update_or_create(
-                        Fideicomiso=fideicomiso_instance,
+                        fideicomiso=fideicomiso_instance,
                         NumeroEncargo=encargo_temp.NumeroEncargo,
                         defaults={'Descripcion': encargo_temp.Descripcion}
                     )

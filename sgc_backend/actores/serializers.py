@@ -27,17 +27,17 @@ class ActorDeContratoSerializer(serializers.ModelSerializer):
 class RelacionFideicomisoActorCreateSerializer(serializers.ModelSerializer):   
     class Meta:
         model=RelacionFideicomisoActor
-        fields=['Fideicomiso','TipoActor']
+        fields=['fideicomiso','tipoActor']
         
 class RelacionFideicomisoActorReadSerializer(serializers.ModelSerializer):
-    Fideicomiso = FideicomisoSerializer()
-    TipoActor= TipoActorDeContratoSerializer()
+    fideicomiso = FideicomisoSerializer()
+    tipoActor= TipoActorDeContratoSerializer()
     class Meta:
         model=RelacionFideicomisoActor
         fields='__all__'
         
 class ActorDeContratoReadSerializer(serializers.ModelSerializer):   
-    FideicomisosAsociados = serializers.SerializerMethodField()
+    fideicomisosAsociados = serializers.SerializerMethodField()
     class Meta:
         model = ActorDeContrato
         fields = '__all__'  
@@ -48,7 +48,7 @@ class ActorDeContratoReadSerializer(serializers.ModelSerializer):
         return serializer.data
 
 class ActorDeContratoCreateSerializer(serializers.ModelSerializer):   
-    FideicomisosAsociados = serializers.SerializerMethodField()
+    fideicomisosAsociados = serializers.SerializerMethodField()
     class Meta:
         model = ActorDeContrato
         fields = '__all__'  

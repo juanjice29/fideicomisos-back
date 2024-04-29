@@ -71,7 +71,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'drf_yasg',
     'fidecomisos',
-    'actores_de_contrato_cargue',
+    'actores',
     'beneficiario_final',
     'Log_Changes',
     'django_celery_beat',
