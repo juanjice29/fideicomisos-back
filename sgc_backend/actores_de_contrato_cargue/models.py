@@ -27,7 +27,12 @@ class ActorDeContrato(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['TipoIdentificacion','NumeroIdentificacion'], name='unique_identificacion')
         ]        
+    
 class RelacionFideicomisoActor(models.Model):
     Actor = models.ForeignKey(ActorDeContrato, on_delete=models.CASCADE)
     Fideicomiso = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE)
-    TipoActor = models.ForeignKey(TipoActorDeContrato, on_delete=models.CASCADE)
+    TipoActor = models.ForeignKey(TipoActorDeContrato, on_delete=models.CASCADE,null=False)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['Actor','Fideicomiso'], name='unique_fideicomiso_actor')
+        ]
