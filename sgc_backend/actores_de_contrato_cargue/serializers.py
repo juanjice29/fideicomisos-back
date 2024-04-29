@@ -3,7 +3,7 @@ from .models import ActorDeContrato
 from fidecomisos.models import Encargo
 from fidecomisos.serializers import EncargoSerializer
 from rest_framework import serializers
-from .models import TipoActorDeContrato
+from .models import TipoActorDeContrato,RelacionFideicomisoActor
 from rest_framework import serializers
 from .models import Encargo
 
@@ -28,3 +28,8 @@ class ActorDeContratoCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActorDeContrato
         fields = '__all__' 
+
+class RelacionFideicomisoActorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=RelacionFideicomisoActor
+        fields='__all__'

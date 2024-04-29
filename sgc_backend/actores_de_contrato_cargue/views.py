@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse,Http404
 from rest_framework import generics
 from fidecomisos.models import Fideicomiso
 from .forms import UploadFileForm
@@ -10,7 +10,7 @@ from .models import ActorDeContrato, TipoActorDeContrato
 from rest_framework import viewsets
 from django.core.exceptions import ValidationError
 from .models import ActorDeContrato
-from .serializers import ActorDeContratoSerializer,ActorDeContratoCreateSerializer
+from .serializers import ActorDeContratoSerializer,ActorDeContratoCreateSerializer,TipoActorDeContratoSerializer
 from fidecomisos.serializers import FideicomisoSerializer
 from fidecomisos.models import Encargo, TipoDeDocumento
 from fidecomisos.serializers import EncargoSerializer
@@ -19,8 +19,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
-from rest_framework import generics
-from .serializers import TipoActorDeContratoSerializer
+from rest_framework import generics 
 from django.db import IntegrityError
 from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 from rest_framework.exceptions import ParseError
@@ -31,244 +30,20 @@ from django.db import transaction
 from rest_framework.parsers import FileUploadParser
 from rest_framework import filters
 
-class FileUploadView(APIView):
-    parser_class = (FileUploadParser,)
 
-    def post(self, request, *args, **kwargs):
-        excel_file = request.data['file']
-        data = pd.read_excel(excel_file)
-
-        actors = []
-
-        with transaction.atomic():
-            for _, row in data.iterrows():
-                tipo_identificacion = TipoDeDocumento.objects.get(id=row["TipoIdentificacion"])
-                tipo_actor = TipoActorDeContrato.objects.get(id=row["TipoActor"])
-                fideicomiso_asociado = Fideicomiso.objects.filter(id__in=row["FideicomisoAsociado"].split(','))
-
-                actor = ActorDeContrato(
-                    TipoIdentificacion=tipo_identificacion,
-                    NumeroIdentificacion=row["NumeroIdentificacion"],
-                    PrimerNombre=row["PrimerNombre"],
-                    SegundoNombre=row["SegundoNombre"],
-                    PrimerApellido=row["PrimerApellido"],
-                    SegundoApellido=row["SegundoApellido"],
-                    TipoActor=tipo_actor,
-                    FechaActualizacion=row["FechaActualizacion"],
-                    Activo=row["Activo"]
-                )
-                actor.save()
-                actor.FideicomisoAsociado.set(fideicomiso_asociado)
-                actors.append(actor)
-
-        return Response({"actors": [actor.id for actor in actors]}, status=status.HTTP_201_CREATED)
-    
-class TipoActorDeContratoListView(APIView):
-    permission_classes = [IsAuthenticatedOrReadOnly]  
-    def get(self,request):
-        try:        
-            queryset = TipoActorDeContrato.objects.all().order_by('id')
-            queryset_serializer=TipoActorDeContratoSerializer(queryset,many=True)  
-            return Response(queryset_serializer.data)
-        except ValidationError as e:
-            raise ParseError(detail=str(e))
-        except Exception as e:
-            raise APIException(detail=str(e))    
-    
-class ActorDeContratoListAllView(generics.ListAPIView):
+class ActorView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
-    
-    
-    search_fields=["NumeroIdentificacion","PrimerNombre","SegundoNombre","PrimerApellido","SegundoApellido","TipoActor__Descripcion"]
-    ordering = ['-FechaCreacion']  
-    filter_backends=[filters.SearchFilter,filters.OrderingFilter]
-    queryset = ActorDeContrato.objects.all()
-    
-    serializer_class=ActorDeContratoSerializer
-    pagination_class = CustomPageNumberPagination
-    
-    def get_queryset(self):
-        try:
-            return self.queryset        
-        except Exception as e:
-            return Response({'error':'invalid request', 'message':str(e)}, status=500)
-
-class GetActorView(generics.ListAPIView):
-    authentication_classes = [LoggingJWTAuthentication]
-    permission_classes = [IsAuthenticated, HasRolePermission]
-    serializer_class = ActorDeContratoSerializer
-    
-    def get_queryset(self):             
-        nro_ident= self.kwargs['nro_ident']     
-        return ActorDeContrato.objects.filter(NumeroIdentificacion=nro_ident)
-    
-
-class ActorDeContratoListView(generics.ListAPIView):
-    authentication_classes = [LoggingJWTAuthentication]
-    permission_classes = [IsAuthenticated, HasRolePermission]
-    pagination_class = CustomPageNumberPagination
-    def get(self, request, codigo_sfc):
-        try:
-            fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo_sfc)
-        except ObjectDoesNotExist:
-            raise NotFound('Fideicomiso no encontrado.')
-        except Exception as e:
-            return Response({'error': str(e)}, status=500)
-        try:
-            Actor = ActorDeContrato.objects.filter(FideicomisoAsociado__in=[fideicomiso]).order_by('NumeroIdentificacion')
-            for field, value in request.query_params.items():
-                if field in [f.name for f in  ActorDeContrato._meta.get_fields()]:
-                    Actor = Actor.filter(**{field: value})
-            paginator = CustomPageNumberPagination()
-            paginated_actor = paginator.paginate_queryset(Actor, request)
-            actor_serializer = ActorDeContratoSerializer(paginated_actor, many=True)
-            return paginator.get_paginated_response(actor_serializer.data)
-        except ObjectDoesNotExist:
-            return Response({'error':'invalid request','message': 'No se encuentra el Actor de Contrato :('}, status=404)
-        except Exception as e:
-            return Response({'error':'invalid request', 'message':str(e)}, status=500)
-
-class ActorDeContratoViewExcel(APIView):
-    def post(self, request):
-        try:
-            file = request.data['file']
-            data = pd.read_excel(file)
-            response_data = []
-            for index, row in data.iterrows():
-                actor_data = {
-                    'TipoIdentificacion': row['TipoIdentificacion'],
-                    'NumeroIdentificacion': row['NumeroIdentificacion'],
-                    'TipoActor': row['TipoActor'],
-                    'PrimerNombre': row['PrimerNombre'],
-                    'SegundoNombre': row['SegundoNombre'],
-                    'PrimerApellido': row['PrimerApellido'],
-                    'SegundoApellido': row['SegundoApellido'],
-                    'Activo': True,
-                }
-                fideicomiso_codigos = row['FideicomisoAsociado'].split(',')  # assuming FideicomisoAsociado is a comma-separated string
-                fideicomisos = Fideicomiso.objects.filter(CodigoSFC__in=fideicomiso_codigos)
-                actor, created = ActorDeContrato.objects.update_or_create(
-                    NumeroIdentificacion=actor_data['NumeroIdentificacion'],
-                    defaults=actor_data
-                )
-                actor.FideicomisoAsociado.set(fideicomisos)
-                if created:
-                    status = 'created'
-                else:
-                    status = 'updated'
-                response_data.append({
-                    'NumeroIdentificacion': actor_data['NumeroIdentificacion'],
-                    'status': status
-                })
-            return Response(response_data, status=status.HTTP_201_CREATED)
-        except Exception as e:
-            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
         
-class UpdateActorView(APIView):
-    def put(self, request):
-        try:
-            actor = request.data    
-            codigos_sfc = list(set(actor.get('FideicomisoAsociado')))
-            numero_identificacion = actor.get('NumeroIdentificacion')           
-            fideicomiso = Fideicomiso.objects.filter(CodigoSFC__in=codigos_sfc)            
-            if len(codigos_sfc)!=len(fideicomiso):
-                return Response({'status': 'invalid request', 'message': 'Fideicomiso no existe'}, status=status.HTTP_400_BAD_REQUEST)               
-            actor_object=ActorDeContrato.objects.get(NumeroIdentificacion=numero_identificacion)               
-            actor["FideicomisoAsociado"]=codigos_sfc    
-            actor_serializer = ActorDeContratoCreateSerializer(actor_object,data=actor)
-            if actor_serializer.is_valid():    
-                actor_serializer.save()
-                return Response(actor_serializer.data, status=status.HTTP_201_CREATED)
-            return Response(actor_serializer.errors, status=status.HTTP_400_BAD_REQUEST)            
-        except Exception as e:
-            print(e)
-            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-class ActorDeContratoView(APIView):
-    def post(self, request):
-        try:
-            actor = request.data    
-            codigos_sfc = actor.get('FideicomisoAsociado')                  
-            fideicomiso = Fideicomiso.objects.filter(CodigoSFC__in=codigos_sfc)            
-            if len(codigos_sfc)!=len(fideicomiso):
-                return Response({'status': 'invalid request', 'message': 'Fideicomiso no existe'}, status=status.HTTP_400_BAD_REQUEST)                       
-            actor_serializer = ActorDeContratoCreateSerializer(data=actor)
-            if actor_serializer.is_valid():    
-                actor_serializer.save()
-                return Response(actor_serializer.data, status=status.HTTP_201_CREATED)
-            return Response(actor_serializer.errors, status=status.HTTP_400_BAD_REQUEST)            
-        except Exception as e:
-            print(e)
-            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    def put(self,request):
-        try:
-            actor = request.data    
-            codigos_sfc = actor.get('FideicomisoAsociado')       
-            numero_identificacion = actor.get('NumeroIdentificacion')           
-            fideicomiso = Fideicomiso.objects.filter(CodigoSFC__in=codigos_sfc)            
-            if len(codigos_sfc)!=len(fideicomiso):
-                return Response({'status': 'invalid request', 'message': 'Fideicomiso no existe'}, status=status.HTTP_400_BAD_REQUEST)               
-            actor_object=ActorDeContrato.objects.get(NumeroIdentificacion=numero_identificacion)  
-            fideicomisos_ids = list(actor_object.FideicomisoAsociado.values_list('CodigoSFC', flat=True))
-            fideicomisos_ids=list(set(fideicomisos_ids+codigos_sfc))
-            print(fideicomisos_ids)    
-            actor["FideicomisoAsociado"]=fideicomisos_ids    
-            actor_serializer = ActorDeContratoCreateSerializer(actor_object,data=actor)
-            if actor_serializer.is_valid():    
-                actor_serializer.save()
-                return Response(actor_serializer.data, status=status.HTTP_201_CREATED)
-            return Response(actor_serializer.errors, status=status.HTTP_400_BAD_REQUEST)            
-        except Exception as e:
-            print(e)
-            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-    def delete(self, request):
-        try:
-            actor = ActorDeContrato.objects.get(NumeroIdentificacion=request.data.get('NumeroIdentificacion'))
-            actor.delete()
-            return Response({'status': 'success', 'message': 'Actor de contrato deleted successfully'}, status=status.HTTP_200_OK)
+    def get(sel,request,tipo_id,nro_id):
+        try:            
+            actor=ActorDeContrato.objects.get(TipoIdentificacion=tipo_id,NumeroIdentificacion=nro_id)
+            serializer=ActorDeContratoSerializer(actor)
+            return Response(serializer.data,status=status.HTTP_200_OK)
         except ActorDeContrato.DoesNotExist:
-            return Response({'status': 'error', 'message': 'Actor de contrato not found'}, status=status.HTTP_404_NOT_FOUND)
+            raise Response({'status': 'error', 'message': 'Actor de contrato no encontraro'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
-        
+         
+
     
-class ListFideicomisosOfActorView(generics.ListAPIView):
-    serializer_class = FideicomisoSerializer
-
-    def get(self, request, *args, **kwargs):
-        try:
-            numero_identificacion = request.query_params['NumeroIdentificacion']
-            actor = ActorDeContrato.objects.get(NumeroIdentificacion=numero_identificacion)
-            fideicomisos = actor.FideicomisoAsociado.all()
-            serializer = self.get_serializer(fideicomisos, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except ActorDeContrato.DoesNotExist:
-            return Response({'status': 'invalid request', 'message': 'ActorDeContrato no existe'}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-class AddFideicomisosToActorView(generics.UpdateAPIView):
-    queryset = ActorDeContrato.objects.all()
-
-    def put(self, request, *args, **kwargs):
-        try:
-            numero_identificacion = request.data['NumeroIdentificacion']
-            actor = ActorDeContrato.objects.get(NumeroIdentificacion=numero_identificacion)
-            fideicomiso_codigos = request.data['FideicomisoAsociado']  # list of Fideicomiso CodigoSFC
-
-            for codigo in fideicomiso_codigos:
-                fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo)
-                actor.FideicomisoAsociado.add(fideicomiso)
-
-            actor.save()
-
-            return Response({'status': 'success'}, status=status.HTTP_200_OK)
-        except ActorDeContrato.DoesNotExist:
-            return Response({'status': 'invalid request', 'message': 'ActorDeContrato no existe'}, status=status.HTTP_400_BAD_REQUEST)
-        except Fideicomiso.DoesNotExist:
-            return Response({'status': 'invalid request', 'message': 'Fideicomiso no existe'}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
