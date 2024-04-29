@@ -1,8 +1,7 @@
 from django.db import models
 from django.db.models import Max
 from django.db.models.functions import Cast
-
-from sgc_backend.public.models import TipoDeDocumento
+from public.models import TipoDeDocumento
 
 class Fideicomiso(models.Model):
     codigoSFC = models.IntegerField(primary_key=True,  db_index=True)

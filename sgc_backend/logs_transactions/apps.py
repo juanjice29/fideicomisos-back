@@ -2,9 +2,9 @@ from django.apps import AppConfig
 #from django.db.models.signals import pre_delete, pre_save, post_save,m2m_changed
 
 
-class LogChangesConfig(AppConfig):
+class LogTransactionConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'Log_Changes'
+    name = 'logs_transactions'
 
     def ready(self):
         #from .models import pre_delete_receiver,post_save_receiver, pre_save_receiver,m2m_changed_receiver  # import your signal receiver function

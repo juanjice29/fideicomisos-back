@@ -4,7 +4,7 @@ from django.db import models
 from django.db import models
 from django.contrib.auth.models import User
 from fidecomisos.models import Fideicomiso, Encargo
-from sgc_backend.public.models import TipoDeDocumento
+from public.models import TipoDeDocumento
 
 class TipoActorDeContrato(models.Model):
     tipoActor = models.CharField(max_length=90)

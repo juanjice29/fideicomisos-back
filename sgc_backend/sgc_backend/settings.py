@@ -73,7 +73,7 @@ INSTALLED_APPS = [
     'fidecomisos',
     'actores',
     'beneficiario_final',
-    'Log_Changes',
+    'logs_transactions',
     'django_celery_beat',
     'django_celery_results',
     'django_extensions'
