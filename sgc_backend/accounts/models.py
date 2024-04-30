@@ -9,14 +9,14 @@ from django.contrib.auth.models import PermissionsMixin
 from django.contrib.auth.base_user import AbstractBaseUser
 
 class Role(models.Model):
-    Id = models.AutoField(primary_key=True)
-    Nombre = models.CharField(max_length=255)
+    id = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=255)
     def __str__(self):
         return self.Nombre
 class Profile(models.Model):
-    Usuario = models.OneToOneField(User, on_delete=models.CASCADE)
-    Cedula = models.CharField(unique = True, max_length=12, blank=True)
-    Rol = models.ForeignKey('Role', blank=True, null=True, on_delete=models.SET_NULL)
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE)
+    cedula = models.CharField(unique = True, max_length=12, blank=True)
+    rol = models.ForeignKey('Role', blank=True, null=True, on_delete=models.SET_NULL)
     class Meta:
         verbose_name = 'profile'
         verbose_name_plural = 'profiles'
@@ -31,21 +31,23 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
             instance.profile.save()
         except Profile.DoesNotExist:
             Profile.objects.create(Usuario=instance)
+            
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
     instance.profile.save()
+
 class View(models.Model):
-    Nombre = models.CharField(max_length=255)
+    nombre = models.CharField(max_length=255)
     def __str__(self):
-        return self.Nombre
+        return self.nombre
 class Permisos(models.Model):
-    Rol = models.ForeignKey(Role, on_delete=models.CASCADE)
-    Vista = models.ForeignKey(View, on_delete=models.CASCADE)
+    rol = models.ForeignKey(Role, on_delete=models.CASCADE)
+    vista = models.ForeignKey(View, on_delete=models.CASCADE)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['Rol', 'Vista'], name='unique_rol_vista')
+            models.UniqueConstraint(fields=['rol', 'vista'], name='unique_rol_vista')
         ]
     def __str__(self):
-        return f'Rol: {self.Rol.Nombre}, Vista: {self.Vista.Nombre}'
+        return f'rol: {self.rol.nombre}, vista: {self.vista.nombre}'
     

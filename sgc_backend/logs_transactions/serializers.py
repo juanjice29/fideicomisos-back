@@ -3,7 +3,7 @@ from .models import Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,L
 from rest_framework import serializers
 from django.contrib.auth.models import User
 
-class UserSerializer(serializers.ModelSerializer):   
+class UserSerializer(serializers.ModelSerializer):  
    
     class Meta:
         model = User
