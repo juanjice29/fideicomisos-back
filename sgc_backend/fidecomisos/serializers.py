@@ -1,7 +1,8 @@
 import datetime
 from rest_framework import serializers
-from .models import Fideicomiso, Encargo, TipoDeDocumento
+from .models import Fideicomiso, Encargo
 from rest_framework import generics
+
 class FideicomisoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fideicomiso
@@ -20,8 +21,3 @@ class FideicomisoEncargosList(generics.ListAPIView):
         fideicomiso_id = self.kwargs['fideicomiso_id']
         return Encargo.objects.filter(Fideicomiso__id=fideicomiso_id)
     
-class TipoDeDocumentoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TipoDeDocumento
-        fields = '__all__'
-        depth=1

@@ -27,7 +27,6 @@ import logging
 import hashlib
 from sgc_backend.pagination import CustomPageNumberPagination, ActorDeContratoPagination, EncargoPagination
 from django.core.cache import cache
-from .serializers import TipoDeDocumentoSerializer
 from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 import logging
@@ -145,26 +144,14 @@ class GetFideicomisoByList(APIView):
             serializer = FideicomisoSerializer(queryset, many=True)
             return Response(serializer.data)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-class TipoDeDocumentoListView(APIView): 
-    permission_classes = [IsAuthenticatedOrReadOnly]     
-    def get(self,request) :        
-        try:  
-            queryset = TipoDeDocumento.objects.all().order_by('-idTipoPersona','TipoDocumento')
-            queryset_serializer=TipoDeDocumentoSerializer(queryset,many=True)        
-            return Response(queryset_serializer.data)
-        except ValidationError as e:
-            raise ParseError(detail=str(e))
-        except Exception as e:
-            raise APIException(detail=str(e))
-             
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
+
 class FideicomisoList(generics.ListAPIView):
     authentication_classes = [LoggingJWTAuthentication]
-    permission_classes = [IsAuthenticated, HasRolePermission]  
+    permission_classes = [IsAuthenticated, HasRolePermission] 
     
-    search_fields=["codigoSFC","Nombre"]
-    ordering = ['-FechaCreacion']  
+    search_fields=["codigoSFC","nombre"]
+    ordering = ['-fechaCreacion']  
     filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
     queryset = Fideicomiso.objects.all() 
     
@@ -183,7 +170,7 @@ class FideicomisoList(generics.ListAPIView):
             try:
                 codigo_sfc = request.data.get('codigo_sfc', None)
                 nombre = request.data.get('nombre', None)
-                order_by = request.data.get('order_by', 'FechaCreacion')
+                order_by = request.data.get('order_by', 'fechaCreacion')
                 order_direction = request.data.get('order_direction', 'asc')
 
                 queryset = Fideicomiso.objects.all()
@@ -194,7 +181,7 @@ class FideicomisoList(generics.ListAPIView):
                 if nombre is not None:
                     queryset = queryset.filter(Nombre__icontains=nombre)
 
-                if order_by in ['codigoSFC', 'FechaCreacion', 'Estado']:
+                if order_by in ['codigoSFC', 'fechaCreacion', 'estado']:
                     if order_direction == 'desc':
                         order_by = '-' + order_by
                     queryset = queryset.order_by(order_by)

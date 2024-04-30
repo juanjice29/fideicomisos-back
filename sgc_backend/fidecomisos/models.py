@@ -19,7 +19,7 @@ class Encargo(models.Model):
     
     numeroEncargo = models.CharField(max_length=50,db_column='numero_encargo')
     fideicomiso = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE, related_name='encargos',db_column='fideicomiso')
-    descripcion = models.CharField(max_length=300,db_column='descripcion')
+    descripcion = models.CharField(max_length=300,null=True,db_column='descripcion')
     class Meta:
         unique_together = (('numeroEncargo', 'fideicomiso'),)
         db_table = 'encargo'

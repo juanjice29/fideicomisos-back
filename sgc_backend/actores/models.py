@@ -23,7 +23,7 @@ class ActorDeContrato(models.Model):
     fideicomisoAsociado = models.ManyToManyField(Fideicomiso,through='RelacionFideicomisoActor')
     fechaCreacion = models.DateTimeField(auto_now_add=True,db_column='fecha_creacion')
     fechaActualizacion = models.DateTimeField(auto_now=True,db_column='fecha_actualizacion')
-    estado = models.CharField(default=True,db_column='estado')
+    estado = models.CharField(max_length=100, default='ACT',db_column='estado')
     
     class Meta:
         constraints = [

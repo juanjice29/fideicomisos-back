@@ -15,9 +15,9 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # Add custom claims
         token['username'] = user.username
-        token['Rol'] = user.profile.Rol.Nombre # Add the role to the token
+        token['rol'] = user.profile.rol.nombre # Add the role to the token
         try:
-            token['Rol'] = user.profile.Rol.Nombre # Add the role to the token
+            token['rol'] = user.profile.rol.nombre # Add the role to the token
         except AttributeError as e:
             Logger.error('Error al obtener el rol: %s', str(e))
     

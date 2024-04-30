@@ -25,7 +25,7 @@ class Log_Cambios_Create(models.Model):
     nuevoJsonValue=models.TextField(null=True,db_column='nuevo_json_value')
     contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE,db_column='content_type')    
     objectId = models.PositiveIntegerField(db_column='object_id')
-    contentObject = GenericForeignKey('content_type', 'object_id',db_column='content_object')
+    contentObject = GenericForeignKey('contentType', 'objectId')
     requestId = models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='request_id')
 
 class Log_Cambios_Update(models.Model):
@@ -40,7 +40,7 @@ class Log_Cambios_Update(models.Model):
     nuevoJsonValue=models.TextField(null=True,db_column='nuevo_json_value')
     contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True,db_column='content_type')
     objectId = models.PositiveIntegerField(null=True,db_column='object_id')
-    contentObject = GenericForeignKey('content_type', 'object_id',db_column='content_object')
+    contentObject = GenericForeignKey('contentType', 'objectId')
     requestId = models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='request_id')
 
 class Log_Cambios_Delete(models.Model):
@@ -53,7 +53,7 @@ class Log_Cambios_Delete(models.Model):
     antiguoJsonValue=models.TextField(null=True,db_column='antiguo_json_value')
     contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE,null=True,db_column='content_type')
     objectId = models.PositiveIntegerField(null=True,db_column='object_id')
-    contentObject = GenericForeignKey('content_type', 'object_id',db_column='content_object')
+    contentObject = GenericForeignKey('contentType', 'objectId')
     requestId = models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='request_id')
 
 class Log_Cambios_M2M(models.Model):
@@ -67,6 +67,6 @@ class Log_Cambios_M2M(models.Model):
     action=models.CharField(max_length=50,null=True,db_column='action')
     contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE,db_column='content_type')
     objectId = models.PositiveIntegerField(null=True,db_column='object_id')
-    contentObject = GenericForeignKey('content_type', 'object_id',db_column='content_object')
+    contentObject = GenericForeignKey('contentType', 'objectId')
     requestId = models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='request_id')
 
