@@ -38,19 +38,20 @@ class ActorView(APIView):
         try:
             return ActorDeContrato.objects.get(ActorDeContrato.id==pk)        
         except  ActorDeContrato.DoesNotExist:
-            raise Response({'status': 'error', 'message': 'Actor de contrato no encontraro'}, status=status.HTTP_404_NOT_FOUND)
+            raise NotFound(detail='Actor de contrato no encontrado')
         except Exception as e:
-            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)   
+            raise APIException(detail=str(e)) 
     def get_object(self,tipo_id,nro_id):
         try:
             return ActorDeContrato.objects.get(tipoIdentificacion=tipo_id,numeroIdentificacion=nro_id)        
         except  ActorDeContrato.DoesNotExist:
-            raise Response({'status': 'error', 'message': 'Actor de contrato no encontraro'}, status=status.HTTP_404_NOT_FOUND)
+            raise NotFound(detail='Actor de contrato no encontrado')
         except Exception as e:
-            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)   
+            raise APIException(detail=str(e))   
         
     def get(self,request,tipo_id,nro_id,formate=None):               
         actor=self.get_object(tipo_id,nro_id)
+        print("lo encontre",actor)
         serializer=ActorDeContratoReadSerializer(actor)
         return Response(serializer.data,status=status.HTTP_200_OK)
     
@@ -63,4 +64,30 @@ class ActorView(APIView):
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
          
 
-    
+class ActorListView(generics.ListCreateAPIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
+
+    queryset=ActorDeContrato.objects.all()
+    serializer_class=ActorDeContratoReadSerializer
+    filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
+    search_fields = ['numeroIdentificacion', 'primerNombre','primerApellido','fideicomisoAsociado__tipoActor']
+    def get_queryset(self):
+        try:            
+            return self.queryset
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e)) 
+        
+    def post(self,request):
+        try:
+            serializer=ActorDeContratoCreateSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data,status=status.HTTP_201_CREATED)
+            return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e))

@@ -41,7 +41,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('rest_framework.urls')),
     path('actores/',include('actores.urls')),
-    path('fidecomisos/',include('fidecomisos.urls')),
+    path('fideicomisos/',include('fidecomisos.urls')),
     path('benfreporte/',include('beneficiario_final.urls')),
     path('logs/',include('logs_transactions.urls')),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),

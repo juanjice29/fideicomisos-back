@@ -5,7 +5,7 @@ from .views import *
 urlpatterns = [
     
     path('actor/<str:tipo_id>/<str:nro_id>/',ActorView.as_view(),name="actor_view"),
-    
+    path('actores/',ActorListView.as_view(),name="actor_list"),
     #path('upload/', FileUploadView.as_view(), name='upload_file'),
     #path('actordecontratolist/<str:codigo_sfc>/', ActorDeContratoListView.as_view(), name='actordecontrato-list'),
     #path('actordecontratolist/', ActorDeContratoListAllView.as_view(), name='actordecontrato-list-all'),

@@ -44,6 +44,27 @@ from rest_framework.exceptions import NotFound
 from .tasks import update_fideicomiso
 from rest_framework import filters
 
+
+class FideicomisoList(generics.ListAPIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission] 
+    
+    search_fields=["codigoSFC","nombre"]
+    ordering = ['-fechaCreacion']  
+    filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
+    queryset = Fideicomiso.objects.all() 
+    
+    serializer_class = FideicomisoSerializer
+    pagination_class = CustomPageNumberPagination
+    
+    def get_queryset(self):
+        try:            
+            return self.queryset
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e)) 
+        
 class EncargoListView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -56,7 +77,7 @@ class EncargoListView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=500)
         try:
-            encargo = Encargo.objects.filter(fideicomiso=fideicomiso).order_by('NumeroEncargo')
+            encargo = Encargo.objects.filter(fideicomiso=fideicomiso).order_by('numeroEncargo')
             for field, value in request.query_params.items():
                 if field in [f.name for f in Encargo._meta.get_fields()]:
                     encargo = encargo.filter(**{field: value})
@@ -146,62 +167,8 @@ class GetFideicomisoByList(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
 
-class FideicomisoList(generics.ListAPIView):
-    authentication_classes = [LoggingJWTAuthentication]
-    permission_classes = [IsAuthenticated, HasRolePermission] 
-    
-    search_fields=["codigoSFC","nombre"]
-    ordering = ['-fechaCreacion']  
-    filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
-    queryset = Fideicomiso.objects.all() 
-    
-    serializer_class = FideicomisoSerializer
-    pagination_class = CustomPageNumberPagination
-    
-    def get_queryset(self):
-        try:            
-            return self.queryset
-        except ValidationError as e:
-            raise ParseError(detail=str(e))
-        except Exception as e:
-            raise APIException(detail=str(e))
-        
-    def post(self, request, *args, **kwargs):
-            try:
-                codigo_sfc = request.data.get('codigo_sfc', None)
-                nombre = request.data.get('nombre', None)
-                order_by = request.data.get('order_by', 'fechaCreacion')
-                order_direction = request.data.get('order_direction', 'asc')
 
-                queryset = Fideicomiso.objects.all()
-
-                if codigo_sfc is not None:
-                    queryset = queryset.filter(codigoSFC__icontains=codigo_sfc)
-
-                if nombre is not None:
-                    queryset = queryset.filter(Nombre__icontains=nombre)
-
-                if order_by in ['codigoSFC', 'fechaCreacion', 'estado']:
-                    if order_direction == 'desc':
-                        order_by = '-' + order_by
-                    queryset = queryset.order_by(order_by)
-                page_size = request.data.get('page_size', 10)
-                page_number = request.data.get('page_number', 1)
-                paginator = PageNumberPagination()
-                paginator.page_size = page_size
-                request.query_params._mutable = True
-                request.query_params['page'] = page_number
-                request.query_params._mutable = False
-                paginator = PageNumberPagination()
-                paginator.page_size = page_size
-                paginated_queryset = paginator.paginate_queryset(queryset, request)
-                serializer = FideicomisoSerializer(paginated_queryset, many=True)
-                return paginator.get_paginated_response(serializer.data)
-            except ValidationError as e:
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
+         
 class UpdateFideicomisoView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]

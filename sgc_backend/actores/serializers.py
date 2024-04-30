@@ -37,24 +37,27 @@ class RelacionFideicomisoActorReadSerializer(serializers.ModelSerializer):
         fields='__all__'
         
 class ActorDeContratoReadSerializer(serializers.ModelSerializer):   
-    fideicomisosAsociados = serializers.SerializerMethodField()
+    fideicomisoAsociado = RelacionFideicomisoActorReadSerializer(source="relacionfideicomisoactor_set", many=True)
     class Meta:
         model = ActorDeContrato
         fields = '__all__'  
-        
-    def get_FideicomisosAsociados(self, obj):
-        relaciones = RelacionFideicomisoActor.objects.filter(Actor=obj)
-        serializer = RelacionFideicomisoActorReadSerializer(instance=relaciones, many=True)
-        return serializer.data
-
+    
 class ActorDeContratoCreateSerializer(serializers.ModelSerializer):   
-    fideicomisosAsociados = serializers.SerializerMethodField()
+    fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)    
     class Meta:
         model = ActorDeContrato
         fields = '__all__'  
-        
-    def get_FideicomisosAsociados(self, obj):
-        relaciones = RelacionFideicomisoActor.objects.filter(Actor=obj)
-        serializer = RelacionFideicomisoActorCreateSerializer(instance=relaciones, many=True)
-        return serializer.data
+    
+    def create(self, validated_data):
+        print("validated data",validated_data)
+        fideicomisos_data = validated_data.pop('relacionfideicomisoactor_set')
+        print("fideicomiso_data,",fideicomisos_data)
+        for fideicomiso_data in fideicomisos_data:
+            print("fideicomiso data",fideicomiso_data)
+        actor = ActorDeContrato.objects.create(**validated_data)
+        for fideicomiso_data in fideicomisos_data:
+            print(fideicomiso_data)
+            RelacionFideicomisoActor.objects.create(actor=actor, **fideicomiso_data)
+        return actor
+    
 
