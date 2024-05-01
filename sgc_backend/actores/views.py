@@ -1,10 +1,12 @@
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
+from public.views import TipoActorView
+from fidecomisos.views import FideicomisoView
 from .models import ActorDeContrato
 from django.core.exceptions import ValidationError
 from .models import ActorDeContrato
-from .serializers import ActorDeContratoReadSerializer,ActorDeContratoCreateSerializer
+from .serializers import ActorDeContratoSerializer,ActorDeContratoSerializerCreate,ActorDeContratoSerializerUpdate
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -35,12 +37,12 @@ class ActorView(APIView):
         
     def get(self,request,tipo_id,nro_id,formate=None):               
         actor=self.get_object(tipo_id,nro_id)        
-        serializer=ActorDeContratoReadSerializer(actor)
+        serializer=ActorDeContratoSerializer(actor)
         return Response(serializer.data,status=status.HTTP_200_OK)
     
     def put(self,request,tipo_id,nro_id):
         actor=self.get_object(tipo_id,nro_id)
-        serializer=ActorDeContratoCreateSerializer(actor,data=request.data)
+        serializer=ActorDeContratoSerializerUpdate(actor,data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data,status.HTTP_201_CREATED)
@@ -56,7 +58,7 @@ class ActorListView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, HasRolePermission]
 
     queryset=ActorDeContrato.objects.all()
-    serializer_class=ActorDeContratoReadSerializer
+    serializer_class=ActorDeContratoSerializer
     filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
     search_fields = ['numeroIdentificacion', 'primerNombre','primerApellido','fideicomisoAsociado__tipoActor']
     def get_queryset(self):
@@ -69,9 +71,11 @@ class ActorListView(generics.ListCreateAPIView):
         
     def post(self,request):
         try:
-            serializer=ActorDeContratoCreateSerializer(data=request.data)
+            tpidentif=request.data.get('tipoIdentificacion')
+            nroidentif=request.data.get('numeroIdentificacion')
+            serializer=ActorDeContratoSerializerCreate(data=request.data)
             if serializer.is_valid():
-                serializer.save()
+                serializer.save()                
                 return Response(serializer.data,status=status.HTTP_201_CREATED)
             return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
         except ValidationError as e:
@@ -83,10 +87,12 @@ class ActorListView(generics.ListCreateAPIView):
             tpidentif=request.data.get('tipoIdentificacion')
             nroidentif=request.data.get('numeroIdentificacion')
             actor=ActorView.get_object(self,tpidentif,nroidentif)
-            serializer=ActorDeContratoCreateSerializer(actor,data=request.data,context={'restart_relations': True})
+            serializer=ActorDeContratoSerializerUpdate(actor,data=request.data)
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data,status=status.HTTP_201_CREATED)
             return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
         except ValidationError as e:
             raise ParseError(detail=str(e))
+
+

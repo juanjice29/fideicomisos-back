@@ -94,7 +94,7 @@ class FideicomisoView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
     
-    def get_object_by_id(sefl,pk):
+    def get_object_by_id(self,pk):
         try:
             return Fideicomiso.objects.get(pk=pk)
         except Fideicomiso.DoesNotExist:

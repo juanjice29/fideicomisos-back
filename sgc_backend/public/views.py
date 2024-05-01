@@ -12,7 +12,7 @@ from django.core.exceptions import ValidationError
 from rest_framework.exceptions import ParseError
 from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
-
+from rest_framework.exceptions import NotFound
 class IndexView(APIView):
     authentication_classes = []  # No requiere autenticación
     permission_classes = [AllowAny]
@@ -54,3 +54,13 @@ class TipoDeActorListView(APIView):
             raise ParseError(detail=str(e))
         except Exception as e:
             raise APIException(detail=str(e))  
+        
+class TipoActorView(APIView):    
+    def get_object_by_id(self,pk):
+        try:
+            return TipoActorDeContrato.objects.get(pk=pk)        
+        except  TipoActorDeContrato.DoesNotExist:
+            raise NotFound(detail='Tipo de actor de contrato no encontrado')
+        except Exception as e:
+            raise APIException(detail=str(e)) 
+    
