@@ -10,7 +10,7 @@ class TipoActorDeContrato(models.Model):
     descripcion = models.CharField(max_length=90,db_column='descripcion')
     class Meta:
         # Especifica el nombre de la tabla aquí
-        db_table = 'tipo_actor'
+        db_table = 'params_tipo_actor'
 
 class ActorDeContrato(models.Model):
     
@@ -29,7 +29,7 @@ class ActorDeContrato(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['tipoIdentificacion','numeroIdentificacion'], name='unique_identificacion')
         ] 
-        db_table = 'actor'       
+        db_table = 'fidei_actor'       
     
 class RelacionFideicomisoActor(models.Model):
     actor = models.ForeignKey(ActorDeContrato, on_delete=models.CASCADE,db_column='actor')
@@ -39,4 +39,4 @@ class RelacionFideicomisoActor(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['actor','fideicomiso'], name='unique_fideicomiso_actor')
         ]
-        db_table = 'actor_fideicomiso'
+        db_table = 'fidei_actor_fideicomiso'

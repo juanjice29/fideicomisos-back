@@ -13,7 +13,7 @@ class Fideicomiso(models.Model):
     estado = models.CharField(max_length=1,db_column='estado')
     class Meta:
         # Especifica el nombre de la tabla aquí
-        db_table = 'fideicomiso'
+        db_table = 'fidei_fideicomiso'
     
 class Encargo(models.Model):
     
