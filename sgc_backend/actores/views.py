@@ -60,7 +60,7 @@ class ActorView(APIView):
         serializer=ActorDeContratoCreateSerializer(actor,data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data,status.HTTP_201_CREATED)
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
          
 
@@ -91,3 +91,15 @@ class ActorListView(generics.ListCreateAPIView):
             raise ParseError(detail=str(e))
         except Exception as e:
             raise APIException(detail=str(e))
+    def put(self,request):
+        try:
+            tpidentif=request.data.get('tipoIdentificacion')
+            nroidentif=request.data.get('numeroIdentificacion')
+            actor=ActorView.get_object(self,tpidentif,nroidentif)
+            serializer=ActorDeContratoCreateSerializer(actor,data=request.data,context={'restart_relations': True})
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data,status=status.HTTP_201_CREATED)
+            return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
