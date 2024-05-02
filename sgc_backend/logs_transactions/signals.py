@@ -3,7 +3,7 @@ from django.dispatch import receiver
 from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.serializers import serialize
-from sgc_backend.middleware import get_current_request
+from sgc_backend.middleware import get_current_request,get_request_id
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from .models import Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M
@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 @receiver(post_save)
 def post_save_receiver(sender, instance, created, **kwargs):
-    request_id = str(uuid.uuid4())
+    request_signal = str(uuid.uuid4())
+    request_id=get_request_id()    
     try:
         if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M]:
             return
@@ -45,6 +46,7 @@ def post_save_receiver(sender, instance, created, **kwargs):
                 ip=get_client_ip(request),
                 nombreModelo=sender.__name__,                
                 nuevoValor=instance_json,
+                signalId=request_signal
             ) 
     except IntegrityError:
         # Handle the case where the instance violates a database constraint
@@ -63,6 +65,8 @@ def pre_save_receiver(sender, instance, **kwargs):
         if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M]:
             return
         request = get_current_request()
+        request_id=get_request_id()
+        signal_id=str(uuid.uuid4())       
         if request is None:
             # No current request
             return
@@ -75,7 +79,7 @@ def pre_save_receiver(sender, instance, **kwargs):
 
         if changed_fields is None:
             return   
-        log_request_id=str(uuid.uuid4())
+        
         user = User.objects.get(username=request.user.username)
 
         Log_Cambios_Update.objects.create(
@@ -84,7 +88,8 @@ def pre_save_receiver(sender, instance, **kwargs):
             nombreModelo=sender.__name__,
             cambiosValor=changed_fields,            
             contentObject=instance,
-            requestId=log_request_id
+            requestId=request_id,
+            signalId=signal_id
         )
     except IntegrityError:
         # Handle the case where the instance violates a database constraint
@@ -98,11 +103,13 @@ def pre_save_receiver(sender, instance, **kwargs):
 
 @receiver(pre_delete)
 def pre_delete_receiver(sender, instance, **kwargs):
-    request_id = str(uuid.uuid4())
+    
     try:
         if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M]:
             return
         request = get_current_request()
+        request_id=get_request_id()
+        signal_id = str(uuid.uuid4())        
         if request is None:
             # No current request
             return        
@@ -115,7 +122,8 @@ def pre_delete_receiver(sender, instance, **kwargs):
             nombreModelo=sender.__name__,
             antiguoValor=old_instance_json,            
             contentObject=instance,
-            requestId=request_id
+            requestId=request_id,
+            signalId=signal_id
         )
     except IntegrityError:
         # Handle the case where the instance violates a database constraint

@@ -1,8 +1,6 @@
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
-from public.views import TipoActorView
-from fidecomisos.views import FideicomisoView
 from .models import ActorDeContrato
 from django.core.exceptions import ValidationError
 from .models import ActorDeContrato
@@ -89,7 +87,7 @@ class ActorListView(generics.ListCreateAPIView):
             actor=ActorView.get_object(self,tpidentif,nroidentif)
             serializer=ActorDeContratoSerializerUpdate(actor,data=request.data)
             if serializer.is_valid():
-                serializer.save()
+                serializer.save(delete_non_serialized=True)
                 return Response(serializer.data,status=status.HTTP_201_CREATED)
             return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
         except ValidationError as e:

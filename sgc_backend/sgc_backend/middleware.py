@@ -1,5 +1,6 @@
 from threading import local
-
+import uuid
+from django.utils.deprecation import MiddlewareMixin
 _thread_locals = local()
 
 def get_current_request():
@@ -12,3 +13,10 @@ class CurrentRequestMiddleware:
     def __call__(self, request):
         _thread_locals.request = request
         return self.get_response(request)
+
+class RequestIdMiddleware(MiddlewareMixin):
+    def process_request(self, request):
+        _thread_locals.value = uuid.uuid4()
+
+def get_request_id():
+    return _thread_locals.value

@@ -88,7 +88,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'sgc_backend.middleware.CurrentRequestMiddleware'
+    'sgc_backend.middleware.CurrentRequestMiddleware',
+    'sgc_backend.middleware.RequestIdMiddleware'
    
     
 ]

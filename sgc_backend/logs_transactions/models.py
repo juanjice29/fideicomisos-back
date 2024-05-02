@@ -15,8 +15,9 @@ class Log_Cambios_Create(models.Model):
     nombreModelo = models.CharField(max_length=50,db_column='nombre_modelo')    
     nuevoValor = models.TextField(null=True,db_column='nuevo_valor')    
     contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE,db_column='content_type')    
-    objectId = models.TextField(db_column='object_id')
+    objectId = models.CharField(max_length=255,null=True,db_column='object_id')
     contentObject = GenericForeignKey('contentType', 'objectId')
+    signalId=models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='signal_id') 
     requestId = models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='request_id')    
 
     class Meta:
@@ -30,8 +31,9 @@ class Log_Cambios_Update(models.Model):
     nombreModelo = models.CharField(max_length=50,db_column='nombre_modelo')
     cambiosValor = models.TextField(null=True,db_column='cambios_valor')    
     contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True,db_column='content_type')
-    objectId = models.TextField(null=True,db_column='object_id')
+    objectId = models.CharField(max_length=255,null=True,db_column='object_id')
     contentObject = GenericForeignKey('contentType', 'objectId')
+    signalId=models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='signal_id')
     requestId = models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='request_id')
     class Meta:
         # Especifica el nombre de la tabla aquí
@@ -44,8 +46,9 @@ class Log_Cambios_Delete(models.Model):
     nombreModelo = models.CharField(max_length=50,db_column='nombre_modelo')    
     antiguoValor = models.TextField(null=True,db_column='antiguo_valor')
     contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE,null=True,db_column='content_type')
-    objectId = models.TextField(null=True,db_column='object_id')
+    objectId = models.CharField(max_length=255,null=True,db_column='object_id')
     contentObject = GenericForeignKey('contentType', 'objectId')
+    signalId=models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='signal_id')
     requestId = models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='request_id')
     class Meta:
         # Especifica el nombre de la tabla aquí
@@ -56,13 +59,24 @@ class Log_Cambios_M2M(models.Model):
     ip = models.GenericIPAddressField(db_column='ip')
     tiempoAccion = models.DateTimeField(auto_now_add=True,db_column='tiempo_accion')
     nombreModelo = models.CharField(max_length=50,db_column='nombre_modelo')
+
+    objectId = models.CharField(max_length=255,null=True,db_column='object_id')
+    contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE,db_column='content_type', related_name='log_cambios_m2m_content')    
+    contentObject = GenericForeignKey('contentType', 'objectId')
+
+    nombreModeloPadre=models.CharField(max_length=50,db_column='nombre_modelo_padre')
+    objectIdPadre=models.CharField(max_length=255,null=True,db_column='object_id_padre')
+    contentTypePadre=models.ForeignKey(ContentType, on_delete=models.CASCADE,db_column='content_type_padre', related_name='log_cambios_m2m_content_padre')
+    contentObjectPadre = GenericForeignKey('contentTypePadre', 'objectIdPadre')
+
+    
+    
     jsonValue=models.TextField(null=True,db_column='json_value')
     accion=models.CharField(max_length=50,null=True,db_column='accion')
-    contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE,db_column='content_type')
-    objectId = models.TextField(null=True,db_column='object_id')
-    contentObject = GenericForeignKey('contentType', 'objectId')
+    
+    signalId=models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='signal_id')
     requestId = models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='request_id')
-    nombreModeloPadre=models.CharField(max_length=50,db_column='nombre_modelo_padre')
+    
     class Meta:
         # Especifica el nombre de la tabla aquí
         db_table = 'logs_relate'

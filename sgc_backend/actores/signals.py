@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
-from sgc_backend.middleware import get_current_request
+from sgc_backend.middleware import get_current_request,get_request_id
 import logging
 import json
 import uuid
@@ -22,11 +22,14 @@ def get_client_ip(request):
 def m2m_changed_actor_de_contrato(sender, instance, action, model, pk_set, **kwargs):
     try:
         request = get_current_request()
+        request_id=get_request_id()
+        signal_id = str(uuid.uuid4())
+        print("este es el id de la solicitud",request_id)
         if request is None:
             # No current request
             return
 
-        request_id = str(uuid.uuid4())
+        
         user = User.objects.get(username=request.user.username) 
         ip=  get_client_ip(request)
         
@@ -37,6 +40,9 @@ def m2m_changed_actor_de_contrato(sender, instance, action, model, pk_set, **kwa
             ).first()
             if related_objects is None:                
                 return
+            
+                           
+            print("ids relacionados",model_to_dict(related_objects))
             # Convert the intermediate data to JSON
             intermediate_data = json.dumps(model_to_dict(related_objects), cls=DjangoJSONEncoder, ensure_ascii=False)          
 
@@ -46,9 +52,11 @@ def m2m_changed_actor_de_contrato(sender, instance, action, model, pk_set, **kwa
                 nombreModelo=sender.__name__,
                 jsonValue=intermediate_data,
                 accion=action,
-                contentObject=instance,
+                contentObject=related_objects,
+                contentObjectPadre=instance,
                 requestId=request_id,
-                nombreModeloPadre=type(instance).__name__
+                nombreModeloPadre=type(instance).__name__,
+                signalId=signal_id
             )
     except Exception as e:
         logger.info(f"Un error ocurrio: {str(e)}")

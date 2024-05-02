@@ -33,6 +33,7 @@ class RelacionFideicomisoActorCreateSerializer(serializers.ModelSerializer):
         fields = ['fideicomiso', 'tipoActor']
 
 class ActorDeContratoSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
     fideicomisoAsociado = RelacionFideicomisoActorSerializer(source="relacionfideicomisoactor_set", many=True,read_only=True)
     class Meta:
         model = ActorDeContrato
@@ -61,10 +62,10 @@ class ActorDeContratoSerializerUpdate(serializers.ModelSerializer):
         fideicomiso_data = validated_data.pop('relacionfideicomisoactor_set')
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        
         for fideicomiso in fideicomiso_data:            
             instance.fideicomisoAsociado.add(fideicomiso['fideicomiso'], through_defaults={'tipoActor': fideicomiso['tipoActor']})
-            try:
-            # Intentar obtener la relación existente
+            try:            
                 relacion = instance.relacionfideicomisoactor_set.get(fideicomiso=fideicomiso['fideicomiso'])
             # Si la relación existe, actualizarla
                 for attr, value in fideicomiso.items():
@@ -73,7 +74,13 @@ class ActorDeContratoSerializerUpdate(serializers.ModelSerializer):
             except RelacionFideicomisoActor.DoesNotExist:
             # Si la relación no existe, agregarla
                 instance.fideicomisoAsociado.add(fideicomiso['fideicomiso'], through_defaults={'tipoActor': fideicomiso['tipoActor']})
-
+        # Obtener los fideicomisos actuales
+        delete_non_serialized=validated_data.pop('delete_non_serialized', False)
+        if delete_non_serialized:
+            relaciones_current = set(instance.relacionfideicomisoactor_set.all().values_list('fideicomiso', flat=True)) 
+            to_delete = relaciones_current - set(f['fideicomiso'].codigoSFC for f in fideicomiso_data)            
+            instance.relacionfideicomisoactor_set.filter(fideicomiso__in=to_delete).delete()
+    
         instance.save()
         return instance
 
