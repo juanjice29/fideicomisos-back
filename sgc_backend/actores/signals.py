@@ -23,8 +23,7 @@ def m2m_changed_actor_de_contrato(sender, instance, action, model, pk_set, **kwa
     try:
         request = get_current_request()
         request_id=get_request_id()
-        signal_id = str(uuid.uuid4())
-        print("este es el id de la solicitud",request_id)
+        signal_id = str(uuid.uuid4())        
         if request is None:
             # No current request
             return
@@ -39,10 +38,8 @@ def m2m_changed_actor_de_contrato(sender, instance, action, model, pk_set, **kwa
                 fideicomiso_id__in= pk_set
             ).first()
             if related_objects is None:                
-                return
+                return     
             
-                           
-            print("ids relacionados",model_to_dict(related_objects))
             # Convert the intermediate data to JSON
             intermediate_data = json.dumps(model_to_dict(related_objects), cls=DjangoJSONEncoder, ensure_ascii=False)          
 
