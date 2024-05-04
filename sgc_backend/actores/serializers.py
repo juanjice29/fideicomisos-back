@@ -38,7 +38,7 @@ class ActorDeContratoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActorDeContrato
         fields = '__all__'   
-
+    
 class ActorDeContratoSerializerCreate(serializers.ModelSerializer):   
     fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)
     class Meta:

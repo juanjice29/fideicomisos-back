@@ -13,7 +13,7 @@ from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 from rest_framework.exceptions import ParseError
 from rest_framework.exceptions import APIException
 from rest_framework import filters
-
+from django.db import IntegrityError
 
 class ActorView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
@@ -56,9 +56,11 @@ class ActorListView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, HasRolePermission]
 
     queryset=ActorDeContrato.objects.all()
+    ordering = ['-fechaActualizacion','-fechaCreacion']
     serializer_class=ActorDeContratoSerializer
     filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
-    search_fields = ['numeroIdentificacion', 'primerNombre','primerApellido','fideicomisoAsociado__tipoActor']
+    search_fields = ['numeroIdentificacion', 'primerNombre','primerApellido']
+    
     def get_queryset(self):
         try:            
             return self.queryset
@@ -78,6 +80,9 @@ class ActorListView(generics.ListCreateAPIView):
             return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
         except ValidationError as e:
             raise ParseError(detail=str(e))
+        except IntegrityError as e:
+            if 'ORA-00001' in str(e):
+                return Response({'detail':'Ya existe un actor con el mismo tipo y número de identificación'},status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             raise APIException(detail=str(e))
     def put(self,request):
@@ -89,8 +94,19 @@ class ActorListView(generics.ListCreateAPIView):
             if serializer.is_valid():
                 serializer.save(delete_non_serialized=True)
                 return Response(serializer.data,status=status.HTTP_201_CREATED)
-            return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+            else:
+                error_messages = []
+                errors = serializer.errors
+                for field, field_errors in errors.items():
+                    if field == "fideicomisoAsociado":
+                        for error in field_errors:
+                            if (error): error_messages.append(f"{error}")
+                    else:
+                        error_messages.append(f"{field}: {field_errors}")
+                return Response({"detail": error_messages},status=status.HTTP_400_BAD_REQUEST)
         except ValidationError as e:
             raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e))
 
 
