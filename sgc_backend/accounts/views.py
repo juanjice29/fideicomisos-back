@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import  Permisos
 from rest_framework.exceptions import AuthenticationFailed
+from django.utils import timezone
 
 @permission_classes([AllowAny])
 class LoginView(APIView):
@@ -58,7 +59,8 @@ class LoginView(APIView):
 
             # Fetch the views that the user's role has permission to access
             views = list(Permisos.objects.filter(rol__nombre=user.profile.rol.nombre).values_list('vista__nombre', flat=True))
-
+            user.last_login = timezone.now()
+            user.save()
             response_data = {
                 'user': {
                     'firstName': user.first_name,
@@ -66,7 +68,9 @@ class LoginView(APIView):
                     'email': user.email,
                     'username': user.username,
                     'rol': user.profile.rol.nombre,
+                    'dni':user.profile.cedula,
                     'views': views,  # Add the views to the response data
+                    'lastLogin': user.last_login,
                 },
                 'access': data['access'],
                 'refresh': data['refresh'],
