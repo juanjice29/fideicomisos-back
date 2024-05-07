@@ -72,7 +72,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'fidecomisos',
     'actores',
-    'process'
+    'process',
     'beneficiario_final',
     'logs_transactions',
     'django_celery_beat',
@@ -230,3 +230,8 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+GRAPH_MODELS = {
+  'all_applications': True,
+  'group_models': True,
+}
