@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'fidecomisos',
     'actores',
+    'process'
     'beneficiario_final',
     'logs_transactions',
     'django_celery_beat',
