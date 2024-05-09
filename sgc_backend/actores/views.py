@@ -14,7 +14,11 @@ from rest_framework.exceptions import ParseError
 from rest_framework.exceptions import APIException
 from rest_framework import filters
 from django.db import IntegrityError
-
+from .forms import UploadFileForm
+from .tasks import tkpCargarActoresPorFideiExcel,tkpCargarActoresExcel
+from django.core.files.storage import default_storage,FileSystemStorage
+from datetime import datetime
+import os
 class ActorView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -68,7 +72,6 @@ class ActorListView(generics.ListCreateAPIView):
             raise ParseError(detail=str(e))
         except Exception as e:
             raise APIException(detail=str(e)) 
-        
     def post(self,request):
         try:
             tpidentif=request.data.get('tipoIdentificacion')
@@ -110,3 +113,52 @@ class ActorListView(generics.ListCreateAPIView):
             raise APIException(detail=str(e))
 
 
+class ActoresByFideiFileUploadView(APIView):    
+
+    def post(self, request, codigo_SFC):
+        form = UploadFileForm(request.POST, request.FILES)
+       
+        try:
+            if form.is_valid():         
+                file = form.cleaned_data['file'] 
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                dir_name = f'C:/Salida-SGC/actores/temp/masivo_por_fideicomiso/actores_'+ timestamp
+                fs = FileSystemStorage(location=dir_name)
+                file_name = fs.save(file.name, file)   
+                print(file_name)             
+                result=tkpCargarActoresPorFideiExcel.delay(
+                    file_path=dir_name+"/"+file_name, 
+                    fideicomiso=codigo_SFC, 
+                    usuario_id=request.user.id,
+                    disparador="MAN")
+                
+                return Response({'procesoId:':result.id,'message': 'La tarea se ha iniciado correctamente.'}, status=status.HTTP_202_ACCEPTED)
+            else:
+                return Response({'detail':'El archivo no es valido'},status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            raise APIException(detail=str(e))
+        
+        
+class ActoresFileUploadView(APIView):    
+
+    def post(self, request):
+        form = UploadFileForm(request.POST, request.FILES)
+       
+        try:
+            if form.is_valid():         
+                file = form.cleaned_data['file'] 
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                dir_name = f'C:/Salida-SGC/actores/temp/masivo_general/actores_'+ timestamp
+                fs = FileSystemStorage(location=dir_name)
+                file_name = fs.save(file.name, file)   
+                print(file_name)             
+                result=tkpCargarActoresExcel.delay(
+                    file_path=dir_name+"/"+file_name,
+                    usuario_id=request.user.id,
+                    disparador="MAN")
+                
+                return Response({'procesoId:':result.id,'message': 'La tarea se ha iniciado correctamente.'}, status=status.HTTP_202_ACCEPTED)
+            else:
+                return Response({'detail':'El archivo no es valido'},status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            raise APIException(detail=str(e))

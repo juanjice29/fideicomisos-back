@@ -34,7 +34,7 @@ class ActorDeContrato(models.Model):
 class RelacionFideicomisoActor(models.Model):
     actor = models.ForeignKey(ActorDeContrato, on_delete=models.CASCADE,db_column='actor')
     fideicomiso = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE,db_column='fideicomiso')
-    tipoActor = models.ForeignKey(TipoActorDeContrato, on_delete=models.CASCADE,null=False,db_column='tipo_actor')
+    tipoActor = models.ManyToManyField(TipoActorDeContrato)
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['actor','fideicomiso'], name='unique_fideicomiso_actor')
