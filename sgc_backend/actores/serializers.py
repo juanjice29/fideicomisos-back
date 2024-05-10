@@ -3,7 +3,7 @@ from .models import ActorDeContrato
 from fidecomisos.models import Encargo
 from fidecomisos.serializers import EncargoSerializer,FideicomisoSerializer
 from rest_framework import serializers
-from .models import TipoActorDeContrato,RelacionFideicomisoActor
+from .models import TipoActorDeContrato,RelacionFideicomisoActor,ActorDeContratoNatural,ActorDeContratoJuridico
 from rest_framework import serializers
 from .models import Encargo,Fideicomiso
 from django.db import transaction
@@ -99,7 +99,18 @@ class ActorDeContratoSerializerUpdate(serializers.ModelSerializer):
     
         instance.save()
         return instance
+    
+class ActorDeContratoNaturalSerializer(serializers.ModelSerializer):
+    actor=ActorDeContratoSerializer
+    class Meta:
+        model=ActorDeContratoNatural
+        fields='__all__'
 
+class ActorDeContratoJuridicoSerializer(serializers.ModelSerializer):
+    actor=ActorDeContratoSerializer
+    class Meta:
+        model=ActorDeContratoJuridico
+        fields='__all__'
 
     
 
