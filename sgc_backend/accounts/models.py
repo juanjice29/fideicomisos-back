@@ -42,6 +42,7 @@ class View(models.Model):
     nombre = models.CharField(max_length=255)
     def __str__(self):
         return self.nombre
+    
 class Permisos(models.Model):
     rol = models.ForeignKey(Role, on_delete=models.CASCADE)
     vista = models.ForeignKey(View, on_delete=models.CASCADE)
@@ -49,7 +50,5 @@ class Permisos(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['rol', 'vista'], name='unique_rol_vista')
-        ]
-    def __str__(self):
-        return f'rol: {self.rol.nombre}, vista: {self.vista.nombre}'
+        ]    
     

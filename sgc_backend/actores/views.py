@@ -157,7 +157,7 @@ class ActoresFileUploadView(APIView):
                     usuario_id=request.user.id,
                     disparador="MAN")
                 
-                return Response({'procesoId:':result.id,'message': 'La tarea se ha iniciado correctamente.'}, status=status.HTTP_202_ACCEPTED)
+                return Response({'proceso:':str(result.id),'message': 'La tarea se ha iniciado correctamente.'}, status=status.HTTP_202_ACCEPTED)
             else:
                 return Response({'detail':'El archivo no es valido'},status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
