@@ -157,7 +157,7 @@ ALLOWED_HOSTS = ['*']
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Bogota'
 
 USE_I18N = True
 
@@ -174,7 +174,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     # It will work instead of the default serializer(TokenObtainPairSerializer).
     "TOKEN_OBTAIN_SERIALIZER": "accounts.serializers.MyTokenObtainPairSerializer",
     # ...
