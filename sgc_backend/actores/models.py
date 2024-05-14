@@ -25,7 +25,7 @@ class ActorDeContrato(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['tipoIdentificacion','numeroIdentificacion'], name='unique_identificacion')
         ] 
-        db_table = 'fidei_actor'  
+        db_table = 'fidei_actor'     
 
 class ActorDeContratoNatural(ActorDeContrato):
     primerNombre = models.CharField(max_length=100,db_column='primer_nombre')

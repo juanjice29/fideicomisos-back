@@ -4,9 +4,14 @@ from django import forms
 import pandas as pd
 from public.models import TipoDeDocumento
 from actores.models import TipoActorDeContrato,ActorDeContrato
-from actores.serializers import TipoActorDeContratoSerializer,ActorDeContratoSerializerCreate,ActorDeContratoSerializerUpdate
+from actores.serializers import TipoActorDeContratoSerializer,\
+ActorDeContratoNaturalCreateSerializer,\
+ActorDeContratoNaturalUpdateSerializer,\
+ActorDeContratoJuridicoUpdateSerializer,\
+ActorDeContratoJuridicoCreateSerializer
 import json
 import traceback
+from public.utils import getTipoPersona
 
 @shared_task
 @track_process
@@ -65,7 +70,7 @@ def tkpCargarActoresExcel(file_path,usuario_id, disparador,ejecucion=None):
 @track_sub_task
 def tkExcelActoresToPandas(file_path,tarea=None,ejecucion=None):
     try:
-        default_cols=['tipoIdentificacion','numeroIdentificacion','tipoActor','fideicomiso','primerNombre','segundoNombre','primerApellido','segundoApellido']
+        default_cols=['tipoIdentificacion','numeroIdentificacion','tipoActor','fideicomiso','primerNombre','segundoNombre','primerApellido','segundoApellido','razonSocialNombre']
         df=pd.read_excel(file_path, header=None)        
         df.columns = default_cols[:len(df.columns)]
         df = df.drop(df.index[0])   
@@ -86,7 +91,7 @@ def tkExcelActoresToPandas(file_path,tarea=None,ejecucion=None):
 @track_sub_task
 def tkExcelActoresPorFideiToPandas(file_path,fideicomiso,tarea=None,ejecucion=None):
     try:
-        default_cols=['tipoIdentificacion','numeroIdentificacion','tipoActor','primerNombre','segundoNombre','primerApellido','segundoApellido']
+        default_cols=['tipoIdentificacion','numeroIdentificacion','tipoActor','primerNombre','segundoNombre','primerApellido','segundoApellido','razonSocialNombre']
         df=pd.read_excel(file_path, header=None)        
         df.columns = default_cols[:len(df.columns)]
         df = df.drop(df.index[0])       
@@ -112,13 +117,13 @@ def tkProcesarPandasActores(df,tarea=None,ejecucion=None):
         'actualizados':0,
         'creados':0
     }
-    print(df)
+    
     for index,row in df.iterrows():
         try:            
-            if pd.isna(row['tipoIdentificacion']) or pd.isna(row['numeroIdentificacion']) or pd.isna(row['tipoActor']) or pd.isna(row['primerNombre']) or pd.isna(row['primerApellido']):
+            if pd.isna(row['tipoIdentificacion']) or pd.isna(row['numeroIdentificacion']) or pd.isna(row['tipoActor']):
                 resultado['errores']+=1
                 guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Datos insuficientes para crear el actor en la fila {index}")
-                continue
+                continue            
             if not TipoDeDocumento.objects.filter(tipoDocumento=row['tipoIdentificacion']).exists():
                 resultado['errores']+=1
                 guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"El tipo de documento en la fila {index} no existe")
@@ -127,9 +132,21 @@ def tkProcesarPandasActores(df,tarea=None,ejecucion=None):
                 resultado['errores']+=1
                 guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"El tipo de actor en la fila {index} no existe")
             
-            actor=ActorDeContrato.objects.filter(tipoIdentificacion=row['tipoIdentificacion'],numeroIdentificacion=row['numeroIdentificacion']).first()    
+            tipoIdentificacion=row['tipoIdentificacion']
+            numeroIdentificacion=row['numeroIdentificacion']
+            tipoPersona=getTipoPersona(tipoIdentificacion)
+            if (tipoPersona=='N') and (pd.isna(row['primerNombre']) or pd.isna(row['primerApellido'])):
+                resultado['errores']+=1
+                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Primer nombre y Primer apellido requeridos {index}")
+                continue
+            if((tipoPersona=='J') and (pd.isna(row['razonSocialNombre']))):
+                resultado['errores']+=1
+                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Razon social nombre requerida {index}")
+                continue
+
+            actor=ActorDeContrato.objects.filter(tipoIdentificacion=tipoIdentificacion,numeroIdentificacion=numeroIdentificacion).first()    
             if actor:
-                serializer=ActorDeContratoSerializerUpdate(actor,data=serializarActor(row)) 
+                serializer=serializer=serializarActor(row,'UPDATE')  
                 if serializer.is_valid():
                     serializer.save(preserve_non_serialized_tp_actor=True)
                     resultado['actualizados']+=1
@@ -138,8 +155,8 @@ def tkProcesarPandasActores(df,tarea=None,ejecucion=None):
                     resultado['errores']+=1
                     guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al sobreescribir datos del el actor en la fila {index}, {serializer.errors}")  
                 continue
-            print(serializarActor(row))
-            serializer=ActorDeContratoSerializerCreate(data=serializarActor(row))        
+            
+            serializer=serializarActor(row,'CREATE')                  
             if serializer.is_valid():
                 serializer.save()
                 resultado['creados']+=1
@@ -154,16 +171,31 @@ def tkProcesarPandasActores(df,tarea=None,ejecucion=None):
     return resultado
 
 
-def serializarActor(row):
-    return {
+def serializarActor(row,action='CREATE'):
+    baseDict={
         'tipoIdentificacion':row['tipoIdentificacion'],
-        'numeroIdentificacion':row['numeroIdentificacion'],        
-        'primerNombre':row['primerNombre'],
-        'segundoNombre':row['segundoNombre'],
-        'primerApellido':row['primerApellido'],
-        'segundoApellido':row['segundoApellido'],
+        'numeroIdentificacion':row['numeroIdentificacion'],
         'fideicomisoAsociado':[{
             "fideicomiso":row['fideicomiso'],
             "tipoActor":[row['tipoActor']]
         }]
     }
+       
+    tipoPersona=getTipoPersona(row['tipoIdentificacion'])
+    if (tipoPersona=='N'):
+        baseDict['primerNombre']=row['primerNombre']
+        baseDict['segundoNombre']=row['segundoNombre']
+        baseDict['primerApellido']=row['primerApellido']
+        baseDict['segundoApellido']=row['segundoApellido']
+    if(tipoPersona=='J'):
+        baseDict['razonSocialNombre']=row['razonSocialNombre']
+    
+    if(action=='CREATE' and tipoPersona=='N'):
+        serializer=ActorDeContratoNaturalCreateSerializer(data=baseDict)  
+    if(action=='UPDATE' and tipoPersona=='N'):
+        serializer=ActorDeContratoNaturalUpdateSerializer(data=baseDict) 
+    if(action=='CREATE' and tipoPersona=='J'):
+        serializer=ActorDeContratoJuridicoCreateSerializer(data=baseDict)  
+    if(action=='UPDATE' and tipoPersona=='J'):
+        serializer=ActorDeContratoJuridicoUpdateSerializer(data=baseDict)   
+    return serializer
