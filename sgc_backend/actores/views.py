@@ -150,8 +150,7 @@ class ActoresFileUploadView(APIView):
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                 dir_name = f'C:/Salida-SGC/actores/temp/masivo_general/actores_'+ timestamp
                 fs = FileSystemStorage(location=dir_name)
-                file_name = fs.save(file.name, file)   
-                print(file_name)             
+                file_name = fs.save(file.name, file)                               
                 result=tkpCargarActoresExcel.delay(
                     file_path=dir_name+"/"+file_name,
                     usuario_id=request.user.id,
