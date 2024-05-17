@@ -13,10 +13,20 @@ from datetime import timedelta
 import datetime
 from pathlib import Path
 import os
-from .db_conn import *
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+from dotenv import load_dotenv
 
+load_dotenv()
+
+import os
+
+db_name = os.getenv("DB_NAME")
+db_user = os.getenv("DB_USER")
+db_pass = os.getenv("DB_PASS")
+db_host = os.getenv("DB_HOST")
+db_port = os.getenv("DB_PORT")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -45,6 +55,7 @@ LOGGING = {
     },
 }
 ##multiple workers celery -A your_project_name worker --loglevel=info -n worker1@%h
+#solo worker celery -A sgc_backend worker --loglevel=info -P solo
 #remember to install redis
 #CELERY_BROKER_URL = 'amqp://fssgc:fssgc@192.168.169.23:15672//'
 #BROKER_URL = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@192.168.169.23:15672/')

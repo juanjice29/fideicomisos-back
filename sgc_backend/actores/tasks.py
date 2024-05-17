@@ -12,11 +12,13 @@ ActorDeContratoJuridicoCreateSerializer
 import json
 import traceback
 from public.utils import getTipoPersona
+from process.models import EstadoEjecucion
 
 @shared_task
 @track_process
 def tkpCargarActoresPorFideiExcel(file_path,fideicomiso,usuario_id, disparador,ejecucion=None):
-
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
+    ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Inicio validacion del archivo excel")
@@ -38,12 +40,13 @@ def tkpCargarActoresPorFideiExcel(file_path,fideicomiso,usuario_id, disparador,e
                                TipoLogEnum.INFO.value,
                                "Fin de proceso, resultados: "+str(resultado))
     
-    return "Proceso finalizado "+str(resultado)
+    return str(resultado)
 
 @shared_task
 @track_process
 def tkpCargarActoresExcel(file_path,usuario_id, disparador,ejecucion=None):
-
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
+    ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Inicio validacion del archivo excel")
@@ -65,7 +68,7 @@ def tkpCargarActoresExcel(file_path,usuario_id, disparador,ejecucion=None):
                                TipoLogEnum.INFO.value,
                                "Fin de proceso, resultados: "+str(resultado))
     
-    return "Proceso finalizado "+str(resultado)
+    return str(resultado)
 
 @track_sub_task
 def tkExcelActoresToPandas(file_path,tarea=None,ejecucion=None):
@@ -171,7 +174,7 @@ def tkProcesarPandasActores(df,tarea=None,ejecucion=None):
     return resultado
 
 
-def serializarActor(row,action,actor):
+def serializarActor(row,action,actor=None):
     baseDict={
         'tipoIdentificacion':row['tipoIdentificacion'],
         'numeroIdentificacion':row['numeroIdentificacion'],

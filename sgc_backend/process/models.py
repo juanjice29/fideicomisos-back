@@ -81,3 +81,12 @@ class LogEjecucionTareaProceso(models.Model):
     
     class Meta:
         db_table = 'PRCS_LOG_EJECUCION_TAREA_PROCESO'
+
+
+class ProcesoTareaMap(models.Model):
+    proceso = models.ForeignKey(Proceso, on_delete=models.CASCADE)
+    tarea = models.ForeignKey(TareaProceso, on_delete=models.CASCADE)
+    orden = models.IntegerField(null=True)
+    class Meta:
+        unique_together = ('proceso', 'tarea')
+        db_table = 'PRCS_PROCESO_TAREA_MAPA'

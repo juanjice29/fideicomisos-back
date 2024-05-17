@@ -39,6 +39,7 @@ def track_process(func):
             result=func(*args, **kwargs)
             ejecucion_proceso.fechaFin = timezone.now()
             ejecucion_proceso.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='FIN')
+            ejecucion_proceso.resultado = result
             ejecucion_proceso.save()
             return result        
         except Exception as e:

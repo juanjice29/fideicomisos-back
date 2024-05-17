@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 import os
 from .decorators import TipoLogEnum, guardarLogEjecucionProceso, guardarLogEjecucionTareaProceso, track_process,protected_function_process,track_sub_task
-
+from .models import EjecucionProceso,EstadoEjecucion
 
 celery = Celery()
 
@@ -11,6 +11,8 @@ celery = Celery()
 @shared_task
 @track_process
 def task_process_example(usuario_id, disparador,ejecucion=None):
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
+    ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Iniciando proceso de ejemplo"),

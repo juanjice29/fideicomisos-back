@@ -17,6 +17,7 @@ from rest_framework import generics
 from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 from rest_framework.exceptions import ParseError
 from rest_framework.exceptions import APIException
+from sgc_backend.pagination import CustomPageNumberPagination
 from rest_framework import filters
 from django.db import IntegrityError
 from .forms import UploadFileForm
@@ -71,6 +72,7 @@ class ActorListView(generics.ListCreateAPIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
 
+    pagination_class = CustomPageNumberPagination    
     queryset=ActorDeContrato.objects.all()
     ordering = ['-fechaActualizacion','-fechaCreacion']
     serializer_class=ActorDeContratoSerializer
