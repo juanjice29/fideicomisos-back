@@ -26,3 +26,7 @@ def update_fideicomiso(rows):
                 }
             )
         cache.set('fideicomiso_hash', new_hash)
+        
+@shared_task
+def add(x, y):
+    return x + y

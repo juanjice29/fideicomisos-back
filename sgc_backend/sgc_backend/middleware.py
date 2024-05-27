@@ -19,4 +19,4 @@ class RequestIdMiddleware(MiddlewareMixin):
         _thread_locals.value = uuid.uuid4()
 
 def get_request_id():
-    return _thread_locals.value
+    return getattr(_thread_locals, 'value', None)
