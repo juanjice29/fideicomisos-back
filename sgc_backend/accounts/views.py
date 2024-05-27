@@ -69,7 +69,6 @@ class LoginView(APIView):
                     'username': user.username,
                     'rol': user.profile.rol.nombre,
                     'dni':user.profile.cedula,
-                    'views': views,  # Add the views to the response data
                     'lastLogin': user.last_login,
                 },
                 'access': data['access'],
