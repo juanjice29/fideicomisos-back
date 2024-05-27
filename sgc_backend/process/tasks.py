@@ -23,6 +23,12 @@ def task_process_example(usuario_id, disparador,ejecucion=None):
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Iniciando tarea que espera")  
+    guardarLogEjecucionProceso(ejecucion,
+                               TipoLogEnum.INFO.value,
+                               "Iniciando tarea que espera")  
+    guardarLogEjecucionProceso(ejecucion,
+                               TipoLogEnum.INFO.value,
+                               "Iniciando tarea que espera")  
     esperar(15)   
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,

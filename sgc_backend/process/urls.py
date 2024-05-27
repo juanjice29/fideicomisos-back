@@ -7,6 +7,6 @@ urlpatterns = [
     path('process-list/',ProcessListView.as_view(),name='process-list'),
     path('process-detail/<str:pk>/',ProcessDetailView.as_view(),name='process-list'),
     path('logs-process/<str:pk>/',LogEjecucionListView.as_view(),name='logs-process-list'),
-    
+    path('logs-process-task/<str:ejecucion>/<str:tarea>/',LogEjecucionTareaDetailView.as_view(),name="logs-process-task-detail"),
 ]
 urlpatterns = format_suffix_patterns(urlpatterns)

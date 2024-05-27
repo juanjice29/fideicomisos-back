@@ -8,9 +8,9 @@ from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ParseError,NotFound,APIException
 from accounts.models import User
-from .serializers import EjecucionProcesoListSerializer,LogEjecucionProcesoListSerializer
+from .serializers import EjecucionProcesoListSerializer,LogEjecucionProcesoListSerializer,LogEjecucionTareaSerializer
 from rest_framework import generics,filters,status
-from .models import EjecucionProceso,LogEjecucionProceso
+from .models import EjecucionProceso,LogEjecucionProceso,LogEjecucionTareaProceso
 from rest_framework.pagination import PageNumberPagination
 # Create your views here.
 
@@ -71,3 +71,27 @@ class LogEjecucionListView(APIView):
             return  paginator.get_paginated_response(serializer.data)
         except Exception as e:
             raise APIException(detail=str(e))
+
+class LogEjecucionTareaDetailView(generics.ListAPIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]  
+
+    search_fields = ['tipo__acronimo','mensaje']
+    ordering = ['-fecha']  
+    filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
+    queryset = LogEjecucionTareaProceso.objects.all() 
+
+    serializer_class=LogEjecucionTareaSerializer    
+    pagination_class = CustomPageNumberPagination
+
+    def get_queryset(self):
+        try:
+            ejecucion = self.kwargs['ejecucion']
+            tarea = self.kwargs['tarea']
+            return self.queryset.filter(ejecucionProceso=ejecucion, tarea=tarea)
+        except Exception as e:
+            raise APIException(detail=str(e))
+
+        
+
+    

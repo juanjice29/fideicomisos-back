@@ -40,3 +40,8 @@ class LogEjecucionProcesoListSerializer(serializers.ModelSerializer):
         model=LogEjecucionProceso
         fields=['id','mensaje','fecha','tipo']
         depth=1
+
+class LogEjecucionTareaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=LogEjecucionTareaProceso
+        fields='__all__'        
