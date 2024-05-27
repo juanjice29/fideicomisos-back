@@ -7,7 +7,7 @@ from django.contrib.auth import authenticate
 from rest_framework import exceptions
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-
+from django.contrib.auth.models import User
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -68,3 +68,9 @@ class LoginSerializer(serializers.Serializer):
             msg = "Debe ingresar nombre de usuario y contraseña."
             raise exceptions.ValidationError(msg)
         return data
+
+class UserSerializer(serializers.ModelSerializer):  
+   
+    class Meta:
+        model = User
+        fields = ["id","username","first_name","last_name","email"]

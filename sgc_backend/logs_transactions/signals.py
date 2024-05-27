@@ -13,6 +13,7 @@ import logging
 import json
 import uuid
 
+valid_sender=['fideicomisos','beneficiario_final','accounts','public']
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
@@ -24,11 +25,13 @@ logger = logging.getLogger(__name__)
 
 @receiver(post_save)
 def post_save_receiver(sender, instance, created, **kwargs):
-    request_signal = str(uuid.uuid4())
-    request_id=get_request_id()    
+    
     try:
-        if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M]:
+        app_name_sender=sender._meta.app_label
+        if app_name_sender not in valid_sender:
             return
+        request_signal = str(uuid.uuid4())
+        request_id=get_request_id()    
         request = get_current_request()
         if request is None:
             # No current request
@@ -62,8 +65,10 @@ def post_save_receiver(sender, instance, created, **kwargs):
 def pre_save_receiver(sender, instance, **kwargs):
     
     try:
-        if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M]:
+        app_name_sender=sender._meta.app_label
+        if app_name_sender not in valid_sender:
             return
+        print(app_name_sender)
         request = get_current_request()
         request_id=get_request_id()
         signal_id=str(uuid.uuid4())       
@@ -105,7 +110,8 @@ def pre_save_receiver(sender, instance, **kwargs):
 def pre_delete_receiver(sender, instance, **kwargs):
     
     try:
-        if sender in [Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M]:
+        app_name_sender=sender._meta.app_label
+        if app_name_sender not in valid_sender:
             return
         request = get_current_request()
         request_id=get_request_id()

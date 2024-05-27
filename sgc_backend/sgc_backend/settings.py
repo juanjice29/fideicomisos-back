@@ -13,10 +13,20 @@ from datetime import timedelta
 import datetime
 from pathlib import Path
 import os
-from .db_conn import *
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+from dotenv import load_dotenv
 
+load_dotenv()
+
+import os
+
+db_name = os.getenv("DB_NAME")
+db_user = os.getenv("DB_USER")
+db_pass = os.getenv("DB_PASS")
+db_host = os.getenv("DB_HOST")
+db_port = os.getenv("DB_PORT")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -45,10 +55,12 @@ LOGGING = {
     },
 }
 ##multiple workers celery -A your_project_name worker --loglevel=info -n worker1@%h
+#solo worker celery -A sgc_backend worker --loglevel=info -P solo
 #remember to install redis
 #CELERY_BROKER_URL = 'amqp://fssgc:fssgc@192.168.169.23:15672//'
 #BROKER_URL = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@192.168.169.23:15672/')
 CELERY_BROKER_URL = 'amqp://fssgc:fssgc@localhost'
+#CELERY_BROKER_URL = 'amqp://guest:guest@localhost'
 CELERY_TASK_RESULT_EXPIRES = None
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
@@ -72,6 +84,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'fidecomisos',
     'actores',
+    'process',
     'beneficiario_final',
     'logs_transactions',
     'django_celery_beat',
@@ -155,7 +168,7 @@ ALLOWED_HOSTS = ['*']
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Bogota'
 
 USE_I18N = True
 
@@ -172,7 +185,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     # It will work instead of the default serializer(TokenObtainPairSerializer).
     "TOKEN_OBTAIN_SERIALIZER": "accounts.serializers.MyTokenObtainPairSerializer",
     # ...
@@ -229,3 +242,8 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+GRAPH_MODELS = {
+  'all_applications': True,
+  'group_models': True,
+}
