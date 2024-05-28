@@ -42,13 +42,17 @@ class View(models.Model):
     nombre = models.CharField(max_length=255)
     def __str__(self):
         return self.nombre
-    
+class Accion(models.Model):
+    nombre = models.CharField(max_length=10)
+
+    def __str__(self):
+        return self.name
 class Permisos(models.Model):
     rol = models.ForeignKey(Role, on_delete=models.CASCADE)
     vista = models.ForeignKey(View, on_delete=models.CASCADE)
-
+    accion = models.ForeignKey(Accion, on_delete=models.CASCADE)
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['rol', 'vista'], name='unique_rol_vista')
+            models.UniqueConstraint(fields=['rol', 'vista','accion'], name='unique_rol_vista_accion_p')
         ]    
     
