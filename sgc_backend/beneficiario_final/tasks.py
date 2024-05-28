@@ -1,4 +1,4 @@
-from .models import RPBF_PERIODOS,RPBF_HISTORICO
+from .models import RpbfCandidatos,RpbfHistorico
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import update
@@ -8,9 +8,8 @@ from celery import shared_task, chain
 from django.http import JsonResponse
 from django.http import FileResponse
 from rest_framework import status
-import cx_Oracle
 import logging
-from .querys import semilla
+from .querys.semilla import *
 from rest_framework.response import Response
 from .utils import *
 import pandas as pd
@@ -22,36 +21,106 @@ import zipfile
 import subprocess
 from .variables import *
 import pdb 
-from .querys.conn import *
+from process.decorators import TipoLogEnum, \
+guardarLogEjecucionProceso, \
+guardarLogEjecucionTareaProceso, \
+track_process,protected_function_process,track_sub_task \
+    
+from process.models import EjecucionProceso,EstadoEjecucion
 
 logger = logging.getLogger(__name__)
 celery = Celery()
+
 def progress_callback(current, total):
     logger.info('Task progress: {}%'.format(current / total * 100))
+    
+
 @shared_task
-def calculate_bf_candidates():
-    fondos = ["14", "12","10"]
-    dsn_tns = cx_Oracle.makedsn(
-        url, port, service_name=service_name)
-    conn = cx_Oracle.connect(
-        user=user, password=password, dsn=dsn_tns)
-    cur = conn.cursor()
-    sql_delete_candidates = "DELETE FROM RPBF_CANDIDATES"
-    cur.execute(sql_delete_candidates)
-    conn.commit()
+@track_process
+def tkpCalcularBeneficiariosFinales(fondo,novedades,calc_cod_post,calc_total_data,corte,usuario_id, disparador,ejecucion=None):
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
+    ejecucion.save()
+    #0. obtener corte
+    last_period=bef_period(get_current_period())
+    last_corte=get_last_day_of_period(last_period.split("-")[0],last_period.split("-")[1])    
+    corte=last_corte if (not(corte)) else corte
+    
+    guardarLogEjecucionProceso(ejecucion,
+                               TipoLogEnum.INFO.value,
+                               "Inicio calculo de reporte beneficiarios finales")
+    
+    guardarLogEjecucionProceso(ejecucion,
+                               TipoLogEnum.INFO.value,
+                               f"""Inicio calculo de reporte beneficiarios finales parametrización correspondiente al proceso es \n 
+                                  fondo = {fondo} ,\n
+                                  novedades = {novedades} ,\n
+                                  calc_cod_post = {calc_cod_post} , \n 
+                                  calc_total_data = {calc_total_data} , \n                                   
+                                  corte = {corte}
+                               """)    
+    #1.calcular codigos postales
+    if(calc_cod_post):
+        guardarLogEjecucionProceso(ejecucion,
+                               TipoLogEnum.INFO.value,
+                               "Inicio el calculo de codigos postales")
+        result=tkFillPostalCodeView(ejecucion=ejecucion)
+        guardarLogEjecucionProceso(ejecucion,
+                               TipoLogEnum.INFO.value,
+                               f"Finalizo calculo de codigos postales resultado: {result_t1}")
+    else:
+        guardarLogEjecucionProceso(ejecucion,
+                               TipoLogEnum.INFO.value,
+                               "Se omite el calculo de codigos postales")    
+    #2.calcular candidatos    
+     
+    if(calc_total_data):
+        guardarLogEjecucionProceso(ejecucion,
+                                TipoLogEnum.INFO.value,
+                                "Inicio el calculo de candidatos")
+        result=tkCalculateCandidates(fondo=fondo,corte=corte,ejecucion=ejecucion)
+        
+    else:
+        guardarLogEjecucionProceso(ejecucion,
+                                TipoLogEnum.INFO.value,
+                                "Se omite el procesamiento general de todos los registros.")    
+    #3.generar xml
+    guardarLogEjecucionProceso(ejecucion,
+                               TipoLogEnum.INFO.value,
+                               "Fin de proceso, resultados: "+str(result))
+    return 
 
+@track_sub_task
+def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):    
+    
+    try:        
+        result=RpbfCandidatos.objects.filter(fondo=fondo).delete()
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se eliminaron {result} registros temporales correctamente")
+    except Exception as e:
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al intentar eliminar los registros temporales {str(e)[:100]}")
+        return "Fallo al eliminar los candidatos temporales " + str(e)[:100]
+    
+    try:
+        saldo=get_saldo_fondo(fondo=fondo,corte=corte)
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se calcula el saldo general del fondo al corte {corte}, Fondo : {fondo}, Saldo : {saldo} ") 
+    except Exception as e:
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al obtener el saldo general del fondo {str(e)[:100]}")
+        return "Fallo al obtener el saldo general del fondo" + str(e)[:100] 
+    
+    try:
+        df_historico=pd.DataFrame.from_records(RpbfHistorico.objects.filter(fondo=fondo).order_by('id'))
+        #df_current=get_semilla(fondo,corte,saldo)
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se calculan los registros , historico : {len(df_historico)}, semilla : {len(df_current)} ")    
+    except Exception as e:
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al obtener los datos historicos y actuales {str(e)[:100]}")        
+        return "Fallo al obtener los datos historicos y actuales" + str(e)[:100]  
+    
+    
+    """
     for i in fondos:
-        fondo = i
-        novedades = [1, 2, 3]
-
-        last_report_regs = RPBF_HISTORICO.objects.filter(FONDO=fondo)
-        df_historico = pd.DataFrame.from_records(last_report_regs.values())
+        
         df_historico["PERIODO_REPORTADO_id"] = df_historico["PERIODO_REPORTADO_id"].apply(
             lambda x: int("".join(x.split("-")))).astype(int)
-
-        saldo = cur.execute(semilla.saldo_fondo.format(
-            "2023-12-31", fondo)).fetchone()
-        saldo = str(saldo[0]).replace(",", ".")
+        
 
         cur.execute(semilla.query.format(saldo, "2023-12-31", fondo))
         rows = cur.fetchall()
@@ -136,6 +205,7 @@ def calculate_bf_candidates():
     cur.close()
     conn.close()
     return Response({"status": "200", "longitud": len(result)})
+    """
 
 
 @shared_task
@@ -238,8 +308,9 @@ def ZipFile():
 
     return Response({"status": "200"})
 
-@shared_task
-def FillPostalCodeView():
+@track_sub_task
+def tkFillPostalCodeView(tarea=None,ejecucion=None):
+        
     engine = create_engine(
         f'oracle+cx_oracle://{user}":{password}@{url}:{port}/?service_name={service_name}')
     sql = """
