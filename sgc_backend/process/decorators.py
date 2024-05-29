@@ -5,7 +5,10 @@ from celery import current_task
 from accounts.models import User
 import inspect
 from enum import Enum
-
+from django.db.models.signals import pre_save, post_save, pre_delete
+from django.dispatch import receiver
+from functools import wraps
+from logs_transactions.signals import log_change
 class TipoLogEnum(Enum):
     INFO = "INFO"
     ERROR = "ERR"
@@ -102,3 +105,18 @@ def guardarLogEjecucionTareaProceso(ejecucion,tarea,tipo,mensaje,ordenvisualizac
     log_ejecucion.ordenVisualizacion=ordenvisualizacion
     log_ejecucion.save()
     return log_ejecucion
+def log_changes(signal, sender):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Connect the signal to the log_change function
+            signal.connect(log_change, sender=sender)
+            try:
+                # Call the function
+                result = func(*args, **kwargs)
+            finally:
+                # Disconnect the signal
+                signal.disconnect(log_change, sender=sender)
+            return result
+        return wrapper
+    return decorator

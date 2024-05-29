@@ -16,7 +16,7 @@ class HasRolePermission(BasePermission):
         if hasattr(request.user, 'profile') and hasattr(request.user.profile, 'rol'):
             Rol_Vista = Permisos.objects.filter(
                 rol=request.user.profile.rol,
-                accion__name=request.method
+                accion__nombre=request.method
             ).values_list('vista__nombre', flat=True)
         else:
             Rol_Vista = []

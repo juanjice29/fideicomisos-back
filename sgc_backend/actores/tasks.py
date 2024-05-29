@@ -1,7 +1,8 @@
 from celery import Celery,current_task,shared_task
-from process.decorators import TipoLogEnum, guardarLogEjecucionProceso, guardarLogEjecucionTareaProceso, track_process,protected_function_process,track_sub_task
+from process.decorators import TipoLogEnum, guardarLogEjecucionProceso, guardarLogEjecucionTareaProceso, track_process,protected_function_process,track_sub_task,log_changes
 from django import forms
 import pandas as pd
+from django.db.models.signals import pre_save, post_save, pre_delete
 from public.models import TipoDeDocumento
 from actores.models import TipoActorDeContrato,ActorDeContrato
 from actores.serializers import TipoActorDeContratoSerializer,\
@@ -112,7 +113,9 @@ def tkExcelActoresPorFideiToPandas(file_path,fideicomiso,tarea=None,ejecucion=No
     except Exception as e:        
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error desconocido transformando archivo: {str(e)}")
         return False
-    
+@log_changes(post_save, ActorDeContrato)
+@log_changes(pre_save, ActorDeContrato)
+@log_changes(pre_delete, ActorDeContrato) 
 @track_sub_task
 def tkProcesarPandasActores(df,tarea=None,ejecucion=None):
     resultado={

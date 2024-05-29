@@ -12,6 +12,7 @@ from django.contrib.auth.models import User
 import logging
 import json
 import uuid
+from django.contrib.auth import get_user_model
 
 valid_sender=['fideicomisos','beneficiario_final','accounts','public']
 def get_client_ip(request):
@@ -178,3 +179,44 @@ def serialize_only_changes_to_json(old_instance, new_instance):
     if not changed_fields:
         return None  
     return json.dumps(changed_fields, cls=DjangoJSONEncoder, ensure_ascii=False)
+
+def log_change(change_type, instance, old_instance=None, username='celeryautomate'):
+    # Get the celeryautomate user
+    User = get_user_model()
+    celery_user = User.objects.get(username=username)
+
+    # Serialize the instance
+    instance_json = json.dumps(serialize_instance(instance), cls=DjangoJSONEncoder, ensure_ascii=False)
+
+    # Serialize the old instance if it exists
+    old_instance_json = json.dumps(serialize_instance(old_instance), cls=DjangoJSONEncoder, ensure_ascii=False) if old_instance else None
+
+    # Create the appropriate log entry based on the type of change
+    if change_type == 'create':
+        Log_Cambios_Create.objects.create(
+            usuario=celery_user,
+            nombreModelo=instance.__class__.__name__,
+            nuevoValor=instance_json,
+            requestId=str(uuid.uuid4()),  # Generate a new UUID for the request
+            signalId=str(uuid.uuid4()),  # Generate a new UUID for the signal
+        )
+    elif change_type == 'update':
+        # Serialize the changes between the old and new instances
+        changed_fields = serialize_only_changes_to_json(old_instance, instance)
+
+        Log_Cambios_Update.objects.create(
+            usuario=celery_user,
+            nombreModelo=instance.__class__.__name__,
+            cambiosValor=changed_fields,
+            contentObject=instance,
+            requestId=str(uuid.uuid4()),  # Generate a new UUID for the request
+            signalId=str(uuid.uuid4()),  # Generate a new UUID for the signal
+        )
+    elif change_type == 'delete':
+        Log_Cambios_Delete.objects.create(
+            usuario=celery_user,
+            nombreModelo=instance.__class__.__name__,
+            antiguoValor=old_instance_json,
+            requestId=str(uuid.uuid4()),  # Generate a new UUID for the request
+            signalId=str(uuid.uuid4()),  # Generate a new UUID for the signal
+        )

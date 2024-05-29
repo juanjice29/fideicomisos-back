@@ -57,7 +57,7 @@ class RolAdmin(admin.ModelAdmin):
     list_display = ['nombre']
 @admin.register(Permisos)
 class PermisosAdmin(admin.ModelAdmin):
-    list_display = ['rol', 'vista']
+    list_display = ['rol', 'vista','accion']
     
 @admin.register(View)
 class ViewAdmin(admin.ModelAdmin):
