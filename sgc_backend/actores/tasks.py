@@ -113,9 +113,7 @@ def tkExcelActoresPorFideiToPandas(file_path,fideicomiso,tarea=None,ejecucion=No
     except Exception as e:        
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error desconocido transformando archivo: {str(e)}")
         return False
-@log_changes(post_save, ActorDeContrato)
-@log_changes(pre_save, ActorDeContrato)
-@log_changes(pre_delete, ActorDeContrato) 
+
 @track_sub_task
 def tkProcesarPandasActores(df,tarea=None,ejecucion=None):
     resultado={

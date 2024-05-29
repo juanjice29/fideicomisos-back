@@ -12,6 +12,7 @@ from django.contrib.auth.models import User
 import logging
 import json
 import uuid
+from celery import current_task
 from django.contrib.auth import get_user_model
 
 valid_sender=['fideicomisos','beneficiario_final','accounts','public']
@@ -26,7 +27,6 @@ logger = logging.getLogger(__name__)
 
 @receiver(post_save)
 def post_save_receiver(sender, instance, created, **kwargs):
-    
     try:
         app_name_sender=sender._meta.app_label
         if app_name_sender not in valid_sender:
@@ -34,32 +34,34 @@ def post_save_receiver(sender, instance, created, **kwargs):
         request_signal = str(uuid.uuid4())
         request_id=get_request_id()    
         request = get_current_request()
-        if request is None:
-            # No current request
-            return
-        
+
+        if current_task and current_task.request.is_eager == False:
+            ip = '192.168.169.23' 
+            user = User.objects.get(username='celeryautomatic') 
+        else:
+            # This is not a Celery worker process
+            if request is None:
+                # No current request
+                return
+            ip = get_client_ip(request)
+            user = User.objects.get(username=request.user.username)  # get the User instance
 
         if created:                     
-            user = User.objects.get(username=request.user.username)  # get the User instance
             instance_json = json.dumps(serialize_instance(instance), cls=DjangoJSONEncoder, ensure_ascii=False)              
-            #m2m_changed.connect(m2m_changed_receiver, sender=field.through)         
             Log_Cambios_Create.objects.create(
                 requestId=request_id,
                 contentObject=instance,
                 usuario=user,  # assign the User instance
-                ip=get_client_ip(request),
+                ip=ip,
                 nombreModelo=sender.__name__,                
                 nuevoValor=instance_json,
                 signalId=request_signal
             ) 
     except IntegrityError:
-        # Handle the case where the instance violates a database constraint
         logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
     except ValidationError:
-        # Handle the case where an instance's field data is invalid
         logger.info("Un campo contiene un valor invalido")
     except Exception as e:
-        # Handle all other types of errors
         logger.info(f"Un error ocurrio: {str(e)}")
 
 @receiver(pre_save)
@@ -73,9 +75,14 @@ def pre_save_receiver(sender, instance, **kwargs):
         request = get_current_request()
         request_id=get_request_id()
         signal_id=str(uuid.uuid4())       
-        if request is None:
-            # No current request
-            return
+        if current_task and current_task.request.is_eager == False:
+            ip = '192.168.169.23' 
+            user = User.objects.get(username='celeryautomatic') 
+        else:
+            # This is not a Celery worker process
+            if request is None:
+                # No current request
+                return
         
         if instance.pk is None:
             # Instance is new, so it has no old value
@@ -116,11 +123,15 @@ def pre_delete_receiver(sender, instance, **kwargs):
             return
         request = get_current_request()
         request_id=get_request_id()
-        signal_id = str(uuid.uuid4())        
-        if request is None:
-            # No current request
-            return        
-
+        signal_id = str(uuid.uuid4())     
+        if current_task and current_task.request.is_eager == False:
+            ip = '192.168.169.23' 
+            user = User.objects.get(username='celeryautomatic') 
+        else:
+            # This is not a Celery worker process
+            if request is None:
+                # No current request
+                return    
         user = User.objects.get(username=request.user.username)
         old_instance_json=json.dumps(serialize_instance(instance), cls=DjangoJSONEncoder, ensure_ascii=False) 
         Log_Cambios_Delete.objects.create(
