@@ -17,11 +17,10 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 from dotenv import load_dotenv
-
 load_dotenv()
-
 import os
-
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
 db_name = os.getenv("DB_NAME")
 db_user = os.getenv("DB_USER")
 db_pass = os.getenv("DB_PASS")

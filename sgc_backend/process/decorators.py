@@ -12,8 +12,7 @@ from logs_transactions.signals import log_change
 class TipoLogEnum(Enum):
     INFO = "INFO"
     ERROR = "ERR"
-    WARN = "WARN"
-    
+    WARN = "WARN"    
 
 def track_process(func):
     @wraps(func)

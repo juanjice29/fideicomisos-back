@@ -17,3 +17,10 @@ class TipoDeDocumento(models.Model):
     class Meta:
         # Especifica el nombre de la tabla aquí
         db_table = 'params_tipo_documento'
+
+class TipoNovedadRPBF(models.Model):
+    id = models.IntegerField(primary_key=True)
+    descripcion = models.CharField(max_length=255)
+    class Meta:
+        db_table="params_tipo_novedad_rpbf"
+    
