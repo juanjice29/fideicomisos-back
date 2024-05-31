@@ -14,6 +14,7 @@ import json
 import traceback
 from public.utils import getTipoPersona
 from process.models import EstadoEjecucion
+from django.db import transaction
 
 @shared_task
 @track_process
@@ -152,19 +153,21 @@ def tkProcesarPandasActores(df,tarea=None,ejecucion=None):
             if actor:                
                 serializer=serializarActor(row=row,actor=actor,action='UPDATE')  
                 if serializer.is_valid():
-                    serializer.save(preserve_non_serialized_tp_actor=True)
-                    resultado['actualizados']+=1
-                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.WARN.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} se le sobreescriben los datos.")
+                    with transaction.atomic():
+                        serializer.save(preserve_non_serialized_tp_actor=True)
+                        resultado['actualizados']+=1
+                        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.WARN.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} se le sobreescriben los datos.")
                 else:
                     resultado['errores']+=1
                     guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al sobreescribir datos del el actor en la fila {index}, {serializer.errors}")  
                 continue
             
             serializer=serializarActor(row=row,action='CREATE')                  
-            if serializer.is_valid():                
-                serializer.save()
-                resultado['creados']+=1
-                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} creado exitosamente para el fideicomiso {row['fideicomiso']}")
+            if serializer.is_valid():     
+                with transaction.atomic():           
+                    serializer.save()
+                    resultado['creados']+=1
+                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} creado exitosamente para el fideicomiso {row['fideicomiso']}")
             else:
                 resultado['errores']+=1
                 guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al crear el actor en la fila {index}, {serializer.errors}") 

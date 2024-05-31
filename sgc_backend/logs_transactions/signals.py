@@ -13,9 +13,12 @@ import logging
 import json
 import uuid
 from celery import current_task
+from django.db import transaction
 from django.contrib.auth import get_user_model
+import logging
 
-valid_sender=['fideicomisos','beneficiario_final','accounts','public']
+logger = logging.getLogger(__name__)
+valid_sender=['fideicomisos','beneficiario_final','accounts','public','actores']
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
@@ -27,132 +30,176 @@ logger = logging.getLogger(__name__)
 
 @receiver(post_save)
 def post_save_receiver(sender, instance, created, **kwargs):
-    try:
-        app_name_sender=sender._meta.app_label
-        if app_name_sender not in valid_sender:
-            return
-        request_signal = str(uuid.uuid4())
-        request_id=get_request_id()    
-        request = get_current_request()
-
-        if current_task and current_task.request.is_eager == False:
-            ip = '192.168.169.23' 
-            user = User.objects.get(username='celeryautomatic') 
-        else:
-            # This is not a Celery worker process
-            if request is None:
-                # No current request
+    def _post_save_receiver():
+        try:
+            #logger.info(f"post_save signal received from {sender}")
+            #logger.info(f"Instance: {instance}")
+            app_name_sender=sender._meta.app_label
+            if app_name_sender not in valid_sender:
+                logger.info(f"Invalid sender: {app_name_sender}")
                 return
-            ip = get_client_ip(request)
-            user = User.objects.get(username=request.user.username)  # get the User instance
-
-        if created:                     
-            instance_json = json.dumps(serialize_instance(instance), cls=DjangoJSONEncoder, ensure_ascii=False)              
-            Log_Cambios_Create.objects.create(
-                requestId=request_id,
-                contentObject=instance,
-                usuario=user,  # assign the User instance
-                ip=ip,
-                nombreModelo=sender.__name__,                
-                nuevoValor=instance_json,
-                signalId=request_signal
-            ) 
-    except IntegrityError:
-        logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
-    except ValidationError:
-        logger.info("Un campo contiene un valor invalido")
-    except Exception as e:
-        logger.info(f"Un error ocurrio: {str(e)}")
-
+            request_signal = str(uuid.uuid4())
+            request_id=get_request_id()    
+            request = get_current_request()
+            #logger.info(f"Current task: {current_task}")
+            #logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")
+            if current_task and current_task.request.is_eager == False:
+                ip = '192.168.169.23' 
+                try:
+                    user = User.objects.get(username='celeryautomatic')
+                except User.DoesNotExist:
+                    logger.error("User 'celeryautomatic' does not exist")
+                    return 
+            else:
+                if request is None:
+                    logger.error("No current request")
+                    return
+                ip = get_client_ip(request)
+                try:
+                    user = User.objects.get(username=request.user.username)
+                except User.DoesNotExist:
+                    logger.error(f"User '{request.user.username}' does not exist")
+                    return  # get the User instance
+            logger.info(f"User: {user}")
+            if created:                     
+                instance_json = json.dumps(serialize_instance(instance), cls=DjangoJSONEncoder, ensure_ascii=False)              
+                Log_Cambios_Create.objects.create(
+                    requestId=request_id,
+                    contentObject=instance,
+                    usuario=user,  # assign the User instance
+                    ip=ip,
+                    nombreModelo=sender.__name__,                
+                    nuevoValor=instance_json,
+                    signalId=request_signal
+                ) 
+        except IntegrityError:
+            logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
+        except ValidationError:
+            logger.info("Un campo contiene un valor invalido")
+        except Exception as e:
+            logger.info(f"Un error ocurrio: {str(e)}")
+    transaction.on_commit(_post_save_receiver)
 @receiver(pre_save)
 def pre_save_receiver(sender, instance, **kwargs):
-    
-    try:
-        app_name_sender=sender._meta.app_label
-        if app_name_sender not in valid_sender:
-            return
-        print(app_name_sender)
-        request = get_current_request()
-        request_id=get_request_id()
-        signal_id=str(uuid.uuid4())       
-        if current_task and current_task.request.is_eager == False:
-            ip = '192.168.169.23' 
-            user = User.objects.get(username='celeryautomatic') 
-        else:
-            # This is not a Celery worker process
-            if request is None:
-                # No current request
+    def _pre_save_receiver():
+        try:
+            #logger.info(f"pre_save signal received from {sender}")
+            #logger.info(f"Instance: {instance}")
+            app_name_sender=sender._meta.app_label
+            if app_name_sender not in valid_sender:
+                #logger.info(f"Invalid sender: {app_name_sender}")
                 return
-        
-        if instance.pk is None:
-            # Instance is new, so it has no old value
-            return        
-        old_instance = sender.objects.get(pk=instance.pk)
-        changed_fields=serialize_only_changes_to_json(old_instance,instance)
+            print(app_name_sender)
+            request = get_current_request()
+            request_id=get_request_id()
+            signal_id=str(uuid.uuid4()) 
+            logger.info(f"Current task: {current_task}")
+            logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")      
+            if current_task and current_task.request.is_eager == False:
+                ip = '192.168.169.23' 
+                try:
+                    user = User.objects.get(username='celeryautomatic')
+                except User.DoesNotExist:
+                    logger.error("User 'celeryautomatic' does not exist")
+                    return 
+            else:
+                if request is None:
+                    #logger.error("No current request")
+                    return
+                ip = get_client_ip(request)
+                try:
+                    user = User.objects.get(username=request.user.username)
+                except User.DoesNotExist:
+                    #logger.error(f"User '{request.user.username}' does not exist")
+                    return  # get the User instance
+            logger.info(f"User: {user}")
+            
+            if instance.pk is None:
+                # Instance is new, so it has no old value
+                return        
+            old_instance = sender.objects.get(pk=instance.pk)
+            changed_fields=serialize_only_changes_to_json(old_instance,instance)
 
-        if changed_fields is None:
-            return   
-        
-        user = User.objects.get(username=request.user.username)
+            if changed_fields is None:
+                return   
+            logger.info(f"User: {user}")
+            user = User.objects.get(username=request.user.username)
 
-        Log_Cambios_Update.objects.create(
-            usuario=user,
-            ip=get_client_ip(request),
-            nombreModelo=sender.__name__,
-            cambiosValor=changed_fields,            
-            contentObject=instance,
-            requestId=request_id,
-            signalId=signal_id
-        )
-    except IntegrityError:
-        # Handle the case where the instance violates a database constraint
-        logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
-    except ValidationError:
-        # Handle the case where an instance's field data is invalid
-        logger.info("Un campo contiene un valor invalido")
-    except Exception as e:
-        # Handle all other types of errors
-        logger.info(f"Un error ocurrio: {str(e)}")
-
+            Log_Cambios_Update.objects.create(
+                usuario=user,
+                ip=get_client_ip(request),
+                nombreModelo=sender.__name__,
+                cambiosValor=changed_fields,            
+                contentObject=instance,
+                requestId=request_id,
+                signalId=signal_id
+            )
+        except IntegrityError:
+            # Handle the case where the instance violates a database constraint
+            logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
+        except ValidationError:
+            # Handle the case where an instance's field data is invalid
+            logger.info("Un campo contiene un valor invalido")
+        except Exception as e:
+            # Handle all other types of errors
+            logger.info(f"Un error ocurrio: {str(e)}")
+    transaction.on_commit(_pre_save_receiver)
 @receiver(pre_delete)
 def pre_delete_receiver(sender, instance, **kwargs):
+    def _pre_delete_receiver():    
+        try:
+            #logger.info(f"pre_delete signal received from {sender}")
+            #logger.info(f"Instance: {instance}")
+            app_name_sender=sender._meta.app_label
+            if app_name_sender not in valid_sender:
+                logger.info(f"Invalid sender: {app_name_sender}")
+                return
+            request = get_current_request()
+            request_id=get_request_id()
+            signal_id = str(uuid.uuid4()) 
+            #logger.info(f"Current task: {current_task}")
+            #logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")
+            if current_task and current_task.request.is_eager == False:
+                ip = '192.168.169.23' 
+                try:
+                    user = User.objects.get(username='celeryautomatic')
+                except User.DoesNotExist:
+                    logger.error("User 'celeryautomatic' does not exist")
+                    return 
+            else:
+                if request is None:
+                    logger.error("No current request")
+                    return
+                ip = get_client_ip(request)
+                try:
+                    user = User.objects.get(username=request.user.username)
+                except User.DoesNotExist:
+                    #logger.error(f"User '{request.user.username}' does not exist")
+                    return  # get the User instance
+            #logger.info(f"User: {user}")
+            
+            user = User.objects.get(username=request.user.username)
+            old_instance_json=json.dumps(serialize_instance(instance), cls=DjangoJSONEncoder, ensure_ascii=False) 
+            Log_Cambios_Delete.objects.create(
+                usuario=user,
+                ip=get_client_ip(request),
+                nombreModelo=sender.__name__,
+                antiguoValor=old_instance_json,            
+                contentObject=instance,
+                requestId=request_id,
+                signalId=signal_id
+            )    
     
-    try:
-        app_name_sender=sender._meta.app_label
-        if app_name_sender not in valid_sender:
-            return
-        request = get_current_request()
-        request_id=get_request_id()
-        signal_id = str(uuid.uuid4())     
-        if current_task and current_task.request.is_eager == False:
-            ip = '192.168.169.23' 
-            user = User.objects.get(username='celeryautomatic') 
-        else:
-            # This is not a Celery worker process
-            if request is None:
-                # No current request
-                return    
-        user = User.objects.get(username=request.user.username)
-        old_instance_json=json.dumps(serialize_instance(instance), cls=DjangoJSONEncoder, ensure_ascii=False) 
-        Log_Cambios_Delete.objects.create(
-            usuario=user,
-            ip=get_client_ip(request),
-            nombreModelo=sender.__name__,
-            antiguoValor=old_instance_json,            
-            contentObject=instance,
-            requestId=request_id,
-            signalId=signal_id
-        )
-    except IntegrityError:
-        # Handle the case where the instance violates a database constraint
-        logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
-    except ValidationError:
-        # Handle the case where an instance's field data is invalid
-        logger.info("Un campo contiene un valor invalido")
-    except Exception as e:
-        # Handle all other types of errors
-        logger.info(f"Un error ocurrio: {str(e)}")   
-
+        except IntegrityError:
+            # Handle the case where the instance violates a database constraint
+            logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
+        except ValidationError:
+            # Handle the case where an instance's field data is invalid
+            logger.info("Un campo contiene un valor invalido")
+        except Exception as e:
+            # Handle all other types of errors
+            logger.info(f"Un error ocurrio: {str(e)}")   
+    transaction.on_commit(_pre_delete_receiver)
 def serialize_instance(instance):
     """
     Serialize a Django model instance to a JSON-compatible dictionary.

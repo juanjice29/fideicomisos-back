@@ -4,9 +4,10 @@ from celery import Celery
 from celery import shared_task, chain
 import json
 from celery.schedules import crontab
+import django
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sgc_backend.settings')
-
+django.setup()
 app = Celery('sgc_backend')
 app.conf.broker_transport_options = {'confirm_publish': True, 'ack_emulation': True, 'visibility_timeout': 18000}  # 5 hours
 app.conf.update(result_extended=True)
