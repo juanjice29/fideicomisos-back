@@ -4,32 +4,35 @@ from datetime import datetime
 import os
 from .decorators import TipoLogEnum, guardarLogEjecucionProceso, guardarLogEjecucionTareaProceso, track_process,protected_function_process,track_sub_task
 from .models import EjecucionProceso,EstadoEjecucion
+import signal
 
 celery = Celery()
 
-
-@shared_task
+def sigterm_handler(signum, frame):
+        # Realiza alguna limpieza si es necesario
+        print("Task was terminated", signum)
+        raise SystemExit('Exiting due to SIGTERM')
+       
+@shared_task(bind=True)
 @track_process
-def task_process_example(usuario_id, disparador,ejecucion=None):
+def task_process_example(self,tiempo_espera,usuario_id, disparador,ejecucion=None):
+    
+    signal.signal(signal.SIGTERM, sigterm_handler)
+    signal.signal(signal.SIGINT, sigterm_handler)    
+    
     ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
-                               "Iniciando proceso de ejemplo"),
+                               "Iniciando proceso de ejemplo")
     
     
     saludar(usuario_id) 
      
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
-                               "Iniciando tarea que espera")  
-    guardarLogEjecucionProceso(ejecucion,
-                               TipoLogEnum.INFO.value,
-                               "Iniciando tarea que espera")  
-    guardarLogEjecucionProceso(ejecucion,
-                               TipoLogEnum.INFO.value,
-                               "Iniciando tarea que espera")  
-    esperar(15)   
+                               "Iniciando tarea que espera")       
+    esperar(tiempo_espera)   
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Iniciando tarea que guarda el archivo 1",)  

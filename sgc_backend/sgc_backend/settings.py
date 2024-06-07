@@ -59,7 +59,7 @@ LOGGING = {
 #CELERY_BROKER_URL = 'amqp://fssgc:fssgc@192.168.169.23:15672//'
 #BROKER_URL = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@192.168.169.23:15672/')
 #celery --broker=amqp://fssgc:fssgc@localhost// flower
-
+# celery en modo debug -celery -A sgc_backend worker --pool=solo -l debug
 CELERY_BROKER_URL = 'amqp://fssgc:fssgc@localhost'
 #CELERY_BROKER_URL = 'amqp://guest:guest@localhost'
 CELERY_TASK_RESULT_EXPIRES = None
@@ -70,6 +70,9 @@ CELERY_RESULT_SERIALIZER = 'json'
 #CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_WORKER_DISABLE_SIGTERMS = False
+CELERY_WORKER_DISABLE_SIGKILLS = False
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

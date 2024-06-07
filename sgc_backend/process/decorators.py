@@ -10,6 +10,8 @@ from django.dispatch import receiver
 from functools import wraps
 from logs_transactions.signals import log_change
 import traceback
+import signal
+
 class TipoLogEnum(Enum):
     INFO = "INFO"
     ERROR = "ERR"
@@ -121,3 +123,4 @@ def log_changes(signal, sender):
             return result
         return wrapper
     return decorator
+

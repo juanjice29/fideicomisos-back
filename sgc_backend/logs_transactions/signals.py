@@ -162,7 +162,7 @@ def pre_delete_receiver(sender, instance, **kwargs):
             #logger.info(f"Instance: {instance}")
             app_name_sender=sender._meta.app_label
             if app_name_sender not in valid_sender:
-                logger.info(f"Invalid sender: {app_name_sender}")
+                #logger.info(f"Invalid sender: {app_name_sender}")
                 return
             request = get_current_request()
             request_id=get_request_id()
@@ -206,44 +206,7 @@ def pre_delete_receiver(sender, instance, **kwargs):
                 signalId=signal_id
             )    
     
-<<<<<<< HEAD
-    try:
-        app_name_sender=sender._meta.app_label
-        if app_name_sender not in valid_sender:
-            return
-        request = get_current_request()
-        request_id=get_request_id()
-        signal_id = str(uuid.uuid4())     
-        if current_task and current_task.request.is_eager == False:
-            ip = '192.168.169.23' 
-            user = User.objects.get(username='celeryautomatic') 
-        else:
-            # This is not a Celery worker process
-            if request is None:
-                # No current request
-                return    
-        user = User.objects.get(username=request.user.username)
-        old_instance_json=json.dumps(serialize_instance(instance), cls=DjangoJSONEncoder, ensure_ascii=False) 
-        Log_Cambios_Delete.objects.create(
-            usuario=user,
-            ip=get_client_ip(request),
-            nombreModelo=sender.__name__,
-            antiguoValor=old_instance_json,            
-            contentObject=instance,
-            requestId=request_id,
-            signalId=signal_id
-        )
-    except IntegrityError:
-        # Handle the case where the instance violates a database constraint
-        logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
-    except ValidationError:
-        # Handle the case where an instance's field data is invalid
-        logger.info("Un campo contiene un valor invalido")
-    except Exception as e:
-        # Handle all other types of errors        
-        logger.info(f"Un error ocurrio: {str(e)}")   
 
-=======
         except IntegrityError:
             # Handle the case where the instance violates a database constraint
             logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
@@ -254,7 +217,6 @@ def pre_delete_receiver(sender, instance, **kwargs):
             # Handle all other types of errors
             logger.info(f"Un error ocurrio: {str(e)}")   
     transaction.on_commit(_pre_delete_receiver)
->>>>>>> develop
 def serialize_instance(instance):
     """
     Serialize a Django model instance to a JSON-compatible dictionary.

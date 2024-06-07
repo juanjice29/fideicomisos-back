@@ -111,9 +111,10 @@ def tkGenerateXML(fondo,tarea=None,ejecucion=None):
     
     try:        
         dataframes_por_novedades = {}  
-        numero_envio = ConsecutivosRpbf.objects.get(fondo=fondo).consecutivo
+        numer_envio_instancia=ConsecutivosRpbf.objects.get(fondo=fondo)
+        numero_envio = numer_envio_instancia.consecutivo
         
-        for valor, grupo in report.groupby('tnov'):
+        for valor, grupo in report.groupby('TNOV'):
                 dataframes_por_novedades[valor] = grupo
                 
         for clave_novedad,df_nov in dataframes_por_novedades.items():
@@ -150,7 +151,7 @@ def tkGenerateXML(fondo,tarea=None,ejecucion=None):
                 xml_str = ET.tostring(root, encoding="ISO-8859-1")
                 dom = xml.dom.minidom.parseString(xml_str)
                 formatted_xml_str = dom.toprettyxml(indent="\t")
-                directorio = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value)
+                directorio = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value).valorParametro
                 directorio=directorio+f"/fondo_{fondo}"+f"/novedad_{clave_novedad}"
                 os.makedirs(directorio, exist_ok=True)
                 with open(f"{directorio}/"+file_name.format(str(numero_envio)), "wb") as file:
@@ -161,6 +162,7 @@ def tkGenerateXML(fondo,tarea=None,ejecucion=None):
                 with open(f"{directorio}/"+file_name.format(str(numero_envio)), "w", encoding="ISO-8859-1") as file:
                     file.writelines(lines)
                 numero_envio += 1
+                numer_envio_instancia.consecutivo=numero_envio
     except Exception as e:
         tb = traceback.format_exc()
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al convertir el resultado final a xml , error : {str(e)} , linea : {tb}"[:250])

@@ -13,14 +13,15 @@ from rest_framework import generics,filters,status
 from .models import EjecucionProceso,LogEjecucionProceso,LogEjecucionTareaProceso
 from rest_framework.pagination import PageNumberPagination
 from sgc_backend.celery import app
+from celery.result import AsyncResult
 # Create your views here.
 
 class ExampleProcessView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
-    def get(self,request):
+    def get(self,request,tiempo_espera):
                   
-        result=task_process_example.delay(usuario_id=request.user.id,disparador="MAN")        
+        result=task_process_example.delay(tiempo_espera=tiempo_espera,usuario_id=request.user.id,disparador="MAN")        
         return Response({"proceso": result.id}, status=status.HTTP_202_ACCEPTED)
 
 class ProcessDetailView(APIView):
@@ -99,9 +100,13 @@ class KillProcessView(APIView):
     
     def delete(self,request,celery_id):
         try:
-            result=app.control.revoke(celery_id)  
+            result = AsyncResult(celery_id)
             print(result)
-            return Response(status=status.HTTP_204_NO_CONTENT)          
+            if result.state in ['PENDING', 'STARTED']:
+                app.control.revoke(celery_id, terminate=True, signal='SIGTERM')
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            else:
+                return Response({"detail": f"Tarea es estado {result.state}, no puede ser terminada"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             raise APIException(detail=str(e))
     
