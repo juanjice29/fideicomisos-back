@@ -12,8 +12,10 @@ ActorDeContratoJuridicoUpdateSerializer,\
 ActorDeContratoJuridicoCreateSerializer
 import json
 import traceback
+from django.contrib.auth import get_user_model
 from public.utils import getTipoPersona
 from process.models import EstadoEjecucion
+from django.db import transaction
 
 @shared_task
 @track_process
@@ -46,7 +48,10 @@ def tkpCargarActoresPorFideiExcel(file_path,fideicomiso,usuario_id, disparador,e
 @shared_task
 @track_process
 def tkpCargarActoresExcel(file_path,usuario_id, disparador,ejecucion=None):
-    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
+
+    # obligatorio para que pueda ser escuchado por las señales
+    current_task.update_state(state='PROGRESS', meta={'usuario_id': usuario_id})
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
@@ -63,7 +68,7 @@ def tkpCargarActoresExcel(file_path,usuario_id, disparador,ejecucion=None):
                                TipoLogEnum.INFO.value,
                                "Inicio procesamiento de los registros")
     
-    resultado= tkProcesarPandasActores(df=df,ejecucion=ejecucion)
+    resultado= tkProcesarPandasActores(df=df,ejecucion=ejecucion,usuario_id=usuario_id)
 
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
@@ -115,13 +120,12 @@ def tkExcelActoresPorFideiToPandas(file_path,fideicomiso,tarea=None,ejecucion=No
         return False
 
 @track_sub_task
-def tkProcesarPandasActores(df,tarea=None,ejecucion=None):
+def tkProcesarPandasActores( df,tarea=None,ejecucion=None,usuario_id=None):
     resultado={
         'errores':0,
         'actualizados':0,
         'creados':0
     }
-    
     for index,row in df.iterrows():
         try:            
             if pd.isna(row['tipoIdentificacion']) or pd.isna(row['numeroIdentificacion']) or pd.isna(row['tipoActor']):
@@ -152,19 +156,21 @@ def tkProcesarPandasActores(df,tarea=None,ejecucion=None):
             if actor:                
                 serializer=serializarActor(row=row,actor=actor,action='UPDATE')  
                 if serializer.is_valid():
-                    serializer.save(preserve_non_serialized_tp_actor=True)
-                    resultado['actualizados']+=1
-                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.WARN.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} se le sobreescriben los datos.")
+                    with transaction.atomic():
+                        serializer.save(preserve_non_serialized_tp_actor=True)
+                        resultado['actualizados']+=1
+                        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.WARN.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} se le sobreescriben los datos.")
                 else:
                     resultado['errores']+=1
                     guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al sobreescribir datos del el actor en la fila {index}, {serializer.errors}")  
                 continue
             
             serializer=serializarActor(row=row,action='CREATE')                  
-            if serializer.is_valid():                
-                serializer.save()
-                resultado['creados']+=1
-                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} creado exitosamente para el fideicomiso {row['fideicomiso']}")
+            if serializer.is_valid():     
+                with transaction.atomic():           
+                    serializer.save()
+                    resultado['creados']+=1
+                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} creado exitosamente para el fideicomiso {row['fideicomiso']}")
             else:
                 resultado['errores']+=1
                 guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al crear el actor en la fila {index}, {serializer.errors}") 

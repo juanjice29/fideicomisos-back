@@ -9,8 +9,6 @@ class LogTransactionConfig(AppConfig):
     def ready(self):
         from .signals import pre_delete_receiver,post_save_receiver, pre_save_receiver
         all_models = self.get_models()
-
-        # Connect pre_delete signal to all models
         for model in all_models:
             pre_save.connect(pre_save_receiver, sender=model)
             post_save.connect(post_save_receiver, sender=model)

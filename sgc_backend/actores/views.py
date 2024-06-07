@@ -189,10 +189,14 @@ class ActoresFileUploadView(APIView):
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                 dir_name = f'C:/Salida-SGC/actores/temp/masivo_general/actores_'+ timestamp
                 fs = FileSystemStorage(location=dir_name)
-                file_name = fs.save(file.name, file)                               
+                file_name = fs.save(file.name, file)  
+                if request.user.is_authenticated:
+                    user_id = request.user.id
+                else:
+                    return Response({'detail':'User is not authenticated'},status=status.HTTP_401_UNAUTHORIZED)                             
                 result=tkpCargarActoresExcel.delay(
                     file_path=dir_name+"/"+file_name,
-                    usuario_id=request.user.id,
+                    usuario_id=user_id,
                     disparador="MAN")
                 
                 return Response({'proceso:':str(result.id),'message': 'La tarea se ha iniciado correctamente.'}, status=status.HTTP_202_ACCEPTED)

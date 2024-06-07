@@ -198,10 +198,10 @@ class UpdateEncargoTemp(APIView):
             if old_hash != new_hash:
                 for i, row in enumerate(rows, start=1):
                     encargotemporal, created = EncargoTemporal.objects.update_or_create(
-                        NumeroEncargo=row[1],
+                        numeroEncargo=row[1],
                         fideicomiso=row[0],
                         defaults={
-                            'Descripcion': row[2]
+                            'descripcion': row[2]
                             }
                         )
                     if i % 1000 == 0:
@@ -241,13 +241,13 @@ class UpdateEncargoFromTemp(APIView):
         for encargo_temp in encargos_temp:
             try:
                 # Get the Fideicomiso instance by comparing the Fideicomiso of the EncargoTemp to codigoSFC of Fideicomiso model
-                fideicomiso_instance = Fideicomiso.objects.get(codigoSFC=encargo_temp.Fideicomiso)
+                fideicomiso_instance = Fideicomiso.objects.get(codigoSFC=encargo_temp.fideicomiso)
                 # Update or create the Encargo instance
                 try:
                     Encargo.objects.update_or_create(
                         fideicomiso=fideicomiso_instance,
-                        NumeroEncargo=encargo_temp.NumeroEncargo,
-                        defaults={'Descripcion': encargo_temp.Descripcion}
+                        numeroEncargo=encargo_temp.numeroEncargo,
+                        defaults={'descripcion': encargo_temp.descripcion}
                     )
                 except IntegrityError:
                     pass  # Ignore EncargoTemp instances with duplicate NumeroEncargo

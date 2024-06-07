@@ -177,7 +177,7 @@ def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se eliminaron {result} registros temporales correctamente")
     except Exception as e:
         tb = traceback.format_exc()
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al intentar eliminar los registros temporales , error : {str(e)[:100]} , linea : {tb}")
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al intentar eliminar los registros temporales , error : {str(e)[:250]} , linea : {tb}")
         return "Fallo al eliminar los candidatos temporales."
     
     try:
