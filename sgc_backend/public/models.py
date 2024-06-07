@@ -23,4 +23,39 @@ class TipoNovedadRPBF(models.Model):
     descripcion = models.CharField(max_length=255)
     class Meta:
         db_table="params_tipo_novedad_rpbf"
+
+class ParametrosRpbf(models.Model):
+    fondo=models.CharField(max_length=3,db_column='fondo')
+    novedad=models.CharField(max_length=3,db_column='novedad')
+    bepjtit=models.CharField(max_length=3,db_column='bepjtit')
+    bepjben=models.CharField(max_length=3,db_column='bepjben')
+    bepjcon=models.CharField(max_length=3,db_column='bepjcon')
+    bepjrl=models.CharField(max_length=3,db_column='bepjrl')
+    bespjfcp=models.CharField(max_length=3,db_column='bespjfcp')
+    bespjf=models.CharField(max_length=3,db_column='bespjf')
+    bespjcf=models.CharField(max_length=3,db_column='bespjcf')
+    bespjfb=models.CharField(max_length=3,db_column='bespjfb')
+    bespjcfe=models.CharField(max_length=3,db_column='bespjcfe')
+    becespj=models.CharField(max_length=3,db_column='becespj')
+    pppjepj=models.CharField(max_length=3,db_column='pppjepj')
+    pbpjepj=models.CharField(max_length=3,db_column='pbpjepj')
+    
+    class Meta:
+        db_table="params_reporte_rpbf"
+
+class TipoParametrizacion(models.Model):
+    acronimo = models.CharField(max_length=50,verbose_name='Acronimo de el tipo de parametrizacion', primary_key=True)
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField()
+    class Meta:
+        db_table = 'PARAMS_TIPO_PARAMETRIZACION'
+    
+    
+class ParametrosGenericos(models.Model):
+    tipoParametrizacion=models.ForeignKey(TipoParametrizacion, on_delete=models.CASCADE, verbose_name='Tipo de parametrizacion general',db_column='tipo_parametrizacion')
+    nombre = models.CharField(max_length=100)
+    valorParametro=models.TextField(db_column='valor_parametro',verbose_name='Mensaje del log')
+    descripcion = models.TextField()
+    class Meta:
+        db_table = 'PARAMS_GENERIC_PARAM'
     

@@ -15,7 +15,7 @@ import uuid
 from celery import current_task
 from django.contrib.auth import get_user_model
 
-valid_sender=['fideicomisos','beneficiario_final','accounts','public']
+valid_sender=['fideicomisos','accounts','public']
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
@@ -150,7 +150,7 @@ def pre_delete_receiver(sender, instance, **kwargs):
         # Handle the case where an instance's field data is invalid
         logger.info("Un campo contiene un valor invalido")
     except Exception as e:
-        # Handle all other types of errors
+        # Handle all other types of errors        
         logger.info(f"Un error ocurrio: {str(e)}")   
 
 def serialize_instance(instance):

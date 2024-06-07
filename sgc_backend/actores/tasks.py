@@ -18,7 +18,7 @@ from process.models import EstadoEjecucion
 @shared_task
 @track_process
 def tkpCargarActoresPorFideiExcel(file_path,fideicomiso,usuario_id, disparador,ejecucion=None):
-    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
@@ -46,7 +46,7 @@ def tkpCargarActoresPorFideiExcel(file_path,fideicomiso,usuario_id, disparador,e
 @shared_task
 @track_process
 def tkpCargarActoresExcel(file_path,usuario_id, disparador,ejecucion=None):
-    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,

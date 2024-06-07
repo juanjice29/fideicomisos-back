@@ -12,6 +12,7 @@ from .serializers import EjecucionProcesoListSerializer,LogEjecucionProcesoListS
 from rest_framework import generics,filters,status
 from .models import EjecucionProceso,LogEjecucionProceso,LogEjecucionTareaProceso
 from rest_framework.pagination import PageNumberPagination
+from sgc_backend.celery import app
 # Create your views here.
 
 class ExampleProcessView(APIView):
@@ -92,6 +93,18 @@ class LogEjecucionTareaDetailView(generics.ListAPIView):
         except Exception as e:
             raise APIException(detail=str(e))
 
+class KillProcessView(APIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]  
+    
+    def delete(self,request,celery_id):
+        try:
+            result=app.control.revoke(celery_id)  
+            print(result)
+            return Response(status=status.HTTP_204_NO_CONTENT)          
+        except Exception as e:
+            raise APIException(detail=str(e))
+    
         
 
     

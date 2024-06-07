@@ -1,13 +1,13 @@
 from django.db import models
 from public.models import TipoNovedadRPBF
 
-class RpbfCandidatos(models.Model):
-    tpidentif=models.CharField(max_length=3)
+class RpbfCandidatos(models.Model):    
     nroIdentif= models.CharField(max_length=20)
     fondo=models.CharField(max_length=2)
     tipoNovedad=models.ForeignKey(TipoNovedadRPBF,on_delete=models.CASCADE)
-    fechaCreacion=models.DateTimeField()
-    fechaCancelacion=models.DateTimeField()
+    fechaCreacion=models.CharField(max_length=10)
+    fechaCancelacion=models.CharField(max_length=10,null=True)
+    porcentaje=models.CharField(max_length=7)
     class Meta:
         db_table='rpbf_candidatos'
         
@@ -43,6 +43,8 @@ class RpbfHistorico(models.Model):
     dirben=models.CharField(max_length=250)
     codpoben=models.CharField(max_length=10)
     emailben=models.CharField(max_length=50)
+    pppjepj=models.CharField(max_length=8)
+    pbpjepj=models.CharField(max_length=8)    
     feiniben=models.CharField(max_length=10)
     fecfinben=models.CharField(max_length=10)
     tnov=models.CharField(max_length=1)
@@ -66,6 +68,13 @@ class File(models.Model):
     file_name = models.CharField(max_length=255)
     file_hash = models.CharField(max_length=32)
     date_inserted = models.DateTimeField(auto_now_add=True)
+    
+class ConsecutivosRpbf(models.Model):
+    fondo=models.CharField(max_length=3)
+    consecutivo = models.IntegerField(db_column='consecutivo')
+    class Meta:
+        db_table='rpbf_consecutivos'
+        
 """    
 class RPBF_PERIODOS(models.Model):
     PERIODO = models.CharField(max_length=6, primary_key=True)

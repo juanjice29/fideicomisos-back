@@ -29,18 +29,15 @@ class GenerateRPBF(APIView):
         try:
             fondos=request.data.get('fondos')
             if (not(fondos) or len(fondos)<1 ):
-                return Response({'detail':'Se requiere al menos un fondo para calcular los reportes.'},status=status.HTTP_400_BAD_REQUEST)
-            novedades=request.data.get('novedades')
-            if (not(novedades) or len(novedades)<1 ):
-                return Response({'detail':'Se requiere al menos una novedad para calcular los reportes.'},status=status.HTTP_400_BAD_REQUEST)
-            calc_cod_post=request.data.get('calc_cod_post',False)
-            calc_total_data=request.data.get('calc_total_data',True)
-            corte=request.data.get('corte')
+                return Response({'detail':'Se requiere al menos un fondo para calcular los reportes.'},status=status.HTTP_400_BAD_REQUEST)                      
+            calc_cod_post=request.data.get('enableCalcCodPostal',False)
+            calc_total_data=request.data.get('enableCalcTotalData',True)
+            corte=request.data.get('fechaCorte')
             tasks=[]
+            print(request.user.id)
             for i in fondos:
                 result=tkpCalcularBeneficiariosFinales.delay(
-                fondo=i,
-                novedades=novedades,
+                fondo=i,                
                 calc_cod_post=calc_cod_post,
                 calc_total_data=calc_total_data,
                 corte=corte,

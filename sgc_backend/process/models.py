@@ -23,7 +23,7 @@ class Proceso(models.Model):
 
 class EstadoEjecucion(models.Model):
     nombre = models.CharField(max_length=100,verbose_name='Nombre de estado de ejecucion')
-    acronimio = models.CharField(max_length=10,verbose_name='Acronimo de estado de ejecucion', primary_key=True)
+    acronimo = models.CharField(max_length=10,verbose_name='Acronimo de estado de ejecucion', primary_key=True)
     descripcion = models.TextField(verbose_name='Descripcion del estado de ejecucion')
     class Meta:
         db_table = 'PRCS_ESTADO_EJECUCION'

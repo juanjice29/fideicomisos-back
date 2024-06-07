@@ -4,6 +4,7 @@ import zipfile
 import os
 from .querys.semilla import *
 import cx_Oracle
+import pandas as pd
 
 db_name = os.getenv("DB_NAME_SIFI")
 db_user = os.getenv("DB_USER_SIFI")
@@ -85,7 +86,19 @@ def get_saldo_fondo(fondo,corte):
     cur.close()
     conn.close()
     return saldo
-
+def get_reporte_final(fondo):
+    dsn_tns = cx_Oracle.makedsn(
+        db_host, db_port, service_name=db_name)
+    conn = cx_Oracle.connect(
+        user=db_user, password=db_pass, dsn=dsn_tns)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM RPBF_REPORTE_FINAL WHERE FONDO={0}".format(fondo))
+    rows = cur.fetchall()
+    columns = [desc[0] for desc in cur.description]
+    report = pd.DataFrame(rows, columns=columns, dtype="string").fillna('')
+    cur.close()
+    conn.close() 
+    return report
 def get_semilla(fondo,corte,saldo):
     
     dsn_tns = cx_Oracle.makedsn(
@@ -102,3 +115,44 @@ def get_semilla(fondo,corte,saldo):
     conn.close()
 
     return df_current
+def get_cancelaciones(fondo,corte):  
+    dsn_tns = cx_Oracle.makedsn(
+        db_host, db_port, service_name=db_name)
+    conn = cx_Oracle.connect(
+        user=db_user, password=db_pass, dsn=dsn_tns)
+    cur = conn.cursor()
+    
+    if (fondo == "14"):
+        rows = cur.execute(
+            cancelaciones_rendir.format(corte))  
+    if (fondo == "12"):
+        rows = cur.execute(
+            cancelaciones_rentafacil.format(corte))        
+    if (fondo == "10"):
+        rows = cur.execute(
+            cancelaciones_universitas.format(corte))
+    if(fondo  =="16"):
+        rows = cur.execute(
+            cancelaciones_cortoplazo.format(corte))
+    if(fondo=="18"):
+        rows = cur.execute(
+            cancelaciones_retiro.format(corte))
+    rows = cur.fetchall()
+    
+    columns = [desc[0] for desc in cur.description]
+    cancelaciones_df = pd.DataFrame(rows, columns=columns, dtype="string")
+    cur.close()
+    conn.close()
+    
+    return cancelaciones_df
+    
+            
+def deleteCandidatosExternos():
+    dsn_tns = cx_Oracle.makedsn(
+        db_host, db_port, service_name=db_name)
+    conn = cx_Oracle.connect(
+        user=db_user, password=db_pass, dsn=dsn_tns)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM RPBF_CANDIDATOS")
+    cur.close()
+    conn.close()          

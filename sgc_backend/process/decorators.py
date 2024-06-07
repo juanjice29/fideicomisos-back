@@ -9,6 +9,7 @@ from django.db.models.signals import pre_save, post_save, pre_delete
 from django.dispatch import receiver
 from functools import wraps
 from logs_transactions.signals import log_change
+import traceback
 class TipoLogEnum(Enum):
     INFO = "INFO"
     ERROR = "ERR"
@@ -26,7 +27,7 @@ def track_process(func):
             ejecucion_proceso = EjecucionProceso()
             ejecucion_proceso.proceso = proceso
             ejecucion_proceso.fechaInicio = timezone.now()
-            ejecucion_proceso.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='INI')
+            ejecucion_proceso.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='INI')
             ejecucion_proceso.disparador = DisparadorEjecucion.objects.get(acronimo='MAN')
             ejecucion_proceso.usuario = usuario
             ejecucion_proceso.celeryTaskId = current_task.request.id
@@ -40,14 +41,15 @@ def track_process(func):
         try:        
             result=func(*args, **kwargs)
             ejecucion_proceso.fechaFin = timezone.now()
-            ejecucion_proceso.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='FIN')
+            ejecucion_proceso.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='FIN')
             ejecucion_proceso.resultado = result
             ejecucion_proceso.save()
             return result        
         except Exception as e:
-            guardarLogEjecucionProceso(ejecucion_proceso,TipoLogEnum.ERROR.value,str(e)[:100])
+            tb = traceback.format_exc()
+            guardarLogEjecucionProceso(ejecucion_proceso,TipoLogEnum.ERROR.value,f"error : {str(e)} , linea : {tb}"[:250])
             ejecucion_proceso.fechaFin = timezone.now()
-            ejecucion_proceso.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='FAIL')
+            ejecucion_proceso.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='FAIL')
             ejecucion_proceso.save()
             return "No se pudo completar el proceso"
     wrapper._is_decorated_process = True

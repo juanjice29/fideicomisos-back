@@ -11,7 +11,7 @@ celery = Celery()
 @shared_task
 @track_process
 def task_process_example(usuario_id, disparador,ejecucion=None):
-    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,

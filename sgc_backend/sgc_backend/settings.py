@@ -58,6 +58,8 @@ LOGGING = {
 #remember to install redis
 #CELERY_BROKER_URL = 'amqp://fssgc:fssgc@192.168.169.23:15672//'
 #BROKER_URL = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@192.168.169.23:15672/')
+#celery --broker=amqp://fssgc:fssgc@localhost// flower
+
 CELERY_BROKER_URL = 'amqp://fssgc:fssgc@localhost'
 #CELERY_BROKER_URL = 'amqp://guest:guest@localhost'
 CELERY_TASK_RESULT_EXPIRES = None

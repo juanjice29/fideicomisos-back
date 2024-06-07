@@ -1,4 +1,5 @@
-from .models import RpbfCandidatos,RpbfHistorico
+from .models import RpbfCandidatos,RpbfHistorico,ConsecutivosRpbf
+from public.models import TipoNovedadRPBF
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import update
@@ -20,25 +21,30 @@ import os
 import zipfile
 import subprocess
 from .variables import *
+import traceback
 import pdb 
+from enum import Enum
 from process.decorators import TipoLogEnum, \
 guardarLogEjecucionProceso, \
 guardarLogEjecucionTareaProceso, \
 track_process,protected_function_process,track_sub_task \
     
 from process.models import EjecucionProceso,EstadoEjecucion
-
+from public.models import ParametrosGenericos
 logger = logging.getLogger(__name__)
 celery = Celery()
 
+class TipoParamEnum(Enum):
+    SALIDA_RPBF = "SALIDA_RPBF"    
+    
 def progress_callback(current, total):
     logger.info('Task progress: {}%'.format(current / total * 100))
     
 
 @shared_task
 @track_process
-def tkpCalcularBeneficiariosFinales(fondo,novedades,calc_cod_post,calc_total_data,corte,usuario_id, disparador,ejecucion=None):
-    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
+def tkpCalcularBeneficiariosFinales(fondo,calc_cod_post,calc_total_data,corte,usuario_id, disparador,ejecucion=None):
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
     ejecucion.save()
     #0. obtener corte
     last_period=bef_period(get_current_period())
@@ -52,8 +58,7 @@ def tkpCalcularBeneficiariosFinales(fondo,novedades,calc_cod_post,calc_total_dat
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                f"""Inicio calculo de reporte beneficiarios finales parametrización correspondiente al proceso es \n 
-                                  fondo = {fondo} ,\n
-                                  novedades = {novedades} ,\n
+                                  fondo = {fondo} ,\n                                  
                                   calc_cod_post = {calc_cod_post} , \n 
                                   calc_total_data = {calc_total_data} , \n                                   
                                   corte = {corte}
@@ -85,176 +90,40 @@ def tkpCalcularBeneficiariosFinales(fondo,novedades,calc_cod_post,calc_total_dat
                                 "Se omite el procesamiento general de todos los registros.")    
     #3.generar xml
     guardarLogEjecucionProceso(ejecucion,
+                                TipoLogEnum.INFO.value,
+                                "Inicio el generacion de archivos xml")
+    result=tkGenerateXML(fondo=fondo,ejecucion=ejecucion)
+    
+    guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Fin de proceso, resultados: "+str(result))
-    return 
+     
 
 @track_sub_task
-def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):    
+def tkGenerateXML(fondo,tarea=None,ejecucion=None):
+    try:
+        report=get_reporte_final(fondo)   
+        print(report)     
+    except Exception as e:
+        tb = traceback.format_exc()
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al ejecutar el query del reporte final , error : {str(e)} , linea : {tb}"[:250])
+        return f"Fallo al ejecutar el query del reporte final"
     
     try:        
-        result=RpbfCandidatos.objects.filter(fondo=fondo).delete()
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se eliminaron {result} registros temporales correctamente")
-    except Exception as e:
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al intentar eliminar los registros temporales {str(e)[:100]}")
-        return "Fallo al eliminar los candidatos temporales " + str(e)[:100]
-    
-    try:
-        saldo=get_saldo_fondo(fondo=fondo,corte=corte)
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se calcula el saldo general del fondo al corte {corte}, Fondo : {fondo}, Saldo : {saldo} ") 
-    except Exception as e:
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al obtener el saldo general del fondo {str(e)[:100]}")
-        return "Fallo al obtener el saldo general del fondo" + str(e)[:100] 
-    
-    try:
-        df_historico=pd.DataFrame.from_records(RpbfHistorico.objects.filter(fondo=fondo).order_by('id'))
-        #df_current=get_semilla(fondo,corte,saldo)
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se calculan los registros , historico : {len(df_historico)}, semilla : {len(df_current)} ")    
-    except Exception as e:
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al obtener los datos historicos y actuales {str(e)[:100]}")        
-        return "Fallo al obtener los datos historicos y actuales" + str(e)[:100]  
-    
-    
-    """
-    for i in fondos:
+        dataframes_por_novedades = {}  
+        numero_envio = ConsecutivosRpbf.objects.get(fondo=fondo).consecutivo
         
-        df_historico["PERIODO_REPORTADO_id"] = df_historico["PERIODO_REPORTADO_id"].apply(
-            lambda x: int("".join(x.split("-")))).astype(int)
-        
-
-        cur.execute(semilla.query.format(saldo, "2023-12-31", fondo))
-        rows = cur.fetchall()
-        columns = [desc[0] for desc in cur.description]
-
-        df_current = pd.DataFrame(rows, columns=columns, dtype="string")
-        result = []
-
-        for index, row in df_current.iterrows():
-            nro_identif = row["NRO_IDENTIF"]
-            max_feccre = row["MAX_FECCRE"]
-            porcentaje = row["PORCENTAJE_SALDO"]
-            porcentaje = f"{float(porcentaje):.5f}"
-            filtered_df = df_historico[df_historico["NRO_IDENTIF"].astype(
-                str) == str(nro_identif)]
-            novedad_t = "1"
-            # Calculo de 1 y 2
-            if (len(filtered_df) > 0):
-                max_index = filtered_df["PERIODO_REPORTADO_id"].idxmax()
-                last_state = filtered_df.loc[max_index]
-
-                if (last_state["TIPO_NOVEDAD"] == "1"):
-                    novedad_t = "2"
-                if (last_state["TIPO_NOVEDAD"] == "2"):
-                    novedad_t = "2"
-                if (last_state["TIPO_NOVEDAD"] == "3"):
-                    novedad_t = "1"
-                result.append((nro_identif, novedad_t, fondo,
-                              max_feccre, '', porcentaje))
-            else:
-                novedad_t = "1"
-                result.append((nro_identif, novedad_t, fondo,
-                              max_feccre, '', porcentaje))
-
-        # del historico de las novedades 1 y 2 , determinar cuales ya salieron
-        historico_last_state = df_historico.loc[df_historico.groupby(
-            ["NRO_IDENTIF"])["PERIODO_REPORTADO_id"].idxmax()]
-        historico_last_state = historico_last_state[(historico_last_state["TIPO_NOVEDAD"] == "1") | (
-            historico_last_state["TIPO_NOVEDAD"] == "2")]
-
-        if (fondo == "14"):
-            cancelaciones_df = cur.execute(
-                semilla.cancelaciones_rendir.format("2023-12-31"))
-
-        if (fondo == "12"):
-            cancelaciones_df = cur.execute(
-                semilla.cancelaciones_rentafacil.format("2023-12-31"))
-            
-        if (fondo == "10"):
-            cancelaciones_df = cur.execute(
-                semilla.cancelaciones_universitas.format("2023-12-31"))
-
-        rows = cur.fetchall()
-        columns = [desc[0] for desc in cur.description]
-        cancelaciones_df = pd.DataFrame(rows, columns=columns, dtype="string")
-
-        registros_not_inseed = 0
-        cancelaciones_df["NRO_IDENTIF"] = cancelaciones_df["NRO_IDENTIF"].astype(
-            str)
-
-        for index, row in historico_last_state.iterrows():
-            nro_identif = str(row["NRO_IDENTIF"])
-            filtered_df = df_current[df_current["NRO_IDENTIF"].astype(
-                str) == nro_identif]
-
-            if (len(filtered_df) == 0):
-
-                registros_not_inseed += 1
-                candidato_tn3 = cancelaciones_df[cancelaciones_df["NRO_IDENTIF"] == nro_identif]
-                novedad_t = "3"
-
-                if (len(candidato_tn3) > 0):
-                    last_cancelation = candidato_tn3.iloc[0]
-                    temp_result = (nro_identif, novedad_t, fondo,
-                                   row["FECHA_CREACION"], last_cancelation["FECCAN"], row["PORCENTAJE_SALDO"])
-                    result.append(temp_result)
-
-        sql_insert = "INSERT INTO RPBF_CANDIDATES (NRO_IDENTIF, NOVEDAD,FONDO,FECCRE,FECCAN,PORCENTAJE_SALDO) VALUES (:1, :2, :3, :4, :5, :6)"
-        # Ejecutar la sentencia SQL con la lista de registros
-        cur.executemany(sql_insert, result)
-        conn.commit()
-    cur.close()
-    conn.close()
-    return Response({"status": "200", "longitud": len(result)})
-    """
-
-
-@shared_task
-def VerifyDataIntegrityView():
-    dsn_tns = cx_Oracle.makedsn(
-        url, port, service_name=service_name)
-    conn = cx_Oracle.connect(
-        user=user, password=password, dsn=dsn_tns)
-    cur = conn.cursor()
-    return Response({"status": "200"})
-
-
-@shared_task
-def TableToXmlView():
-    dsn_tns = cx_Oracle.makedsn(
-        url, port, service_name=service_name)
-    conn = cx_Oracle.connect(
-        user=user, password=password, dsn=dsn_tns)
-    cur = conn.cursor()
-
-    cur.execute("SELECT * FROM RPBF_REPORTE_FINAL")
-    rows = cur.fetchall()
-    columns = [desc[0] for desc in cur.description]
-    report = pd.DataFrame(rows, columns=columns, dtype="string").fillna('')
-
-    dataframes_por_fondos = {}
-
-    for valor, grupo in report.groupby('FONDO'):
-        dataframes_por_fondos[valor] = grupo
-
-    for clave_fondo, df_per_fondo in dataframes_por_fondos.items():
-        dataframes_por_novedades = {}
-        cur.execute(
-            "SELECT CONSECUTIVO FROM RPBF_CONSECUTIVOS WHERE FONDO='{0}'".format(clave_fondo))
-        row = cur.fetchone()
-        numero_envio = row[0]
-
-        for valor, grupo in df_per_fondo.groupby('TNOV'):
-            dataframes_por_novedades[valor] = grupo
-
-        for clave_novedad, df_per_nov in dataframes_por_novedades.items():
+        for valor, grupo in report.groupby('tnov'):
+                dataframes_por_novedades[valor] = grupo
+                
+        for clave_novedad,df_nov in dataframes_por_novedades.items():
             tamano_bloque = 5000
-            valorTotal = len(df_per_nov)
+            valorTotal = len(df_nov)
             total_bloques = (valorTotal // tamano_bloque) + 1
             for i in range(total_bloques):
                 inicio = i*tamano_bloque
                 fin = (i+1)*tamano_bloque
-                bloque_actual = df_per_nov.iloc[inicio:fin]
-
+                bloque_actual = df_nov.iloc[inicio:fin]
                 root = ET.Element("mas")
                 root.set("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
                 root.set("xsi:noNamespaceSchemaLocation", "../xsd/2688.xsd")
@@ -281,23 +150,176 @@ def TableToXmlView():
                 xml_str = ET.tostring(root, encoding="ISO-8859-1")
                 dom = xml.dom.minidom.parseString(xml_str)
                 formatted_xml_str = dom.toprettyxml(indent="\t")
-                directorio = f"D:/BENEFICIARIO_FINAL2024/resultados/fondo_{clave_fondo}/novedad_{clave_novedad}"
+                directorio = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value)
+                directorio=directorio+f"/fondo_{fondo}"+f"/novedad_{clave_novedad}"
                 os.makedirs(directorio, exist_ok=True)
                 with open(f"{directorio}/"+file_name.format(str(numero_envio)), "wb") as file:
-                    file.write(formatted_xml_str.encode("iso-8859-1"))
-
+                        file.write(formatted_xml_str.encode("iso-8859-1"))
                 with open(f"{directorio}/"+file_name.format(str(numero_envio)), "r", encoding="ISO-8859-1") as file:
                     lines = file.readlines()
                 lines[0] = '<?xml version="1.0" encoding="ISO-8859-1"?>\n'
-
                 with open(f"{directorio}/"+file_name.format(str(numero_envio)), "w", encoding="ISO-8859-1") as file:
                     file.writelines(lines)
                 numero_envio += 1
-    cur.close()
-    conn.close()
+    except Exception as e:
+        tb = traceback.format_exc()
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al convertir el resultado final a xml , error : {str(e)} , linea : {tb}"[:250])
+        return f"Fallo al convertir el resultado final a xml."      
+    
+    return "Se transformaron exitosamente 'detalle de la generacion'"
+            
+@track_sub_task
+def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):   
+    
+    try:        
+        result=RpbfCandidatos.objects.filter(fondo=fondo).delete()
+        deleteCandidatosExternos()
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se eliminaron {result} registros temporales correctamente")
+    except Exception as e:
+        tb = traceback.format_exc()
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al intentar eliminar los registros temporales , error : {str(e)[:100]} , linea : {tb}")
+        return "Fallo al eliminar los candidatos temporales."
+    
+    try:
+        saldo=get_saldo_fondo(fondo=fondo,corte=corte)
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se calcula el saldo general del fondo al corte {corte}, Fondo : {fondo}, Saldo : {saldo} ") 
+    except Exception as e:
+        tb = traceback.format_exc()
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al obtener el saldo general del fondo, error : {str(e)} , linea : {tb}"[:250])
+        return f"Fallo al obtener el saldo general del fondo."
+    
+    try:
+        df_historico=pd.DataFrame.from_records(RpbfHistorico.objects.filter(fondo=fondo).values())
+        if len(df_historico)<1:
+            return f"No hay datos del historicos para comparar revisar la tabla."
+        
+        df_current=get_semilla(fondo,corte,saldo)
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"""Se calculan los registros, historico : {len(df_historico)},
+                                        semilla : {len(df_current)}
+                                        """)    
+    except Exception as e:
+        tb = traceback.format_exc()
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al obtener los datos historicos y actuales , error : {str(e)} , linea : {tb}"[:250])        
+        return f"Fallo al obtener los datos historicos y actuales."   
+    
+    try:
+        candidatos = []
+        for index,row in df_current.iterrows():
+            nro_identif = row["NRO_IDENTIF"]
+            max_feccre = row["MAX_FECCRE"]
+            porcentaje = row["PORCENTAJE_SALDO"]
+            porcentaje = f"{float(porcentaje):.5f}"            
+            filtered_df = df_historico[df_historico["niben"].astype(
+                str) == str(nro_identif)]
+            novedad_t = "1"
+            
+            if (len(filtered_df) > 0):
+                max_index = filtered_df["periodo"].idxmax()
+                last_state = filtered_df.loc[max_index]
 
-    return Response({"status": "200", "num_envio": str(len(dataframes_por_fondos))})
+                if (last_state["tnov"] == "1"):
+                    novedad_t = TipoNovedadRPBF.objects.filter(id="2")
+                if (last_state["tnov"] == "2"):
+                    novedad_t = TipoNovedadRPBF.objects.get(id="2")
+                if (last_state["tnov"] == "3"):
+                    novedad_t = TipoNovedadRPBF.objects.get(id="1")
+                candidatos.append({"nroIdentif":nro_identif,
+                                    "tipoNovedad":novedad_t,
+                                    "fechaCreacion":max_feccre,
+                                    "fondo":fondo,
+                                    "porcentaje":porcentaje
+                             })
+            else:
+                novedad_t = TipoNovedadRPBF.objects.get(id="1")
+                candidatos.append({"nroIdentif":nro_identif,
+                                    "tipoNovedad":novedad_t,
+                                    "fechaCreacion":max_feccre,
+                                    "fondo":fondo,
+                                    "porcentaje":porcentaje
+                             })
+            
+            instances = [RpbfCandidatos(nroIdentif=candidato["nroIdentif"],
+                                       tipoNovedad=candidato["tipoNovedad"],
+                                       fondo=candidato["fondo"],
+                                       porcentaje=candidato["porcentaje"],
+                                       fechaCreacion=candidato["fechaCreacion"]) for candidato in candidatos]
+            
+        result=RpbfCandidatos.objects.bulk_create(instances)            
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,
+                                        f"Se calcularon exitosamente  {len(result)} : candidatos de novedad 1 y 2 para reportar")      
+    
+                
+    except Exception as e:
+        tb = traceback.format_exc()  
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"""Fallo calculando candidatos novedad 1 y 2 , \n 
+                                            error : {str(e)} , \n
+                                            linea : {tb}
+                                        """[:250])        
+        return f"""Fallo calculando candidatos novedad 1 y 2."""
+                                        
+    try:
+        historico_last_state = df_historico.loc[df_historico.groupby(
+            ["niben"])["tnov"].idxmax()]
+        historico_last_state = historico_last_state[(historico_last_state["tnov"] == "1") | (
+            historico_last_state["tnov"] == "2")]
+        cancelaciones_df=get_cancelaciones(fondo,corte)
+        registros_not_inseed = 0        
+        candidatos = []
+        instances = []
+        result=0
+        for index, row in historico_last_state.iterrows():
+            nro_identif = str(row["niben"])
+            filtered_df = df_current[df_current["NRO_IDENTIF"].astype(
+                str) == nro_identif]
 
+            if (len(filtered_df) == 0):
+
+                registros_not_inseed += 1
+                candidato_tn3 = cancelaciones_df[cancelaciones_df["niben"] == nro_identif]
+                novedad_t = "3"
+
+                if (len(candidato_tn3) > 0):
+                    last_cancelation = candidato_tn3.iloc[0]
+                    porcentaje= row["pppjepj"] if row["pppjepj"] else row["pbpjepj"]
+                    candidatos.append({"nroIdentif":nro_identif,
+                                        "tipoNovedad":novedad_t,
+                                        "fechaCreacion":row["feciniben"],
+                                        "fechaCancelacion":last_cancelation["fecfinben"],
+                                        "fondo":fondo,
+                                        "porcentaje":porcentaje
+                                })
+                    instances = [RpbfCandidatos(nroIdentif=candidato["nroIdentif"],
+                                       tipoNovedad=candidato["tipoNovedad"],
+                                       fondo=candidato["fondo"],
+                                       porcentaje=candidato["porcentaje"],
+                                       fechaCreacion=candidato["fechaCreacion"],
+                                       fechaCancelacion=candidato["fechaCancelacion"]) for candidato in candidatos]
+        
+        result=RpbfCandidatos.objects.bulk_create(instances)            
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,
+                                        f"Se calcularon exitosamente  {len(result)} : candidatos de novedad 3 para reportar")      
+    
+            
+        
+    except Exception as e:
+        tb = traceback.format_exc()  
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"""Fallo calculando los candidatos novedad 3, \n 
+                                            error : {str(e)} , \n
+                                            linea : {tb}
+                                        """[:250])        
+        
+        return f"""Fallo calculando los candidatos novedad 3"""
+    
+    return f"Se calcularon exitosamente todos los tipos de novedad para el fondo {fondo}" 
+
+@shared_task
+def VerifyDataIntegrityView():
+    dsn_tns = cx_Oracle.makedsn(
+        url, port, service_name=service_name)
+    conn = cx_Oracle.connect(
+        user=user, password=password, dsn=dsn_tns)
+    cur = conn.cursor()
+    return Response({"status": "200"})
 
 @shared_task
 def ZipFile():
