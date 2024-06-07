@@ -10,6 +10,7 @@ ActorDeContratoNaturalCreateSerializer,\
 ActorDeContratoNaturalUpdateSerializer,\
 ActorDeContratoJuridicoUpdateSerializer,\
 ActorDeContratoJuridicoCreateSerializer
+from sgc_backend.middleware import get_request_id
 import json
 import traceback
 from django.contrib.auth import get_user_model
@@ -47,10 +48,10 @@ def tkpCargarActoresPorFideiExcel(file_path,fideicomiso,usuario_id, disparador,e
 
 @shared_task
 @track_process
-def tkpCargarActoresExcel(file_path,usuario_id, disparador,ejecucion=None):
 
-    # obligatorio para que pueda ser escuchado por las señales
-    current_task.update_state(state='PROGRESS', meta={'usuario_id': usuario_id})
+def tkpCargarActoresExcel(file_path,usuario_id,ip_address,request_id, disparador,ejecucion=None):
+    current_task.update_state(state='PROGRESS', meta={'usuario_id': usuario_id, 'ip_address': ip_address, 'request_id': request_id,'disparador':disparador})
+
     ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
