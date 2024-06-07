@@ -1,5 +1,4 @@
 from .models import RpbfCandidatos,RpbfHistorico,ConsecutivosRpbf
-from public.models import TipoNovedadRPBF
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import update
@@ -23,23 +22,18 @@ import subprocess
 from .variables import *
 import traceback
 import pdb 
-from enum import Enum
 from process.decorators import TipoLogEnum, \
 guardarLogEjecucionProceso, \
 guardarLogEjecucionTareaProceso, \
-track_process,protected_function_process,track_sub_task \
-    
+track_process,protected_function_process,track_sub_task   
+  
 from process.models import EjecucionProceso,EstadoEjecucion
-from public.models import ParametrosGenericos
+from public.models import ParametrosGenericos,TipoParamEnum,TipoNovedadRPBF
 logger = logging.getLogger(__name__)
 celery = Celery()
-
-class TipoParamEnum(Enum):
-    SALIDA_RPBF = "SALIDA_RPBF"    
     
 def progress_callback(current, total):
     logger.info('Task progress: {}%'.format(current / total * 100))
-    
 
 @shared_task
 @track_process
@@ -93,7 +87,11 @@ def tkpCalcularBeneficiariosFinales(fondo,calc_cod_post,calc_total_data,corte,us
                                 TipoLogEnum.INFO.value,
                                 "Inicio el generacion de archivos xml")
     result=tkGenerateXML(fondo=fondo,ejecucion=ejecucion)
-    
+    #4.Comprimir archivos y alistarlos en la ruta
+    guardarLogEjecucionProceso(ejecucion,
+                                TipoLogEnum.INFO.value,
+                                "Inicio la compresion de archivos")
+    result=tkZipFileRPBF(ejecucion=ejecucion)
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Fin de proceso, resultados: "+str(result))
@@ -323,14 +321,21 @@ def VerifyDataIntegrityView():
     cur = conn.cursor()
     return Response({"status": "200"})
 
-@shared_task
-def ZipFile():
-    carpeta_a_comprimir = 'D:/BENEFICIARIO_FINAL2024/resultados'
-    archivo_salida = 'D:/BENEFICIARIO_FINAL2024/resultados.zip'
-
-    comprimir_carpeta(carpeta_a_comprimir, archivo_salida)
-
-    return Response({"status": "200"})
+@track_sub_task
+def tkZipFileRPBF(tarea=None,ejecucion=None):
+    try:
+        carpeta_a_comprimir = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value).valorParametro
+        archivo_salida = carpeta_a_comprimir+'.zip'
+        comprimir_carpeta(carpeta_a_comprimir, archivo_salida)
+    except Exception as e:
+        tb = traceback.format_exc()  
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"""Fallo al comprimir los archivos de beneficiario final, \n 
+                                            error : {str(e)} , \n
+                                            linea : {tb}
+                                        """[:250])
+        return f"""Fallo al comprimir los archivos de beneficiario final."""
+    
+    return f"Archivos comprimidos correctamente en la ruta {carpeta_a_comprimir}"
 
 @track_sub_task
 def tkFillPostalCodeView(tarea=None,ejecucion=None):

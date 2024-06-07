@@ -19,9 +19,25 @@ from .tasks import tkpCalcularBeneficiariosFinales
 #RunJarView,\
 from celery import chain
 from rest_framework.exceptions import APIException
-
+from public.models import ParametrosGenericos,TipoParamEnum
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+class DownloadDianReport(APIView):
+    
+    def get(self, request, *args, **kwargs):
+        directorio = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value).valorParametro
+        ruta_archivo = directorio+'.zip'
+        
+        if os.path.exists(ruta_archivo):
+            # Abrir el archivo y devolverlo como respuesta
+            archivo = open(ruta_archivo, 'rb')
+            return FileResponse(archivo, as_attachment=True, filename=os.path.basename(ruta_archivo))
+        else:
+            # Devolver una respuesta indicando que el archivo no existe
+            return Response({'error': 'El archivo no existe.'}, status=status.HTTP_404_NOT_FOUND)
+        
+
 
 class GenerateRPBF(APIView):
     

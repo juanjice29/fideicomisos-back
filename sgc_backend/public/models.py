@@ -1,5 +1,5 @@
 from django.db import models
-
+from enum import Enum
 # Create your models here.
 
 class TipoDePersona(models.Model):
@@ -58,4 +58,6 @@ class ParametrosGenericos(models.Model):
     descripcion = models.TextField()
     class Meta:
         db_table = 'PARAMS_GENERIC_PARAM'
-    
+
+class TipoParamEnum(Enum):
+    SALIDA_RPBF = "SALIDA_RPBF"  

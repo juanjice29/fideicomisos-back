@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import GenerateRPBF
+from .views import GenerateRPBF,DownloadDianReport
 from rest_framework.urlpatterns import format_suffix_patterns
 
 urlpatterns = [    
