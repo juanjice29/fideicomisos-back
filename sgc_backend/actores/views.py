@@ -25,7 +25,7 @@ from .tasks import tkpCargarActoresPorFideiExcel,tkpCargarActoresExcel
 from django.core.files.storage import default_storage,FileSystemStorage
 from datetime import datetime
 import os
-
+from sgc_backend.middleware import get_request_id
 class ActorView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -193,10 +193,16 @@ class ActoresFileUploadView(APIView):
                 if request.user.is_authenticated:
                     user_id = request.user.id
                 else:
-                    return Response({'detail':'User is not authenticated'},status=status.HTTP_401_UNAUTHORIZED)                             
+                    return Response({'detail':'User is not authenticated'},status=status.HTTP_401_UNAUTHORIZED) 
+                request_id = get_request_id()
+                ip_address = request.META.get('REMOTE_ADDR', None)
+                if ip_address is None:
+                    ip_address = request.META.get('HTTP_X_FORWARDED_FOR', None)                            
                 result=tkpCargarActoresExcel.delay(
                     file_path=dir_name+"/"+file_name,
                     usuario_id=user_id,
+                    ip_address=ip_address,
+                    request_id=request_id,
                     disparador="MAN")
                 
                 return Response({'proceso:':str(result.id),'message': 'La tarea se ha iniciado correctamente.'}, status=status.HTTP_202_ACCEPTED)

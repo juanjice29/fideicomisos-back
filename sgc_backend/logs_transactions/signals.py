@@ -13,6 +13,7 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from celery.result import AsyncResult
+from process.models import DisparadorEjecucion
 import logging
 
 logger = logging.getLogger(__name__)
@@ -39,15 +40,19 @@ def post_save_receiver(sender, instance, created, **kwargs):
             request_signal = str(uuid.uuid4())
             request_id=get_request_id()    
             request = get_current_request()
+            tipo_proceso = DisparadorEjecucion.objects.get(acronimo='MAN')
             #logger.info(f"Current task: {current_task}")
             #logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")
             if current_task and current_task.request.is_eager == False:
                 task_result = AsyncResult(current_task.request.id)
-                ip = '192.168.169.23' 
                 if 'usuario_id' in task_result.result:
                     try:
                         user_id = task_result.result['usuario_id']
                         user = User.objects.get(pk=user_id)
+                        ip = task_result.result['ip_address']
+                        request_id=task_result.result['request_id']
+                        tp_proceso=task_result.result['disparador']
+                        tipo_proceso = DisparadorEjecucion.objects.get(acronimo=tp_proceso)
                     except User.DoesNotExist:
                         logger.error("User does not exist")
                         return 
@@ -74,7 +79,8 @@ def post_save_receiver(sender, instance, created, **kwargs):
                     ip=ip,
                     nombreModelo=sender.__name__,                
                     nuevoValor=instance_json,
-                    signalId=request_signal
+                    signalId=request_signal,
+                    tipoProcesoEjecucion=tipo_proceso
                 ) 
         except IntegrityError:
             logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
@@ -97,15 +103,19 @@ def pre_save_receiver(sender, instance, **kwargs):
             request = get_current_request()
             request_id=get_request_id()
             signal_id=str(uuid.uuid4()) 
+            tipo_proceso = DisparadorEjecucion.objects.get(acronimo='MAN')
             logger.info(f"Current task: {current_task}")
             logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")      
             if current_task and current_task.request.is_eager == False:
                 task_result = AsyncResult(current_task.request.id)
-                ip = '192.168.169.23' 
                 if 'usuario_id' in task_result.result:
                     try:
                         user_id = task_result.result['usuario_id']
                         user = User.objects.get(pk=user_id)
+                        ip = task_result.result['ip_address']
+                        request_id=task_result.result['request_id']
+                        tp_proceso=task_result.result['disparador']
+                        tipo_proceso = DisparadorEjecucion.objects.get(acronimo=tp_proceso)
                     except User.DoesNotExist:
                         logger.error("User does not exist")
                         return 
@@ -142,7 +152,8 @@ def pre_save_receiver(sender, instance, **kwargs):
                 cambiosValor=changed_fields,            
                 contentObject=instance,
                 requestId=request_id,
-                signalId=signal_id
+                signalId=signal_id,
+                tipoProcesoEjecucion=tipo_proceso
             )
         except IntegrityError:
             # Handle the case where the instance violates a database constraint
@@ -167,15 +178,19 @@ def pre_delete_receiver(sender, instance, **kwargs):
             request = get_current_request()
             request_id=get_request_id()
             signal_id = str(uuid.uuid4()) 
+            tipo_proceso = DisparadorEjecucion.objects.get(acronimo='MAN')
             #logger.info(f"Current task: {current_task}")
             #logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")
             if current_task and current_task.request.is_eager == False:
                 task_result = AsyncResult(current_task.request.id)
-                ip = '192.168.169.23' 
                 if 'usuario_id' in task_result.result:
                     try:
                         user_id = task_result.result['usuario_id']
                         user = User.objects.get(pk=user_id)
+                        ip = task_result.result['ip_address']
+                        request_id=task_result.result['request_id']
+                        tp_proceso=task_result.result['disparador']
+                        tipo_proceso = DisparadorEjecucion.objects.get(acronimo=tp_proceso)
                     except User.DoesNotExist:
                         logger.error("User does not exist")
                         return 
@@ -203,7 +218,8 @@ def pre_delete_receiver(sender, instance, **kwargs):
                 antiguoValor=old_instance_json,            
                 contentObject=instance,
                 requestId=request_id,
-                signalId=signal_id
+                signalId=signal_id,
+                tipoProcesoEjecucion=tipo_proceso
             )    
     
         except IntegrityError:
