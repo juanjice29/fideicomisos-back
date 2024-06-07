@@ -1,20 +1,18 @@
 from django.db.models.signals import pre_save, post_save, pre_delete,m2m_changed
 from django.dispatch import receiver
-from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
-from django.core.serializers import serialize
 from sgc_backend.middleware import get_current_request,get_request_id
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from .models import Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M
-from accounts.models import User
-from django.contrib.auth.models import User
 import logging
 import json
 import uuid
 from celery import current_task
 from django.db import transaction
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
+from celery.result import AsyncResult
 import logging
 
 logger = logging.getLogger(__name__)
@@ -44,12 +42,18 @@ def post_save_receiver(sender, instance, created, **kwargs):
             #logger.info(f"Current task: {current_task}")
             #logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")
             if current_task and current_task.request.is_eager == False:
+                task_result = AsyncResult(current_task.request.id)
                 ip = '192.168.169.23' 
-                try:
-                    user = User.objects.get(username='celeryautomatic')
-                except User.DoesNotExist:
-                    logger.error("User 'celeryautomatic' does not exist")
-                    return 
+                if 'usuario_id' in task_result.result:
+                    try:
+                        user_id = task_result.result['usuario_id']
+                        user = User.objects.get(pk=user_id)
+                    except User.DoesNotExist:
+                        logger.error("User does not exist")
+                        return 
+                else:
+                    logger.error("No usuario_id in current task request")
+                    return
             else:
                 if request is None:
                     logger.error("No current request")
@@ -96,12 +100,18 @@ def pre_save_receiver(sender, instance, **kwargs):
             logger.info(f"Current task: {current_task}")
             logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")      
             if current_task and current_task.request.is_eager == False:
+                task_result = AsyncResult(current_task.request.id)
                 ip = '192.168.169.23' 
-                try:
-                    user = User.objects.get(username='celeryautomatic')
-                except User.DoesNotExist:
-                    logger.error("User 'celeryautomatic' does not exist")
-                    return 
+                if 'usuario_id' in task_result.result:
+                    try:
+                        user_id = task_result.result['usuario_id']
+                        user = User.objects.get(pk=user_id)
+                    except User.DoesNotExist:
+                        logger.error("User does not exist")
+                        return 
+                else:
+                    logger.error("No usuario_id in current task request")
+                    return
             else:
                 if request is None:
                     #logger.error("No current request")
@@ -160,12 +170,18 @@ def pre_delete_receiver(sender, instance, **kwargs):
             #logger.info(f"Current task: {current_task}")
             #logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")
             if current_task and current_task.request.is_eager == False:
+                task_result = AsyncResult(current_task.request.id)
                 ip = '192.168.169.23' 
-                try:
-                    user = User.objects.get(username='celeryautomatic')
-                except User.DoesNotExist:
-                    logger.error("User 'celeryautomatic' does not exist")
-                    return 
+                if 'usuario_id' in task_result.result:
+                    try:
+                        user_id = task_result.result['usuario_id']
+                        user = User.objects.get(pk=user_id)
+                    except User.DoesNotExist:
+                        logger.error("User does not exist")
+                        return 
+                else:
+                    logger.error("No usuario_id in current task request")
+                    return
             else:
                 if request is None:
                     logger.error("No current request")

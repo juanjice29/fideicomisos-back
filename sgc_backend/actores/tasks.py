@@ -12,6 +12,7 @@ ActorDeContratoJuridicoUpdateSerializer,\
 ActorDeContratoJuridicoCreateSerializer
 import json
 import traceback
+from django.contrib.auth import get_user_model
 from public.utils import getTipoPersona
 from process.models import EstadoEjecucion
 from django.db import transaction
@@ -47,6 +48,7 @@ def tkpCargarActoresPorFideiExcel(file_path,fideicomiso,usuario_id, disparador,e
 @shared_task
 @track_process
 def tkpCargarActoresExcel(file_path,usuario_id, disparador,ejecucion=None):
+    current_task.update_state(state='PROGRESS', meta={'usuario_id': usuario_id})
     ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
@@ -64,7 +66,7 @@ def tkpCargarActoresExcel(file_path,usuario_id, disparador,ejecucion=None):
                                TipoLogEnum.INFO.value,
                                "Inicio procesamiento de los registros")
     
-    resultado= tkProcesarPandasActores(df=df,ejecucion=ejecucion)
+    resultado= tkProcesarPandasActores(df=df,ejecucion=ejecucion,usuario_id=usuario_id)
 
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
@@ -116,13 +118,12 @@ def tkExcelActoresPorFideiToPandas(file_path,fideicomiso,tarea=None,ejecucion=No
         return False
 
 @track_sub_task
-def tkProcesarPandasActores(df,tarea=None,ejecucion=None):
+def tkProcesarPandasActores( df,tarea=None,ejecucion=None,usuario_id=None):
     resultado={
         'errores':0,
         'actualizados':0,
         'creados':0
     }
-    
     for index,row in df.iterrows():
         try:            
             if pd.isna(row['tipoIdentificacion']) or pd.isna(row['numeroIdentificacion']) or pd.isna(row['tipoActor']):
