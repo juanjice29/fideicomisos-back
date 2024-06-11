@@ -44,9 +44,8 @@ class View(models.Model):
         return self.nombre
 class Accion(models.Model):
     nombre = models.CharField(max_length=10)
-
     def __str__(self):
-        return self.name
+        return self.nombre
 class Permisos(models.Model):
     rol = models.ForeignKey(Role, on_delete=models.CASCADE)
     vista = models.ForeignKey(View, on_delete=models.CASCADE)
