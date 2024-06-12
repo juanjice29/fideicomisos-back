@@ -44,10 +44,18 @@ class View(models.Model):
         return self.nombre
 class Accion(models.Model):
     nombre = models.CharField(max_length=10)
-
     def __str__(self):
         return self.nombre
+class Pantalla(models.Model):
+    nombre = models.CharField(max_length=255)
+    url = models.CharField(max_length=255)
+    descripcion = models.CharField(max_length=255)
+    
+    def __str__(self):
+        return self.nombre
+
 class Permisos(models.Model):
+    pantallas = models.ManyToManyField(Pantalla, through='PantallaPermisos')
     rol = models.ForeignKey(Role, on_delete=models.CASCADE)
     vista = models.ForeignKey(View, on_delete=models.CASCADE)
     accion = models.ForeignKey(Accion, on_delete=models.CASCADE)
@@ -55,4 +63,9 @@ class Permisos(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['rol', 'vista','accion'], name='unique_rol_vista_accion_p')
         ]    
-    
+class PantallaPermisos(models.Model):
+    pantalla = models.ForeignKey(Pantalla, on_delete=models.CASCADE)
+    permiso = models.ForeignKey(Permisos, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('pantalla', 'permiso')

@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework.urlpatterns import format_suffix_patterns
 from accounts import views
+from .views import PermisosView
 from django.urls import path
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
@@ -23,6 +24,7 @@ urlpatterns = [
     path('account.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('account.yaml', schema_view.without_ui(cache_timeout=0), name='schema-yaml'),
     path('api/login/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/get_permisos/', PermisosView.as_view(), name='token_refresh')
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

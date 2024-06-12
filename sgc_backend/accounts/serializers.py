@@ -2,7 +2,8 @@ from logging import Logger
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
-from .models import Profile
+from .models import *
+from collections import defaultdict
 from django.contrib.auth import authenticate
 from rest_framework import exceptions
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -74,3 +75,23 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id","username","first_name","last_name","email"]
+        
+class PermisosSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permisos
+        fields = ['rol', 'vista', 'accion']
+
+class PantallaSerializer(serializers.ModelSerializer):
+    permisos = PermisosSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Pantalla
+        fields = ['nombre', 'url', 'descripcion', 'permisos']
+
+class PantallaPermisosSerializer(serializers.ModelSerializer):
+    pantalla = PantallaSerializer()
+    permiso = PermisosSerializer()
+
+    class Meta:
+        model = PantallaPermisos
+        fields = ['pantalla', 'permiso']
