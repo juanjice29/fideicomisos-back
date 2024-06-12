@@ -11,7 +11,7 @@ import logging
 from .utils import *
 from .variables import *
 from celery.result import AsyncResult
-from .tasks import tkpCalcularBeneficiariosFinales
+from .process import tkpCalcularBeneficiariosFinales,tkpConfirmarReportBeneficiarioFinal
 #VerifyDataIntegrityView,\
 #TableToXmlView,\
 #ZipFile,\
@@ -67,4 +67,29 @@ class GenerateRPBF(APIView):
             return Response({'Procesos:':tasks,'message': 'Los procesos se ha iniciado correctamente.'}, status=status.HTTP_202_ACCEPTED)
             
         except Exception as e:
-            raise APIException(detail=str(e))        
+            raise APIException(detail=str(e))    
+
+class ConfirmRPBF(APIView):
+    
+    def post(self,request):
+        try:
+            fondos=request.data.get('fondos')
+            if (not(fondos) or len(fondos)<1 ):
+                return Response({'detail':'Se requiere al menos un fondo para confirmar los reportes.'},status=status.HTTP_400_BAD_REQUEST)                      
+            periodo=request.data.get('periodo')
+            if(not(periodo)):
+                return Response({'detail':'Se requiere el periodo para confirmar los reportes.'},status=status.HTTP_400_BAD_REQUEST)    
+            novedades=request.data.get('novedades')
+            if (not(novedades) or len(novedades)<1 ):
+                return Response({'detail':'Se requiere al menos una novedad para confirmar los reportes.'},status=status.HTTP_400_BAD_REQUEST) 
+            tasks=[]
+            result=tkpConfirmarReportBeneficiarioFinal.delay(
+                fondos=fondos,
+                novedades=novedades,
+                periodo=periodo,
+                usuario_id=request.user.id,
+                disparador="MAN"
+            )
+            return Response({'PocesoId:':result.id,'message': 'Los procesos se ha iniciado correctamente.'}, status=status.HTTP_202_ACCEPTED)            
+        except Exception as e:
+            raise APIException(detail=str(e))    

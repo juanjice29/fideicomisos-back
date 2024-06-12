@@ -8,25 +8,18 @@ from celery import shared_task, chain
 from django.http import JsonResponse
 from django.http import FileResponse
 from rest_framework import status
-import logging
 from .querys.semilla import *
 from rest_framework.response import Response
 from .utils import *
 import pandas as pd
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
-import datetime
-import os
-import zipfile
-import subprocess
+import datetime,os,zipfile,subprocess,traceback,pdb,logging,glob
 from .variables import *
-import traceback
-import pdb 
 from process.decorators import TipoLogEnum, \
 guardarLogEjecucionProceso, \
 guardarLogEjecucionTareaProceso, \
-track_process,protected_function_process,track_sub_task   
-  
+track_process,protected_function_process,track_sub_task 
 from process.models import EjecucionProceso,EstadoEjecucion
 from public.models import ParametrosGenericos,TipoParamEnum,TipoNovedadRPBF
 logger = logging.getLogger(__name__)
@@ -34,79 +27,96 @@ celery = Celery()
     
 def progress_callback(current, total):
     logger.info('Task progress: {}%'.format(current / total * 100))
+    
 
-@shared_task
-@track_process
-def tkpCalcularBeneficiariosFinales(fondo,calc_cod_post,calc_total_data,corte,usuario_id, disparador,ejecucion=None):
-    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
-    ejecucion.save()
-    #0. obtener corte
-    last_period=bef_period(get_current_period())
-    last_corte=get_last_day_of_period(last_period.split("-")[0],last_period.split("-")[1])    
-    corte=last_corte if (not(corte)) else corte
+@track_sub_task
+def tkLeerArchivoXmlRPBF(dir,periodo,fondo,tarea=None,ejecucion=None):
+    try:
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Archivos en el {dir} transformados en pandas exitosamente")
+        ruta_archivos = glob.glob(os.path.join(dir, '*.xml'))
     
-    guardarLogEjecucionProceso(ejecucion,
-                               TipoLogEnum.INFO.value,
-                               "Inicio calculo de reporte beneficiarios finales")
-    
-    guardarLogEjecucionProceso(ejecucion,
-                               TipoLogEnum.INFO.value,
-                               f"""Inicio calculo de reporte beneficiarios finales parametrización correspondiente al proceso es \n 
-                                  fondo = {fondo} ,\n                                  
-                                  calc_cod_post = {calc_cod_post} , \n 
-                                  calc_total_data = {calc_total_data} , \n                                   
-                                  corte = {corte}
-                               """)    
-    #1.calcular codigos postales
-    if(calc_cod_post):
-        guardarLogEjecucionProceso(ejecucion,
-                               TipoLogEnum.INFO.value,
-                               "Inicio el calculo de codigos postales")
-        result=tkFillPostalCodeView(ejecucion=ejecucion)
-        guardarLogEjecucionProceso(ejecucion,
-                               TipoLogEnum.INFO.value,
-                               f"Finalizo calculo de codigos postales resultado: {result_t1}")
-    else:
-        guardarLogEjecucionProceso(ejecucion,
-                               TipoLogEnum.INFO.value,
-                               "Se omite el calculo de codigos postales")    
-    #2.calcular candidatos    
-     
-    if(calc_total_data):
-        guardarLogEjecucionProceso(ejecucion,
-                                TipoLogEnum.INFO.value,
-                                "Inicio el calculo de candidatos")
-        result=tkCalculateCandidates(fondo=fondo,corte=corte,ejecucion=ejecucion)
-        
-    else:
-        guardarLogEjecucionProceso(ejecucion,
-                                TipoLogEnum.INFO.value,
-                                "Se omite el procesamiento general de todos los registros.")    
-    #3.generar xml
-    guardarLogEjecucionProceso(ejecucion,
-                                TipoLogEnum.INFO.value,
-                                "Inicio el generacion de archivos xml")
-    result=tkGenerateXML(fondo=fondo,ejecucion=ejecucion)
-    #4.Comprimir archivos y alistarlos en la ruta
-    guardarLogEjecucionProceso(ejecucion,
-                                TipoLogEnum.INFO.value,
-                                "Inicio la compresion de archivos")
-    result=tkZipFileRPBF(ejecucion=ejecucion)
-    guardarLogEjecucionProceso(ejecucion,
-                               TipoLogEnum.INFO.value,
-                               "Fin de proceso, resultados: "+str(result))
-     
+        for ruta_archivo in ruta_archivos:           
+            
+            # Aquí puedes agregar el código para procesar cada archivo XML
+            tree = ET.parse(ruta_archivo)
+            root = tree.getroot()
+            
+            # Procesar elementos 'bene'
+            for bene in root.findall('bene'):
+                rpbf_historico = RpbfHistorico(
+                    periodo=periodo,  # Ajusta según corresponda
+                    fondo=fondo,  # Ajusta según corresponda
+                    tipoNovedad=TipoNovedadRPBF.objects.get(id=int(bene.get('tnov'))),
+                    bepjtit=bene.get('bepjtit'),
+                    bepjben=bene.get('bepjben'),
+                    bepjcon=bene.get('bepjcon'),
+                    bepjrl=bene.get('bepjrl'),
+                    bespjfcp=bene.get('bespjfcp'),
+                    bespjf=bene.get('bespjf'),
+                    bespjcf=bene.get('bespjcf'),
+                    bespjfb=bene.get('bespjfb'),
+                    bespjcfe=bene.get('bespjcfe'),
+                    tdocben=bene.get('tdocben'),
+                    niben=bene.get('niben'),
+                    paexben=bene.get('paexben'),
+                    nitben=bene.get('nitben'),
+                    paexnitben=bene.get('paexnitben'),
+                    pape=bene.get('pape'),
+                    sape=bene.get('sape'),
+                    pnom=bene.get('pnom'),
+                    onom=bene.get('onom'),
+                    fecnac=bene.get('fecnac'),
+                    panacb=bene.get('panacb'),
+                    pnacion=bene.get('pnacion'),
+                    paresb=bene.get('paresb'),
+                    dptoben=bene.get('dptoben'),
+                    munben=bene.get('munben'),
+                    dirben=bene.get('dirben'),
+                    codpoben=bene.get('codpoben'),
+                    emailben=bene.get('emailben'),
+                    pppjepj=bene.get('pppjepj'),
+                    pbpjepj=bene.get('pbpjepj'),
+                    feiniben=bene.get('feiniben'),  # Ajusta según corresponda
+                    fecfinben=bene.get('fecfinben'),  # Ajusta según corresponda
+                    tnov=bene.get('tnov')
+                )
+                rpbf_historico.save()
+                    
+    except Exception as e:
+        tb = traceback.format_exc()
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al ejecutar la lectura de los archivos en el {dir}, error : {str(e)} , linea : {tb}"[:250])
+        return f"Fallo al ejecutar la lectura de los archivos" 
+ 
 
 @track_sub_task
 def tkGenerateXML(fondo,tarea=None,ejecucion=None):
     try:
         report=get_reporte_final(fondo)   
-        print(report)     
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se obtiene el resultado del repote final exitosamente.")
+        
     except Exception as e:
         tb = traceback.format_exc()
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al ejecutar el query del reporte final , error : {str(e)} , linea : {tb}"[:250])
         return f"Fallo al ejecutar el query del reporte final"
+    directorio_1 = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value).valorParametro
+    for i in range(1,4):        
+        carpeta=directorio_1+f"/fondo_{fondo}"+f"/novedad_{i}"
     
+        if os.path.exists(carpeta):
+            # Itera sobre todos los archivos y carpetas en la carpeta dada
+            for filename in os.listdir(carpeta):
+                file_path = os.path.join(carpeta, filename)
+                try:
+                    # Si es un archivo, elimínalo
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    # Si es una carpeta, elimina todo su contenido
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    tb= traceback.format_exex()
+                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al eliminar las carpetas actuales , error : {str(e)} , linea : {tb}"[:250])
+
     try:        
         dataframes_por_novedades = {}  
         numer_envio_instancia=ConsecutivosRpbf.objects.get(fondo=fondo)
@@ -149,8 +159,8 @@ def tkGenerateXML(fondo,tarea=None,ejecucion=None):
                 xml_str = ET.tostring(root, encoding="ISO-8859-1")
                 dom = xml.dom.minidom.parseString(xml_str)
                 formatted_xml_str = dom.toprettyxml(indent="\t")
-                directorio = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value).valorParametro
-                directorio=directorio+f"/fondo_{fondo}"+f"/novedad_{clave_novedad}"
+                
+                directorio=directorio_1+f"/fondo_{fondo}"+f"/novedad_{clave_novedad}"
                 os.makedirs(directorio, exist_ok=True)
                 with open(f"{directorio}/"+file_name.format(str(numero_envio)), "wb") as file:
                         file.write(formatted_xml_str.encode("iso-8859-1"))
@@ -161,6 +171,9 @@ def tkGenerateXML(fondo,tarea=None,ejecucion=None):
                     file.writelines(lines)
                 numero_envio += 1
                 numer_envio_instancia.consecutivo=numero_envio
+                numer_envio_instancia.save()
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Transformación a xml exitosa.")
+        
     except Exception as e:
         tb = traceback.format_exc()
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al convertir el resultado final a xml , error : {str(e)} , linea : {tb}"[:250])
@@ -245,7 +258,7 @@ def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):
                                        fechaCreacion=candidato["fechaCreacion"]) for candidato in candidatos]
             
         result=RpbfCandidatos.objects.bulk_create(instances)            
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,
                                         f"Se calcularon exitosamente  {len(result)} : candidatos de novedad 1 y 2 para reportar")      
     
                 
@@ -296,7 +309,7 @@ def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):
                                        fechaCancelacion=candidato["fechaCancelacion"]) for candidato in candidatos]
         
         result=RpbfCandidatos.objects.bulk_create(instances)            
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,
                                         f"Se calcularon exitosamente  {len(result)} : candidatos de novedad 3 para reportar")      
     
             
@@ -327,6 +340,7 @@ def tkZipFileRPBF(tarea=None,ejecucion=None):
         carpeta_a_comprimir = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value).valorParametro
         archivo_salida = carpeta_a_comprimir+'.zip'
         comprimir_carpeta(carpeta_a_comprimir, archivo_salida)
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"""Los archivos se comprimieron y fueron ubicados exitosamente en la ruta {carpeta_a_comprimir}""")
     except Exception as e:
         tb = traceback.format_exc()  
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"""Fallo al comprimir los archivos de beneficiario final, \n 
@@ -382,3 +396,4 @@ def RunJarView():
         logger.info(f"Updated cl_tdirec: direc_direc={row['ID_CLIENTE']}, direc_postal={row['CP']}")
     session.commit()
     return Response({"status": "200"})
+

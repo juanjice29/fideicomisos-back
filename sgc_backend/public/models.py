@@ -53,7 +53,7 @@ class TipoParametrizacion(models.Model):
     
 class ParametrosGenericos(models.Model):
     tipoParametrizacion=models.ForeignKey(TipoParametrizacion, on_delete=models.CASCADE, verbose_name='Tipo de parametrizacion general',db_column='tipo_parametrizacion')
-    nombre = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=100,unique=True)
     valorParametro=models.TextField(db_column='valor_parametro',verbose_name='Mensaje del log')
     descripcion = models.TextField()
     class Meta:
@@ -61,3 +61,9 @@ class ParametrosGenericos(models.Model):
 
 class TipoParamEnum(Enum):
     SALIDA_RPBF = "SALIDA_RPBF"  
+    ENTRADA_RPBF= "ENTRADA_RPBF"
+    
+class PriodoTrimestral(models.Model):
+    periodo=models.CharField(max_length=7,primary_key=True)
+    class Meta:
+        db_table = 'PARAMS_PERIODO_TRIMESTRAL'

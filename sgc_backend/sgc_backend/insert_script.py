@@ -69,7 +69,7 @@ def ejecutar_scripts():
     # Datos para TipoNovedadRPBF
     data_list = [
         {'id': 1, 'descripcion': 'Se calculan los registros no reportados.'},
-        {'id':queryN, 'descripcion': 'Se calculan las actualizaciones de los registros ya reportados que se mantienen en el reporte actual.'},
+        {'id': 2, 'descripcion': 'Se calculan las actualizaciones de los registros ya reportados que se mantienen en el reporte actual.'},
         {'id': 3, 'descripcion': 'Se reportan los registros que salieron del fondo con los datos de su último reporte.'}
     ]
 
