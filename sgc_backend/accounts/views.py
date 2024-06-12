@@ -8,14 +8,15 @@ from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED,HT
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.response import Response
-from .serializers import MyTokenObtainPairSerializer
+from .serializers import MyTokenObtainPairSerializer, PermisosSerializer,PantallaPermisosSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken
-from .models import Permisos
+from .models import Permisos, PantallaPermisos
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import  Permisos
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils import timezone
+from collections import defaultdict
 
 @permission_classes([AllowAny])
 class LoginView(APIView):
@@ -78,4 +79,8 @@ class LoginView(APIView):
             return Response(response_data)
         except AuthenticationFailed as e:
                 return Response({'error': 'Credenciales invalidas'}, status=HTTP_403_FORBIDDEN)
-            
+class PermisosView(APIView):
+    def get(self, request):
+        pantalla_permisos = PantallaPermisos.objects.all()
+        serializer = PantallaPermisosSerializer(pantalla_permisos, many=True)
+        return Response(serializer.data)
