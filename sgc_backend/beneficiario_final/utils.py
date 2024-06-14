@@ -5,7 +5,7 @@ import os
 from .querys.semilla import *
 import cx_Oracle
 import pandas as pd
-
+from django.db.models import Subquery,OuterRef,F
 db_name = os.getenv("DB_NAME_SIFI")
 db_user = os.getenv("DB_USER_SIFI")
 db_pass = os.getenv("DB_PASS_SIFI")
@@ -96,9 +96,17 @@ def get_reporte_final(fondo):
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
     report = pd.DataFrame(rows, columns=columns, dtype="string").fillna('')
+    
     cur.close()
     conn.close() 
+    
+    candidatos_3=RpbfCandidatos.objects.filter(tipoNovedad__id=3).values('nroIdentif')
+    subquery = RpbfHistorico.objects.filter(niben__in=Subquery(candidatos_3)).filter(niben=OuterRef('niben')).order_by('-id').values('id')[:1]
+    report_3 = RpbfHistorico.objects.filter(id__in=Subquery(subquery))
+    report_3 = pd.DataFrame.from_records(report_3) 
+    print(report_3)
     return report
+
 def get_semilla(fondo,corte,saldo):
     
     dsn_tns = cx_Oracle.makedsn(

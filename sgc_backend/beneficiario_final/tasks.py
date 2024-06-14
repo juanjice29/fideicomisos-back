@@ -22,6 +22,8 @@ guardarLogEjecucionTareaProceso, \
 track_process,protected_function_process,track_sub_task 
 from process.models import EjecucionProceso,EstadoEjecucion
 from public.models import ParametrosGenericos,TipoParamEnum,TipoNovedadRPBF
+from django.db.models import Subquery,OuterRef
+
 logger = logging.getLogger(__name__)
 celery = Celery()
     
@@ -32,18 +34,17 @@ def progress_callback(current, total):
 @track_sub_task
 def tkLeerArchivoXmlRPBF(dir,periodo,fondo,tarea=None,ejecucion=None):
     try:
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Archivos en el {dir} transformados en pandas exitosamente")
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Archivos en la ruta {dir} transformados en pandas exitosamente")
         ruta_archivos = glob.glob(os.path.join(dir, '*.xml'))
-    
-        for ruta_archivo in ruta_archivos:           
-            
+        
+        for ruta_archivo in ruta_archivos:
             # Aquí puedes agregar el código para procesar cada archivo XML
             tree = ET.parse(ruta_archivo)
-            root = tree.getroot()
-            
+            root = tree.getroot()            
             # Procesar elementos 'bene'
             for bene in root.findall('bene'):
                 rpbf_historico = RpbfHistorico(
+                    cargue=ejecucion.celeryTaskId,
                     periodo=periodo,  # Ajusta según corresponda
                     fondo=fondo,  # Ajusta según corresponda
                     tipoNovedad=TipoNovedadRPBF.objects.get(id=int(bene.get('tnov'))),
@@ -81,7 +82,8 @@ def tkLeerArchivoXmlRPBF(dir,periodo,fondo,tarea=None,ejecucion=None):
                     tnov=bene.get('tnov')
                 )
                 rpbf_historico.save()
-                    
+            guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Registros historicos guardados correctamente - {dir}/")    
+        return "Archivos guardados en el historico correctamente"
     except Exception as e:
         tb = traceback.format_exc()
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al ejecutar la lectura de los archivos en el {dir}, error : {str(e)} , linea : {tb}"[:250])
@@ -202,8 +204,11 @@ def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):
         return f"Fallo al obtener el saldo general del fondo."
     
     try:
-        df_historico=pd.DataFrame.from_records(RpbfHistorico.objects.filter(fondo=fondo).values())
+        subquery=RpbfHistorico.objects.filter(fondo=fondo).filter(niben=OuterRef('niben')).order_by('-id').values('id')[:1]
+        query=RpbfHistorico.objects.filter(id__in=Subquery(subquery)).values()
+        df_historico=pd.DataFrame.from_records(query)
         if len(df_historico)<1:
+            guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"No hay datos del historicos para comparar revisar la tabla, se omite el calculo de candidatos.")
             return f"No hay datos del historicos para comparar revisar la tabla."
         
         df_current=get_semilla(fondo,corte,saldo)
@@ -217,6 +222,8 @@ def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):
     
     try:
         candidatos = []
+        count_n1=0
+        count_n2=0        
         for index,row in df_current.iterrows():
             nro_identif = row["NRO_IDENTIF"]
             max_feccre = row["MAX_FECCRE"]
@@ -226,16 +233,18 @@ def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):
                 str) == str(nro_identif)]
             novedad_t = "1"
             
-            if (len(filtered_df) > 0):
-                max_index = filtered_df["periodo"].idxmax()
-                last_state = filtered_df.loc[max_index]
-
+            if (not filtered_df.empty):
+                
+                last_state = filtered_df.iloc[-1]
                 if (last_state["tnov"] == "1"):
-                    novedad_t = TipoNovedadRPBF.objects.filter(id="2")
+                    novedad_t = TipoNovedadRPBF.objects.get(id="2")
+                    count_n2=count_n2+1
                 if (last_state["tnov"] == "2"):
                     novedad_t = TipoNovedadRPBF.objects.get(id="2")
+                    count_n2=count_n2+1
                 if (last_state["tnov"] == "3"):
                     novedad_t = TipoNovedadRPBF.objects.get(id="1")
+                    count_n1=count_n1+1
                 candidatos.append({"nroIdentif":nro_identif,
                                     "tipoNovedad":novedad_t,
                                     "fechaCreacion":max_feccre,
@@ -244,6 +253,7 @@ def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):
                              })
             else:
                 novedad_t = TipoNovedadRPBF.objects.get(id="1")
+                count_n1=count_n1+1
                 candidatos.append({"nroIdentif":nro_identif,
                                     "tipoNovedad":novedad_t,
                                     "fechaCreacion":max_feccre,
@@ -259,13 +269,13 @@ def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):
             
         result=RpbfCandidatos.objects.bulk_create(instances)            
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,
-                                        f"Se calcularon exitosamente  {len(result)} : candidatos de novedad 1 y 2 para reportar")      
+                                        f"Se calcularon exitosamente  {len(result)} : candidatos de novedad 1 y 2 para reportar , novedad 1 {count_n1} , novedad 2 {count_n2}")      
     
                 
     except Exception as e:
         tb = traceback.format_exc()  
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"""Fallo calculando candidatos novedad 1 y 2 , \n 
-                                            error : {str(e)} , \n
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"""Fallo calculando candidatos novedad 1 y 2 , 
+                                            error : {str(e)} , 
                                             linea : {tb}
                                         """[:250])        
         return f"""Fallo calculando candidatos novedad 1 y 2."""
