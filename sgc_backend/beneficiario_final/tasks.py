@@ -19,10 +19,11 @@ from .variables import *
 from process.decorators import TipoLogEnum, \
 guardarLogEjecucionProceso, \
 guardarLogEjecucionTareaProceso, \
-track_process,protected_function_process,track_sub_task 
+abort_task,track_process,protected_function_process,track_sub_task 
 from process.models import EjecucionProceso,EstadoEjecucion
 from public.models import ParametrosGenericos,TipoParamEnum,TipoNovedadRPBF
 from django.db.models import Subquery,OuterRef
+
 
 logger = logging.getLogger(__name__)
 celery = Celery()
@@ -82,23 +83,85 @@ def tkLeerArchivoXmlRPBF(dir,periodo,fondo,tarea=None,ejecucion=None):
                     tnov=bene.get('tnov')
                 )
                 rpbf_historico.save()
-            guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Registros historicos guardados correctamente - {dir}/")    
+            guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Registros historicos guardados correctamente - {dir}/{ruta_archivo}")    
         return "Archivos guardados en el historico correctamente"
     except Exception as e:
         tb = traceback.format_exc()
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al ejecutar la lectura de los archivos en el {dir}, error : {str(e)} , linea : {tb}"[:250])
         return f"Fallo al ejecutar la lectura de los archivos" 
  
-
 @track_sub_task
-def tkGenerateXML(fondo,tarea=None,ejecucion=None):
+def tkGenerateMirrorXML(self,fondo,tarea=None,ejecucion=None):
+    directorio_1 = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value).valorParametro
+    try:
+        for i in range(1,4):
+            
+            carpeta=directorio_1+f"/fondo_{fondo}"+f"/novedad_{i}"
+            numer_envio_instancia=ConsecutivosRpbf.objects.get(fondo=fondo)
+            numero_envio = numer_envio_instancia.consecutivo
+            
+            if os.path.exists(carpeta):
+                    # Itera sobre todos los archivos y carpetas en la carpeta dada
+                    becespj_count=1
+                    for filename in os.listdir(carpeta):
+                        file_path = os.path.join(carpeta, filename)
+                        tree = ET.parse(file_path)
+                        root = tree.getroot()
+                        cab = root.find('Cab')
+                        num_envio = cab.find('NumEnvio')
+                        if num_envio is not None:
+                            num_envio.text = str(numero_envio)
+                        
+                        for bene in root.findall('bene'):
+                            bene.set('bepjtit', '4')
+                            bene.set('becespj', 'El Beneficiario haya cumplido la mayoría de edad y sido aceptado por una institución de educación superior, profiriendo dicha institución el recibo del pago del primer periodo de formación académica {}'.format(str(becespj_count)))
+                            becespj_count+=1
+                            attributes_to_keep = {'bepjtit', 'bepjben', 'bepjcon', 'bepjrl', 'bespjfcp', 'bespjf', 'bespjcf', 'bespjfb', 'bespjcfe', 'feiniben', 'tnov', 'becespj'}
+                            for attr in list(bene.attrib):
+                                if attr not in attributes_to_keep:
+                                    del bene.attrib[attr]
+                            
+                        
+                        xml_str = ET.tostring(root, encoding="ISO-8859-1")
+                        dom = xml.dom.minidom.parseString(xml_str)
+                        formatted_xml_str = dom.toprettyxml(indent="\t")
+                        
+                        directorio = os.path.join(carpeta, "espejos")
+                        os.makedirs(directorio, exist_ok=True)
+                        
+                        output_file_path = os.path.join(directorio, f"{filename.split('.')[0]}_{str(numero_envio)}.xml")
+
+                        # Guardar archivo formateado
+                        with open(output_file_path, "wb") as file:
+                            file.write(formatted_xml_str.encode('ISO-8859-1'))
+
+                        # Reemplazar la primera línea con la declaración XML correcta
+                        with open(output_file_path, "r", encoding="ISO-8859-1") as file:
+                            lines = file.readlines()
+                        lines[0] = '<?xml version="1.0" encoding="ISO-8859-1"?>\n'
+                        with open(output_file_path, "w", encoding="ISO-8859-1") as file:
+                            file.writelines(lines)
+
+                        numero_envio += 1
+                        numer_envio_instancia.consecutivo = numero_envio
+                        numer_envio_instancia.save()
+    except Exception as e:
+        tb = traceback.format_exc()
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al calcular los espejos , error : {str(e)} , linea : {tb}"[:300])
+        logger.info(f'error : {str(e)} , linea : {tb}"[:300]')
+        return f"Error calculando los espejos"
+    directorio_1 = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value).valorParametro
+
+             
+@track_sub_task
+def tkGenerateXML(self,fondo,tarea=None,ejecucion=None):
     try:
         report=get_reporte_final(fondo)   
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se obtiene el resultado del repote final exitosamente.")
         
     except Exception as e:
         tb = traceback.format_exc()
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al ejecutar el query del reporte final , error : {str(e)} , linea : {tb}"[:250])
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al ejecutar el query del reporte final , error : {str(e)} , linea : {tb}"[:300])
         return f"Fallo al ejecutar el query del reporte final"
     directorio_1 = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value).valorParametro
     for i in range(1,4):        
@@ -148,7 +211,7 @@ def tkGenerateXML(fondo,tarea=None,ejecucion=None):
                 ET.SubElement(cab_element, "FecInicial").text = fecInicial
                 ET.SubElement(cab_element, "FecFinal").text = str(fecFinal)
                 ET.SubElement(cab_element, "ValorTotal").text = str(valorTotal)
-                ET.SubElement(cab_element, "CantReg").text = str(valorTotal)
+                ET.SubElement(cab_element, "CantReg").text = str(len(bloque_actual))
                 for index, fila in bloque_actual.iterrows():
                     attributes = {}
                     for columna, valor in fila.items():
@@ -174,7 +237,7 @@ def tkGenerateXML(fondo,tarea=None,ejecucion=None):
                 numero_envio += 1
                 numer_envio_instancia.consecutivo=numero_envio
                 numer_envio_instancia.save()
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Transformación a xml exitosa.")
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Transformación a xml exitosa, archivos listos para descargar.")
         
     except Exception as e:
         tb = traceback.format_exc()
@@ -184,12 +247,15 @@ def tkGenerateXML(fondo,tarea=None,ejecucion=None):
     return "Se transformaron exitosamente 'detalle de la generacion'"
             
 @track_sub_task
-def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):   
+def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):   
     
     try:        
         result=RpbfCandidatos.objects.filter(fondo=fondo).delete()
         deleteCandidatosExternos()
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se eliminaron {result} registros temporales correctamente")
+        if(self.is_aborted()):
+            abort_task(ejecucion=ejecucion)
+            return "Proceso abortado"
     except Exception as e:
         tb = traceback.format_exc()
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al intentar eliminar los registros temporales , error : {str(e)[:250]} , linea : {tb}")
@@ -197,71 +263,74 @@ def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):
     
     try:
         saldo=get_saldo_fondo(fondo=fondo,corte=corte)
+        if(not(saldo) or saldo==None):
+            guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"No es posible calcular el saldo {saldo}")
+            return "Saldo no valido"
+            
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se calcula el saldo general del fondo al corte {corte}, Fondo : {fondo}, Saldo : {saldo} ") 
+        if(self.is_aborted()):
+            abort_task(ejecucion=ejecucion)
+            return "Proceso abortado"
     except Exception as e:
         tb = traceback.format_exc()
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al obtener el saldo general del fondo, error : {str(e)} , linea : {tb}"[:250])
         return f"Fallo al obtener el saldo general del fondo."
     
     try:
-        subquery=RpbfHistorico.objects.filter(fondo=fondo).filter(niben=OuterRef('niben')).order_by('-id').values('id')[:1]
-        query=RpbfHistorico.objects.filter(id__in=Subquery(subquery)).values()
-        df_historico=pd.DataFrame.from_records(query)
-        if len(df_historico)<1:
+        query=RpbfHistorico.objects.filter(fondo=fondo).values()
+        df_comp_historico=pd.DataFrame.from_records(query)
+        if(self.is_aborted()):
+            abort_task(ejecucion=ejecucion)
+            return "Proceso abortado"
+        if len(df_comp_historico)<1:            
             guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"No hay datos del historicos para comparar revisar la tabla, se omite el calculo de candidatos.")
             return f"No hay datos del historicos para comparar revisar la tabla."
         
+        df_comp_historico['id'] = pd.to_numeric(df_comp_historico['id'], errors='coerce')
+        idx = df_comp_historico.groupby('niben')['id'].idxmax()
+        df_historico = df_comp_historico.loc[idx]        
         df_current=get_semilla(fondo,corte,saldo)
+        if(self.is_aborted()):
+            abort_task(ejecucion=ejecucion)
+            return "Proceso abortado"
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"""Se calculan los registros, historico : {len(df_historico)},
                                         semilla : {len(df_current)}
                                         """)    
     except Exception as e:
         tb = traceback.format_exc()
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al obtener los datos historicos y actuales , error : {str(e)} , linea : {tb}"[:250])        
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al obtener los datos historicos y actuales , error : {str(e)} , linea : {tb}"[:300])        
         return f"Fallo al obtener los datos historicos y actuales."   
     
     try:
         candidatos = []
         count_n1=0
         count_n2=0        
-        for index,row in df_current.iterrows():
-            nro_identif = row["NRO_IDENTIF"]
-            max_feccre = row["MAX_FECCRE"]
-            porcentaje = row["PORCENTAJE_SALDO"]
-            porcentaje = f"{float(porcentaje):.5f}"            
-            filtered_df = df_historico[df_historico["niben"].astype(
-                str) == str(nro_identif)]
-            novedad_t = "1"
-            
-            if (not filtered_df.empty):
+        
+        df_current['NRO_IDENTIF'] = df_current['NRO_IDENTIF'].astype(str)
+        df_historico['niben'] = df_historico['niben'].astype(str)
                 
-                last_state = filtered_df.iloc[-1]
-                if (last_state["tnov"] == "1"):
-                    novedad_t = TipoNovedadRPBF.objects.get(id="2")
-                    count_n2=count_n2+1
-                if (last_state["tnov"] == "2"):
-                    novedad_t = TipoNovedadRPBF.objects.get(id="2")
-                    count_n2=count_n2+1
-                if (last_state["tnov"] == "3"):
-                    novedad_t = TipoNovedadRPBF.objects.get(id="1")
-                    count_n1=count_n1+1
-                candidatos.append({"nroIdentif":nro_identif,
-                                    "tipoNovedad":novedad_t,
-                                    "fechaCreacion":max_feccre,
-                                    "fondo":fondo,
-                                    "porcentaje":porcentaje
-                             })
-            else:
-                novedad_t = TipoNovedadRPBF.objects.get(id="1")
-                count_n1=count_n1+1
-                candidatos.append({"nroIdentif":nro_identif,
-                                    "tipoNovedad":novedad_t,
-                                    "fechaCreacion":max_feccre,
-                                    "fondo":fondo,
-                                    "porcentaje":porcentaje
-                             })
-            
-            instances = [RpbfCandidatos(nroIdentif=candidato["nroIdentif"],
+        df_current['PORCENTAJE_SALDO'] = df_current['PORCENTAJE_SALDO'].apply(lambda x: f"{float(x):.5f}")
+        df_current['tipoNovedad'] = "1"
+        df_current['count_n1'] = 0
+        df_current['count_n2'] = 0
+        df_merged = df_current.merge(df_historico[['niben', 'tnov']], left_on='NRO_IDENTIF', right_on='niben', how='left')
+        df_merged['tipoNovedad'] = df_merged['tnov'].apply(lambda x: "2" if x in ["1", "2"] else "1")
+        df_merged['count_n2'] = df_merged['tnov'].apply(lambda x: 1 if x in ["1", "2"] else 0)
+        df_merged['count_n1'] = df_merged['tnov'].apply(lambda x: 1 if x == "3" or pd.isna(x) else 0)
+        df_merged['tipoNovedad'] = df_merged['tipoNovedad'].apply(lambda x: TipoNovedadRPBF.objects.get(id=x))
+        candidatos = df_merged.apply(lambda row: {
+                "nroIdentif": row["NRO_IDENTIF"],
+                "tipoNovedad": row["tipoNovedad"],
+                "fechaCreacion": row["MAX_FECCRE"],
+                "fondo": fondo,
+                "porcentaje": row["PORCENTAJE_SALDO"]
+            }, axis=1).tolist()
+        count_n1 = df_merged['count_n1'].sum()
+        count_n2 = df_merged['count_n2'].sum()
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,
+                                        f"Se calcularon exitosamente los candidatos para las novedades : novedad 1 ->  {count_n1} , novedad 2 -> {count_n2}") 
+        
+        instances = [RpbfCandidatos(nroIdentif=candidato["nroIdentif"],
                                        tipoNovedad=candidato["tipoNovedad"],
                                        fondo=candidato["fondo"],
                                        porcentaje=candidato["porcentaje"],
@@ -269,9 +338,8 @@ def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):
             
         result=RpbfCandidatos.objects.bulk_create(instances)            
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,
-                                        f"Se calcularon exitosamente  {len(result)} : candidatos de novedad 1 y 2 para reportar , novedad 1 {count_n1} , novedad 2 {count_n2}")      
-    
-                
+                                        f"Se insertaron exitosamente los candidatos para el reporte , {len(result)} registros")  
+        
     except Exception as e:
         tb = traceback.format_exc()  
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"""Fallo calculando candidatos novedad 1 y 2 , 
@@ -280,56 +348,66 @@ def tkCalculateCandidates(fondo,corte,tarea=None,ejecucion=None):
                                         """[:250])        
         return f"""Fallo calculando candidatos novedad 1 y 2."""
                                         
-    try:
-        historico_last_state = df_historico.loc[df_historico.groupby(
-            ["niben"])["tnov"].idxmax()]
-        historico_last_state = historico_last_state[(historico_last_state["tnov"] == "1") | (
-            historico_last_state["tnov"] == "2")]
-        cancelaciones_df=get_cancelaciones(fondo,corte)
+    try: 
+        # Obtener cancelaciones
+        cancelaciones_df = get_cancelaciones(fondo, corte)
+
+        # Inicialización de contadores y listas
         registros_not_inseed = 0        
         candidatos = []
-        instances = []
-        result=0
-        for index, row in historico_last_state.iterrows():
-            nro_identif = str(row["niben"])
-            filtered_df = df_current[df_current["NRO_IDENTIF"].astype(
-                str) == nro_identif]
 
-            if (len(filtered_df) == 0):
+        # Convertir las columnas relevantes a string
+        df_historico['niben'] = df_historico['niben'].astype(str)
+        df_current['NRO_IDENTIF'] = df_current['NRO_IDENTIF'].astype(str)
+        cancelaciones_df['NRO_IDENTIF'] = cancelaciones_df['NRO_IDENTIF'].astype(str)
 
-                registros_not_inseed += 1
-                candidato_tn3 = cancelaciones_df[cancelaciones_df["niben"] == nro_identif]
-                novedad_t = "3"
+        # Filtrar df_historico para obtener solo los registros no presentes en df_current
+        merged_df = df_historico.merge(df_current, left_on='niben', right_on='NRO_IDENTIF', how='left', indicator=True)
+        filtered_df = merged_df[merged_df['_merge'] == 'left_only']
 
-                if (len(candidato_tn3) > 0):
-                    last_cancelation = candidato_tn3.iloc[0]
-                    porcentaje= row["pppjepj"] if row["pppjepj"] else row["pbpjepj"]
-                    candidatos.append({"nroIdentif":nro_identif,
-                                        "tipoNovedad":novedad_t,
-                                        "fechaCreacion":row["feciniben"],
-                                        "fechaCancelacion":last_cancelation["fecfinben"],
-                                        "fondo":fondo,
-                                        "porcentaje":porcentaje
-                                })
-                    instances = [RpbfCandidatos(nroIdentif=candidato["nroIdentif"],
-                                       tipoNovedad=candidato["tipoNovedad"],
-                                       fondo=candidato["fondo"],
-                                       porcentaje=candidato["porcentaje"],
-                                       fechaCreacion=candidato["fechaCreacion"],
-                                       fechaCancelacion=candidato["fechaCancelacion"]) for candidato in candidatos]
-        
-        result=RpbfCandidatos.objects.bulk_create(instances)            
+        # Unir con cancelaciones_df para obtener información de cancelaciones
+        candidato_tn3_df = filtered_df.merge(cancelaciones_df, left_on='niben', right_on='NRO_IDENTIF', how='left')
+
+        # Filtrar los registros que tienen cancelaciones
+        candidato_tn3_df = candidato_tn3_df[candidato_tn3_df['FECCAN'].notna()]
+
+        # Obtener la novedad tipo 3
+        novedad_t = TipoNovedadRPBF.objects.get(id="3")
+
+        # Crear los candidatos
+        candidatos = candidato_tn3_df.apply(lambda row: {
+            "nroIdentif": row["niben"],
+            "tipoNovedad": novedad_t,
+            "fechaCreacion": row["feiniben"],
+            "fechaCancelacion": row["FECCAN"],
+            "fondo": fondo,
+            "porcentaje": row["pppjepj"] if row["pppjepj"] else row["pbpjepj"]
+        }, axis=1).tolist()
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,
-                                        f"Se calcularon exitosamente  {len(result)} : candidatos de novedad 3 para reportar")      
-    
-            
-        
+                                        f"Se calcularon exitosamente los candidatos para la novedad : novedad 3 ->  {len(candidatos)}") 
+        # Crear las instancias de RpbfCandidatos
+        instances = [RpbfCandidatos(
+            nroIdentif=candidato["nroIdentif"],
+            tipoNovedad=candidato["tipoNovedad"],
+            fondo=candidato["fondo"],
+            porcentaje=candidato["porcentaje"],
+            fechaCreacion=candidato["fechaCreacion"],
+            fechaCancelacion=candidato["fechaCancelacion"]
+        ) for candidato in candidatos]
+
+        # Insertar las instancias en la base de datos
+        result = RpbfCandidatos.objects.bulk_create(instances)
+
+        # Registrar log de ejecución
+        guardarLogEjecucionTareaProceso(ejecucion, tarea, TipoLogEnum.INFO.value,
+                                        f"Se insertaron exitosamente los candidatos para el reporte, {len(result)} registros.")
+   
     except Exception as e:
         tb = traceback.format_exc()  
-        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"""Fallo calculando los candidatos novedad 3, \n 
-                                            error : {str(e)} , \n
+        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"""Fallo calculando los candidatos novedad 3,  
+                                            error : {str(e)} , 
                                             linea : {tb}
-                                        """[:250])        
+                                        """[:300])        
         
         return f"""Fallo calculando los candidatos novedad 3"""
     
@@ -345,7 +423,7 @@ def VerifyDataIntegrityView():
     return Response({"status": "200"})
 
 @track_sub_task
-def tkZipFileRPBF(tarea=None,ejecucion=None):
+def tkZipFileRPBF(self,tarea=None,ejecucion=None):
     try:
         carpeta_a_comprimir = ParametrosGenericos.objects.get(nombre=TipoParamEnum.SALIDA_RPBF.value).valorParametro
         archivo_salida = carpeta_a_comprimir+'.zip'

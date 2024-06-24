@@ -1,4 +1,5 @@
 from celery import Celery,current_task,shared_task
+from celery.contrib.abortable import AbortableTask
 import time
 from datetime import datetime
 import os
@@ -6,33 +7,24 @@ from .decorators import TipoLogEnum, guardarLogEjecucionProceso, guardarLogEjecu
 from .models import EjecucionProceso,EstadoEjecucion
 import signal
 
-celery = Celery()
 
-def sigterm_handler(signum, frame):
-        # Realiza alguna limpieza si es necesario
-        print("Task was terminated", signum)
-        raise SystemExit('Exiting due to SIGTERM')
-       
-@shared_task(bind=True)
+
+@shared_task(bind=True, base=AbortableTask)
 @track_process
 def task_process_example(self,tiempo_espera,usuario_id, disparador,ejecucion=None):
-    
-    signal.signal(signal.SIGTERM, sigterm_handler)
-    signal.signal(signal.SIGINT, sigterm_handler)    
-    
+       
     ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Iniciando proceso de ejemplo")
     
-    
     saludar(usuario_id) 
      
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Iniciando tarea que espera")       
-    esperar(tiempo_espera)   
+    esperar(self,tiempo_espera)   
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Iniciando tarea que guarda el archivo 1",)  
@@ -59,9 +51,14 @@ def task_process_example(self,tiempo_espera,usuario_id, disparador,ejecucion=Non
 def saludar(nombre):
     print(f"Hola , {nombre} , estas ejecutando un proceso!")
 
-def esperar(tiempo):
+def esperar(self,tiempo):
+    
     print(f"Esperando {tiempo} segundos")
-    time.sleep(tiempo)
+    for i in range(0,tiempo):
+        print("estoy siendo abortado :c",self.is_aborted())
+        if(self.is_aborted()):
+            return 
+        time.sleep(1)
     print(f"Ya espere {tiempo} segundos")
 
 #ejecucion es un parametro obligatorio que se debe mandar en la funcion, la tarea se calcula sola apartir del nombre de la funcion

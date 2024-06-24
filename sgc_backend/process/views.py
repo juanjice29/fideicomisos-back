@@ -1,6 +1,5 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
-
 from sgc_backend.pagination import CustomPageNumberPagination
 from .tasks import task_process_example
 from rest_framework.response import Response
@@ -14,8 +13,10 @@ from .models import EjecucionProceso,LogEjecucionProceso,LogEjecucionTareaProces
 from rest_framework.pagination import PageNumberPagination
 from sgc_backend.celery import app
 from celery.result import AsyncResult
-# Create your views here.
+from celery.contrib.abortable import AbortableAsyncResult
+from sgc_backend.celery import app
 
+# Create your views here.
 class ExampleProcessView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -100,10 +101,15 @@ class KillProcessView(APIView):
     
     def delete(self,request,celery_id):
         try:
-            result = AsyncResult(celery_id)
-            print(result)
+            
+            #result = AsyncResult(celery_id)
+            result=AbortableAsyncResult(celery_id)
+            #print(result,result.task_name)
+            print(result, result.state)
             if result.state in ['PENDING', 'STARTED']:
-                app.control.revoke(celery_id, terminate=True, signal='SIGTERM')
+                result.abort()
+                #revoke(celery_id,terminate=True)
+                #result.revoke(terminate=True)
                 return Response(status=status.HTTP_204_NO_CONTENT)
             else:
                 return Response({"detail": f"Tarea es estado {result.state}, no puede ser terminada"}, status=status.HTTP_400_BAD_REQUEST)
