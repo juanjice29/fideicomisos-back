@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework import generics
 from .serializers import LogCreateSerializer,LogCambiosM2MSerializer,LogUpdateSerializer
-from .models import Log_Cambios_Create,Log_Cambios_M2M,Log_Cambios_Update,Log_Cambios_Delete
+from .models import Log_Cambios_Create,Log_Cambios_M2M,Log_Cambios_Update
 from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from django.core.exceptions import ValidationError
@@ -11,7 +11,7 @@ from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
-from django.db.models import Q
+
 class LogCreateView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -83,21 +83,4 @@ class LogUpdateListView(APIView):
             raise ParseError(detail=str(e))
         except Exception as e:
             raise APIException(detail=str(e))
-class LogHistoryView(APIView):
-    authentication_classes = [LoggingJWTAuthentication]
-    permission_classes = [IsAuthenticated, HasRolePermission]
-
-    def get(self, request, model_name, object_key):
-        try:
-            queryset = (
-                Log_Cambios_Create.objects.filter(nombreModelo=model_name, objectId=object_key).values('tiempoAccion', 'nuevoValor', 'tipoProcesoEjecucion') |
-                Log_Cambios_Update.objects.filter(nombreModelo=model_name, objectId=object_key).values('tiempoAccion', 'cambiosValor', 'tipoProcesoEjecucion') |
-                Log_Cambios_Delete.objects.filter(nombreModelo=model_name, objectId=object_key).values('tiempoAccion', 'antiguoValor', 'tipoProcesoEjecucion') |
-                Log_Cambios_M2M.objects.filter(Q(nombreModelo=model_name, objectId=object_key) | Q(nombreModeloPadre=model_name, objectIdPadre=object_key)).values('tiempoAccion', 'jsonValue', 'accion', 'tipoProcesoEjecucion')
-            ).order_by('-tiempoAccion')
-
-            return Response(queryset, status=status.HTTP_200_OK)
-        except ValidationError as e:
-            raise ParseError(detail=str(e))
-        except Exception as e:
-            raise APIException(detail=str(e))
+    

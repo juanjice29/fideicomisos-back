@@ -20,4 +20,3 @@ class RequestIdMiddleware(MiddlewareMixin):
 
 def get_request_id():
     return getattr(_thread_locals, 'value', None)
-
