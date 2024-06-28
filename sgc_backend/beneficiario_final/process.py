@@ -1,28 +1,33 @@
 
 from process.decorators import TipoLogEnum, \
 guardarLogEjecucionProceso, \
-track_process,protected_function_process   
+track_process,protected_function_process  ,abort_task
 from celery import Celery
 from celery import shared_task, chain
+from celery.contrib.abortable import AbortableTask
 from .tasks import tkFillPostalCodeView, \
     tkCalculateCandidates, \
     tkGenerateXML, \
     tkZipFileRPBF, \
-    tkLeerArchivoXmlRPBF
+    tkLeerArchivoXmlRPBF, \
+    tkGenerateMirrorXML
 from process.models import EjecucionProceso,EstadoEjecucion
 from .utils import *
 from public.models import ParametrosGenericos,TipoParamEnum,TipoNovedadRPBF
+from celery.contrib.abortable import AbortableTask
 
-@shared_task
+@shared_task(bind=True, base=AbortableTask)
 @track_process
-def tkpCalcularBeneficiariosFinales(fondo,calc_cod_post,calc_total_data,corte,usuario_id, disparador,ejecucion=None):
+def tkpCalcularBeneficiariosFinales(self,fondo,calc_cod_post,calc_total_data,corte,usuario_id, disparador,ejecucion=None):
     ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
     ejecucion.save()
     #0. obtener corte
     last_period=bef_period(get_current_period())
     last_corte=get_last_day_of_period(last_period.split("-")[0],last_period.split("-")[1])    
     corte=last_corte if (not(corte)) else corte
-    
+    if(self.is_aborted()):
+        abort_task(ejecucion=ejecucion)
+        return 
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                f"""Inicio calculo de reporte beneficiarios finales, la parametrización correspondiente al proceso es \n 
@@ -36,7 +41,7 @@ def tkpCalcularBeneficiariosFinales(fondo,calc_cod_post,calc_total_data,corte,us
         guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Inicio el calculo de codigos postales")
-        result=tkFillPostalCodeView(ejecucion=ejecucion)
+        result=tkFillPostalCodeView(self,ejecucion=ejecucion)
         guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                f"Finalizo calculo de codigos postales resultado: {result_t1}")
@@ -50,7 +55,7 @@ def tkpCalcularBeneficiariosFinales(fondo,calc_cod_post,calc_total_data,corte,us
         guardarLogEjecucionProceso(ejecucion,
                                 TipoLogEnum.INFO.value,
                                 "Inicio el calculo de candidatos")
-        result=tkCalculateCandidates(fondo=fondo,corte=corte,ejecucion=ejecucion)
+        result=tkCalculateCandidates(self,fondo=fondo,corte=corte,ejecucion=ejecucion)
         
     else:
         guardarLogEjecucionProceso(ejecucion,
@@ -60,12 +65,23 @@ def tkpCalcularBeneficiariosFinales(fondo,calc_cod_post,calc_total_data,corte,us
     guardarLogEjecucionProceso(ejecucion,
                                 TipoLogEnum.INFO.value,
                                 "Inicio el generacion de archivos xml")
-    result=tkGenerateXML(fondo=fondo,ejecucion=ejecucion)
+    
+    result=tkGenerateXML(self,fondo=fondo,ejecucion=ejecucion)
+    if(fondo=="10"):
+        guardarLogEjecucionProceso(ejecucion,
+                                TipoLogEnum.INFO.value,
+                                "Inicio la generacion de los archivos espejos")
+        result=tkGenerateMirrorXML(self,fondo=fondo,ejecucion=ejecucion)
+    else:
+        guardarLogEjecucionProceso(ejecucion,
+                               TipoLogEnum.INFO.value,
+                               "Se omite la generacion de archivos espejos")
+        
     #4.Comprimir archivos y alistarlos en la ruta
     guardarLogEjecucionProceso(ejecucion,
                                 TipoLogEnum.INFO.value,
                                 "Inicio la compresion de archivos")
-    result=tkZipFileRPBF(ejecucion=ejecucion)
+    result=tkZipFileRPBF(self,ejecucion=ejecucion)
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Fin de proceso, resultados: "+str(result))

@@ -108,6 +108,11 @@ def guardarLogEjecucionTareaProceso(ejecucion,tarea,tipo,mensaje,ordenvisualizac
     log_ejecucion.ordenVisualizacion=ordenvisualizacion
     log_ejecucion.save()
     return log_ejecucion
+
+def abort_task(ejecucion):
+    ejecucion.estadoEjecucion=EstadoEjecucion.objects.get(acronimo="ABORT")
+    ejecucion.save()    
+    
 def log_changes(signal, sender):
     def decorator(func):
         @wraps(func)

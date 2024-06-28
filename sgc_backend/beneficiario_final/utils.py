@@ -5,7 +5,8 @@ import os
 from .querys.semilla import *
 import cx_Oracle
 import pandas as pd
-from django.db.models import Subquery,OuterRef,F
+from .models import RpbfCandidatos,RpbfHistorico
+
 db_name = os.getenv("DB_NAME_SIFI")
 db_user = os.getenv("DB_USER_SIFI")
 db_pass = os.getenv("DB_PASS_SIFI")
@@ -80,6 +81,7 @@ def get_saldo_fondo(fondo,corte):
     conn = cx_Oracle.connect(
         user=db_user, password=db_pass, dsn=dsn_tns)
     cur = conn.cursor()
+    
     saldo = cur.execute(saldo_fondo.format(
             corte, fondo)).fetchone()    
     saldo = str(saldo[0]).replace(",", ".")    
@@ -96,16 +98,29 @@ def get_reporte_final(fondo):
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
     report = pd.DataFrame(rows, columns=columns, dtype="string").fillna('')
-    
+    report.to_csv('resultado_1.csv', index=False)
     cur.close()
     conn.close() 
     
     candidatos_3=RpbfCandidatos.objects.filter(tipoNovedad__id=3).values('nroIdentif')
-    subquery = RpbfHistorico.objects.filter(niben__in=Subquery(candidatos_3)).filter(niben=OuterRef('niben')).order_by('-id').values('id')[:1]
-    report_3 = RpbfHistorico.objects.filter(id__in=Subquery(subquery))
-    report_3 = pd.DataFrame.from_records(report_3) 
-    print(report_3)
-    return report
+    df_candidatos_3 = pd.DataFrame.from_records(candidatos_3)
+
+    subquery = RpbfHistorico.objects.filter(fondo=fondo).values()
+    df_comp_historico=pd.DataFrame.from_records(subquery)
+    df_comp_historico['id']=pd.to_numeric(df_comp_historico['id'], errors='coerce')
+    idx = df_comp_historico.groupby('niben')['id'].idxmax()
+    df_historico = df_comp_historico.loc[idx]   
+    
+    df_candidatos_3 = df_candidatos_3.rename(columns={'nroIdentif': 'niben'})
+    df_candidatos_3['BECESPJ']=''
+    
+    report_3 = pd.merge(df_historico, df_candidatos_3, on='niben', how='inner').drop(columns=['id','cargue','periodo','tipoNovedad_id'])
+    report_3.columns=report_3.columns.str.upper()
+    
+    
+    df_final=pd.concat([report,report_3],axis=0)
+    df_final.to_csv('resultado_3.csv', index=False)
+    return df_final
 
 def get_semilla(fondo,corte,saldo):
     

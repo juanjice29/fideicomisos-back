@@ -49,6 +49,7 @@ class GenerateRPBF(APIView):
             calc_cod_post=request.data.get('enableCalcCodPostal',False)
             calc_total_data=request.data.get('enableCalcTotalData',True)
             corte=request.data.get('fechaCorte')
+            print(corte)
             tasks=[]
             print(request.user.id)
             for i in fondos:
