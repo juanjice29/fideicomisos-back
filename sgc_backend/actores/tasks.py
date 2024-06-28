@@ -52,7 +52,7 @@ def tkpCargarActoresPorFideiExcel(file_path,fideicomiso,usuario_id, disparador,e
 def tkpCargarActoresExcel(file_path,usuario_id,ip_address,request_id, disparador,ejecucion=None):
     current_task.update_state(state='PROGRESS', meta={'usuario_id': usuario_id, 'ip_address': ip_address, 'request_id': request_id,'disparador':disparador})
 
-    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
