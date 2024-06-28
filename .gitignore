@@ -5,7 +5,8 @@
 /sgc_backend/celerybeat-schedule.dat
 /sgc_backend/celerybeat-schedule.dir
 __pycache__/
-
+/sgc_backend/db_conn.py
+sgc_backend/sgc_backend/db_conn.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

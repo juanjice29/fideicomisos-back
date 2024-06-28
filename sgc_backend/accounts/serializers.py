@@ -2,12 +2,13 @@ from logging import Logger
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
-from .models import Profile
+from .models import *
+from collections import defaultdict
 from django.contrib.auth import authenticate
 from rest_framework import exceptions
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-
+from django.contrib.auth.models import User
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -15,9 +16,9 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # Add custom claims
         token['username'] = user.username
-        token['Rol'] = user.profile.Rol.Nombre # Add the role to the token
+        token['rol'] = user.profile.rol.nombre # Add the role to the token
         try:
-            token['Rol'] = user.profile.Rol.Nombre # Add the role to the token
+            token['rol'] = user.profile.rol.nombre # Add the role to the token
         except AttributeError as e:
             Logger.error('Error al obtener el rol: %s', str(e))
     
@@ -68,3 +69,29 @@ class LoginSerializer(serializers.Serializer):
             msg = "Debe ingresar nombre de usuario y contraseña."
             raise exceptions.ValidationError(msg)
         return data
+
+class UserSerializer(serializers.ModelSerializer):  
+   
+    class Meta:
+        model = User
+        fields = ["id","username","first_name","last_name","email"]
+        
+class PermisosSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permisos
+        fields = ['rol', 'vista', 'accion']
+
+class PantallaSerializer(serializers.ModelSerializer):
+    permisos = PermisosSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Pantalla
+        fields = ['nombre', 'url', 'descripcion', 'permisos']
+
+class PantallaPermisosSerializer(serializers.ModelSerializer):
+    pantalla = PantallaSerializer()
+    permiso = PermisosSerializer()
+
+    class Meta:
+        model = PantallaPermisos
+        fields = ['pantalla', 'permiso']

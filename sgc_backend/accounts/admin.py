@@ -36,7 +36,7 @@ class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False
     verbose_name_plural = 'Profile'
-    fk_name = 'Usuario'
+    fk_name = 'usuario'
 
 class CustomUserAdmin(AuthUserAdmin):
     form = UserAdminForm
@@ -54,11 +54,11 @@ admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
 @admin.register(Role)
 class RolAdmin(admin.ModelAdmin):
-    list_display = ['Nombre']
+    list_display = ['nombre']
 @admin.register(Permisos)
 class PermisosAdmin(admin.ModelAdmin):
-    list_display = ['Rol', 'Vista']
+    list_display = ['rol', 'vista','accion']
     
 @admin.register(View)
 class ViewAdmin(admin.ModelAdmin):
-    list_display = ['Nombre']
+    list_display = ['nombre']

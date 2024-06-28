@@ -41,3 +41,8 @@ HAVING SUM(ESTADO)=0
 ) WHERE FECCAN<=TO_DATE('{0}','YYYY-MM-DD')
 ORDER BY 2 DESC
 '''
+cancelaciones_cortoplazo='''
+'''
+cancelaciones_retiro="""
+"""
+

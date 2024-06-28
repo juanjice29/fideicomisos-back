@@ -1,0 +1,86 @@
+from rest_framework.views import APIView
+from rest_framework import generics
+from .serializers import LogCreateSerializer,LogCambiosM2MSerializer,LogUpdateSerializer
+from .models import Log_Cambios_Create,Log_Cambios_M2M,Log_Cambios_Update
+from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
+from rest_framework.permissions import IsAuthenticated
+from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import APIException
+from rest_framework.exceptions import NotFound
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
+
+class LogCreateView(APIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
+    def get_object(self,model_name,object_key):
+        try:
+            return Log_Cambios_Create.objects.get(nombreModelo=model_name,objectId=object_key)
+        except  Log_Cambios_Create.DoesNotExist:
+            raise NotFound(detail='Log de creacion no encontrado')
+        except Exception as e:
+            raise APIException(detail=str(e))
+    def get(self,request,model_name,object_key,format=None):
+        log=self.get_object(model_name,object_key)
+        serializer=LogCreateSerializer(log)
+        return Response(serializer.data,status=status.HTTP_200_OK)
+        
+class LogCreateListView(generics.ListAPIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
+    serializer_class=LogCreateSerializer
+    queryset = Log_Cambios_Create.objects.all()
+    search_fields = ['=nombreModelo','=objectId']
+    def get_queryset(self):
+        try:            
+            return self.queryset
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e))
+
+class LogRelateView(APIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
+    def get_object_childs(self,model_name,object_key):
+        try:
+            results=Log_Cambios_M2M.objects.filter(nombreModeloPadre=model_name,objectIdPadre=object_key).values('nombreModelo','objectId').distinct()
+            if results.exists():
+                return results
+            else:
+                return False
+        except Exception as e:
+            return False
+        
+class LogUpdateListView(APIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]    
+    def get_all_objects(self,model_name,object_key):
+        result_qs = Log_Cambios_Update.objects.none()
+        result_qs |=self.get_object(model_name,object_key)
+        child_relations=LogRelateView.get_object_childs(self,model_name,object_key)
+        if child_relations:
+            for child in child_relations:
+                result_qs |=self.get_object(child['nombreModelo'],child['objectId'])
+        return result_qs.order_by("-tiempoAccion")
+    
+    def get_object(self,model_name,object_key):
+        try:            
+            return Log_Cambios_Update.objects.filter(nombreModelo=model_name,objectId=object_key)        
+        except Exception as e:
+            return False 
+    def get(self,request,model_name,object_key):
+        try:
+            queryset = self.get_all_objects(model_name, object_key)
+            paginator = PageNumberPagination()
+            paginator.page_size = 10
+            paginated_queryset = paginator.paginate_queryset(queryset, request)
+            serializer = LogUpdateSerializer(paginated_queryset, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e))
+    

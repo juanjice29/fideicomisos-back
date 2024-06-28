@@ -12,16 +12,12 @@ class LoggingJWTAuthentication(JWTAuthentication):
         #logger.info('authenticate result: %s', result)
         return result
 class HasRolePermission(BasePermission):
-    
     def has_permission(self, request, view):
-        #logger.info('User: %s', request.user)
-        #logger.info('Is authenticated: %s', request.user.is_authenticated)
-        #logger.info('Has profile: %s', hasattr(request.user, 'profile'))
-        #logger.info('Has role: %s', hasattr(request.user.profile, 'rol') if hasattr(request.user, 'profile') else False)
-        if hasattr(request.user, 'profile') and hasattr(request.user.profile, 'Rol'):
-            Rol_Vista = Permisos.objects.filter(Rol=request.user.profile.Rol).values_list('Vista__Nombre', flat=True)
+        if hasattr(request.user, 'profile') and hasattr(request.user.profile, 'rol'):
+            Rol_Vista = Permisos.objects.filter(
+                rol=request.user.profile.rol,
+                accion__nombre=request.method
+            ).values_list('vista__nombre', flat=True)
         else:
             Rol_Vista = []
-        #logger.info('Current view: %s', view.__class__.__name__)
-        #logger.info('Can access view: %s', view.__class__.__name__ in role_views)
-        return request.user.is_authenticated and view.__class__.__name__ in Rol_Vista        
+        return request.user.is_authenticated and view.__class__.__name__ in Rol_Vista

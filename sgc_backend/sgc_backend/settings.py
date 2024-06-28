@@ -16,7 +16,16 @@ import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+from dotenv import load_dotenv
+load_dotenv()
+import os
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
+db_name = os.getenv("DB_NAME")
+db_user = os.getenv("DB_USER")
+db_pass = os.getenv("DB_PASS")
+db_host = os.getenv("DB_HOST")
+db_port = os.getenv("DB_PORT")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -45,17 +54,25 @@ LOGGING = {
     },
 }
 ##multiple workers celery -A your_project_name worker --loglevel=info -n worker1@%h
+#solo worker celery -A sgc_backend worker --loglevel=info -P solo
 #remember to install redis
 #CELERY_BROKER_URL = 'amqp://fssgc:fssgc@192.168.169.23:15672//'
 #BROKER_URL = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@192.168.169.23:15672/')
+#celery --broker=amqp://fssgc:fssgc@localhost// flower
+# celery en modo debug -celery -A sgc_backend worker --pool=solo -l debug
 CELERY_BROKER_URL = 'amqp://fssgc:fssgc@localhost'
+#CELERY_BROKER_URL = 'amqp://guest:guest@localhost'
 CELERY_TASK_RESULT_EXPIRES = None
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_TASK_IGNORE_RESULT = False
+CELERY_RESULT_SERIALIZER = 'json'
 #CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_WORKER_DISABLE_SIGTERMS = False
+CELERY_WORKER_DISABLE_SIGKILLS = False
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -71,9 +88,10 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'drf_yasg',
     'fidecomisos',
-    'actores_de_contrato_cargue',
+    'actores',
+    'process',
     'beneficiario_final',
-    'Log_Changes',
+    'logs_transactions',
     'django_celery_beat',
     'django_celery_results',
     'django_extensions'
@@ -88,7 +106,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'sgc_backend.middleware.CurrentRequestMiddleware'
+    'sgc_backend.middleware.CurrentRequestMiddleware',
+    'sgc_backend.middleware.RequestIdMiddleware'
    
     
 ]
@@ -120,11 +139,12 @@ WSGI_APPLICATION = 'sgc_backend.wsgi.application'
 DATABASES = {
     'default': {
         "ENGINE": "django.db.backends.oracle",
-        "NAME": "xe",
-        "USER": "SGC_SOFTWARE_DEV_F",
-        "PASSWORD": "SGC_SOFTWARE_DEV_F",
-        "HOST": "localhost",
-        "PORT": "1522",
+        "NAME": db_name,
+        "USER": db_user,
+        "PASSWORD":db_pass,
+        "HOST": db_host,
+        "PORT": db_port,
+
     }
 }
 
@@ -153,7 +173,7 @@ ALLOWED_HOSTS = ['*']
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Bogota'
 
 USE_I18N = True
 
@@ -170,6 +190,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     # It will work instead of the default serializer(TokenObtainPairSerializer).
     "TOKEN_OBTAIN_SERIALIZER": "accounts.serializers.MyTokenObtainPairSerializer",
     # ...
@@ -226,3 +247,8 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+GRAPH_MODELS = {
+  'all_applications': True,
+  'group_models': True,
+}

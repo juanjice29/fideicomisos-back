@@ -4,16 +4,20 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import permission_classes
-from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED
+from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED,HTTP_403_FORBIDDEN
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.response import Response
-from .serializers import MyTokenObtainPairSerializer
+from .serializers import MyTokenObtainPairSerializer, PermisosSerializer,PantallaPermisosSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken
-from .models import Permisos
+from .models import Permisos, PantallaPermisos
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import  Permisos
+from rest_framework.exceptions import AuthenticationFailed
+from django.utils import timezone
+from collections import defaultdict
+
 @permission_classes([AllowAny])
 class LoginView(APIView):
     serializer_class = MyTokenObtainPairSerializer
@@ -39,34 +43,44 @@ class LoginView(APIView):
     )
 
     def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
-
+        
         try:
-            serializer.is_valid(raise_exception=True)
-        except TokenError as e:
-            raise InvalidToken(e.args[0])
+            serializer = self.serializer_class(data=request.data)
+            try:
+                serializer.is_valid(raise_exception=True)
+            except TokenError as e:
+                raise InvalidToken(e.args[0])
 
-        # Check if the user is active
-        user = serializer.validated_data['user']
-        if not user.is_active:
-            return Response({"detail": "Cuenta Inactiva"}, status=400)
+            # Check if the user is active
+            user = serializer.validated_data['user']
+            if not user.is_active:
+                return Response({"detail": "Cuenta Inactiva"}, status=400)
 
-        data = serializer.validated_data
+            data = serializer.validated_data
 
-        # Fetch the views that the user's role has permission to access
-        views = list(Permisos.objects.filter(Rol__Nombre=user.profile.Rol.Nombre).values_list('Vista__Nombre', flat=True))
+            # Fetch the views that the user's role has permission to access
+            views = list(Permisos.objects.filter(rol__nombre=user.profile.rol.nombre).values_list('vista__nombre', flat=True))
+            user.last_login = timezone.now()
+            user.save()
+            response_data = {
+                'user': {
+                    'firstName': user.first_name,
+                    'lastName': user.last_name,
+                    'email': user.email,
+                    'username': user.username,
+                    'rol': user.profile.rol.nombre,
+                    'dni':user.profile.cedula,
+                    'lastLogin': user.last_login,
+                },
+                'access': data['access'],
+                'refresh': data['refresh'],
+            }
 
-        response_data = {
-            'user': {
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'email': user.email,
-                'username': user.username,
-                'rol': user.profile.Rol.Nombre,
-                'views': views,  # Add the views to the response data
-            },
-            'access': data['access'],
-            'refresh': data['refresh'],
-        }
-
-        return Response(response_data)
+            return Response(response_data)
+        except AuthenticationFailed as e:
+                return Response({'error': 'Credenciales invalidas'}, status=HTTP_403_FORBIDDEN)
+class PermisosView(APIView):
+    def get(self, request):
+        pantalla_permisos = PantallaPermisos.objects.all()
+        serializer = PantallaPermisosSerializer(pantalla_permisos, many=True)
+        return Response(serializer.data)

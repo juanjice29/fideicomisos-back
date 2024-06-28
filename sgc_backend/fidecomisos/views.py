@@ -1,69 +1,77 @@
 from rest_framework import generics
+from actores.models import ActorDeContrato
+from actores.serializers import ActorDeContratoSerializer
 from .models import Fideicomiso
+from public.models import TipoDeDocumento
 from .serializers import FideicomisoSerializer
-from django.http import JsonResponse
-from django.views import View
-from dateutil.parser import parse
 from django.http import HttpRequest
 from rest_framework.views import APIView
 from django.core.exceptions import ValidationError
 import cx_Oracle
-from .models import Fideicomiso, TipoDeDocumento
-from dateutil.relativedelta import relativedelta
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework import status
-from .models import TipoDeDocumento
-from dateutil.relativedelta import relativedelta
-from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from .models import Encargo, Fideicomiso, EncargoTemporal
 from .serializers import EncargoSerializer
 from django.db import connection
 from django.db import transaction
 from django.db import IntegrityError
-from django.contrib import messages
 import logging
 import hashlib
-from sgc_backend.pagination import CustomPageNumberPagination, ActorDeContratoPagination, EncargoPagination
+from sgc_backend.pagination import CustomPageNumberPagination
 from django.core.cache import cache
-from .serializers import TipoDeDocumentoSerializer
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 import logging
-from django.core.paginator import Paginator
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import ParseError
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .serializers import EncargoSerializer
-from actores_de_contrato_cargue.serializers import ActorDeContratoSerializer
-from actores_de_contrato_cargue.models import ActorDeContrato
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.exceptions import NotFound
 from .tasks import update_fideicomiso
 from rest_framework import filters
-from .conn import *
-class TipoDeDocumentoListView(generics.ListAPIView):
-    authentication_classes = [LoggingJWTAuthentication]
-    permission_classes = [IsAuthenticated, HasRolePermission]
-    queryset = TipoDeDocumento.objects.all()
-    serializer_class = TipoDeDocumentoSerializer   
+from django.shortcuts import get_object_or_404
+from dateutil.relativedelta import relativedelta
 
+class FideicomisoList(generics.ListAPIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission] 
+    
+    search_fields=["codigoSFC","nombre"]
+    ordering = ['-fechaCreacion']  
+    filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
+    queryset = Fideicomiso.objects.all() 
+    
+    serializer_class = FideicomisoSerializer
+    pagination_class = CustomPageNumberPagination
+    
+    def get_queryset(self):
+        try:            
+            exclude_ids = self.request.query_params.get('exclude_ids', None)
+            if exclude_ids is not None:
+                exclude_ids = [str(id) for id in exclude_ids.split(',')]
+                return self.queryset.exclude(codigoSFC__in=exclude_ids)
+            return self.queryset
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e)) 
+        
 class EncargoListView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
     pagination_class = CustomPageNumberPagination
     def get(self, request, codigo_sfc):
         try:
-            fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo_sfc)
+            fideicomiso = Fideicomiso.objects.get(codigoSFC=codigo_sfc)
         except ObjectDoesNotExist:
             raise NotFound('No existe ese fideicomiso .-.')
         except Exception as e:
-            return Response({'error': str(e)}, status=500)
+            return Response({'detail': str(e)}, status=500)
         try:
-            encargo = Encargo.objects.filter(Fideicomiso=fideicomiso).order_by('NumeroEncargo')
+            encargo = Encargo.objects.filter(fideicomiso=fideicomiso).order_by('numeroEncargo')
             for field, value in request.query_params.items():
                 if field in [f.name for f in Encargo._meta.get_fields()]:
                     encargo = encargo.filter(**{field: value})
@@ -72,127 +80,59 @@ class EncargoListView(APIView):
             encargo_serializer = EncargoSerializer(paginated_encargo, many=True)
             return paginator.get_paginated_response(encargo_serializer.data)
         except ObjectDoesNotExist:
-            return Response({'error': 'No se encuentra encargos'}, status=404)
+            return Response({'detail': 'No se encuentra encargos'}, status=404)
         except Exception as e:
-            return Response({'error': str(e)}, status=500)
+            return Response({'detail': str(e)}, status=500)
         
-class FideicomisoDetailView(APIView):
+class ActoresByFideicomisoList(APIView):    
     authentication_classes = [LoggingJWTAuthentication]
-    permission_classes = [IsAuthenticated, HasRolePermission]
-    pagination_class = CustomPageNumberPagination
+    permission_classes = [IsAuthenticated, HasRolePermission]    
+    
     def get(self, request, codigo_sfc):
         try:
-            fideicomiso = Fideicomiso.objects.get(CodigoSFC=codigo_sfc)
-        except ObjectDoesNotExist:
-            raise NotFound('No existe ese fideicomiso .-.')
-        except Exception as e:
-            return Response({'error': str(e)}, status=500)
-        encargo_paginator = EncargoPagination()
-        encargo_paginator.page_size = 10
-        actores_de_contrato_paginator = ActorDeContratoPagination()
-        actores_de_contrato_paginator.page_size = 10
-        encargo = Encargo.objects.filter(Fideicomiso=fideicomiso).order_by('NumeroEncargo')
-        for field, value in request.query_params.items():
-            if field in [f.name for f in Encargo._meta.get_fields()]:
-                encargo = encargo.filter(**{field: value})
-        actores_de_contrato = ActorDeContrato.objects.filter(FideicomisoAsociado=fideicomiso).order_by('NumeroIdentificacion')
-        for field, value in request.query_params.items():
-            if field in [f.name for f in ActorDeContrato._meta.get_fields()]:
-                actores_de_contrato = actores_de_contrato.filter(**{field: value}) 
-        encargo = encargo_paginator.paginate_queryset(encargo, request)
-        actores_de_contrato = actores_de_contrato_paginator.paginate_queryset(actores_de_contrato, request)
-        encargo_serializer = EncargoSerializer(encargo, many=True)
-        actores_de_contrato_serializer = ActorDeContratoSerializer(actores_de_contrato, many=True)
-        return Response({
-            'encargo': encargo_serializer.data,
-            'actores_de_contrato': actores_de_contrato_serializer.data,
-            #'beneficiario_final': beneficiario_final_serializer.data,
-        })
 
-class ActorFideicomisoListView(APIView):
+            fideicomiso = get_object_or_404(Fideicomiso, codigoSFC=codigo_sfc)
+            actores = ActorDeContrato.objects.filter(fideicomisoAsociado=fideicomiso).order_by('-fechaActualizacion','-fechaCreacion')
+            paginator = CustomPageNumberPagination()
+            paginated_actor=paginator.paginate_queryset(actores,request)
+            serializer = ActorDeContratoSerializer(paginated_actor, many=True)        
+            return paginator.get_paginated_response(serializer.data)
+        
+        except ObjectDoesNotExist:
+            return Response({'detail':"No se encuentra fideicomiso"},status=404)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=500)
+
+class FideicomisoView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
-
-    def get(self, request, numero_identificacion):
-        try:
-            actor = ActorDeContrato.objects.get(NumeroIdentificacion=numero_identificacion)
-            fideicomisos = actor.FideicomisoAsociado.all()
-
-            for field, value in request.query_params.items():
-                if field in [f.name for f in Fideicomiso._meta.get_fields()]:
-                    fideicomisos = fideicomisos.filter(**{field: value})
-
-            paginator = CustomPageNumberPagination()
-            paginator.page_size = 10  # set the page size here
-            paginated_fideicomisos = paginator.paginate_queryset(fideicomisos, request)
-            fideicomiso_serializer = FideicomisoSerializer(paginated_fideicomisos, many=True)
-
-            return paginator.get_paginated_response(fideicomiso_serializer.data)
-        except ObjectDoesNotExist:
-            return Response({'error': 'No se encuentran los fideicomisos :O'}, status=404)
-        except Exception as e:
-            return Response({'error': str(e)}, status=500)
-class FideicomisoList(generics.ListAPIView):
-    authentication_classes = [LoggingJWTAuthentication]
-    permission_classes = [IsAuthenticated, HasRolePermission]  
     
-    search_fields=["CodigoSFC","Nombre"]
-    ordering = ['-FechaCreacion']  
-    filter_backends=[filters.SearchFilter,filters.OrderingFilter] 
-    queryset = Fideicomiso.objects.all()   
-    serializer_class = FideicomisoSerializer
-    pagination_class = CustomPageNumberPagination             
-    
-    def get_queryset(self):
+    def get_object_by_id(self,pk):
         try:
-            return self.queryset
-        except ValidationError as e:
-            raise ParseError(detail=str(e))
+            return Fideicomiso.objects.get(pk=pk)
+        except Fideicomiso.DoesNotExist:
+            raise NotFound(detail='Fideicomiso no encontrado')
         except Exception as e:
             raise APIException(detail=str(e))
-    def post(self, request, *args, **kwargs):
-            try:
-                codigo_sfc = request.data.get('codigo_sfc', None)
-                nombre = request.data.get('nombre', None)
-                order_by = request.data.get('order_by', 'FechaCreacion')
-                order_direction = request.data.get('order_direction', 'asc')
 
-                queryset = Fideicomiso.objects.all()
-
-                if codigo_sfc is not None:
-                    queryset = queryset.filter(CodigoSFC__icontains=codigo_sfc)
-
-                if nombre is not None:
-                    queryset = queryset.filter(Nombre__icontains=nombre)
-
-                if order_by in ['CodigoSFC', 'FechaCreacion', 'Estado']:
-                    if order_direction == 'desc':
-                        order_by = '-' + order_by
-                    queryset = queryset.order_by(order_by)
-                page_size = request.data.get('page_size', 10)
-                page_number = request.data.get('page_number', 1)
-                paginator = PageNumberPagination()
-                paginator.page_size = page_size
-                request.query_params._mutable = True
-                request.query_params['page'] = page_number
-                request.query_params._mutable = False
-                paginator = PageNumberPagination()
-                paginator.page_size = page_size
-                paginated_queryset = paginator.paginate_queryset(queryset, request)
-                serializer = FideicomisoSerializer(paginated_queryset, many=True)
-                return paginator.get_paginated_response(serializer.data)
-            except ValidationError as e:
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def get(self, request, codigo_sfc):
+        try:
+            fideicomiso = self.get_object_by_id(codigo_sfc)
+            serializer=FideicomisoSerializer(fideicomiso)
+            return Response(serializer.data ,status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            raise NotFound('No existe ese fideicomiso.')
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)        
+         
 class UpdateFideicomisoView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
     def get(self, request, *args, **kwargs):
         try:
             # Connect to the Oracle database
-            dsn_tns = cx_Oracle.makedsn(url, port, service_name=service_name)
-            conn = cx_Oracle.connect(user=user, password=password, dsn=dsn_tns)
+            dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIUN43')
+            conn = cx_Oracle.connect(user='VU_SFI', password='VU_SFI', dsn=dsn_tns)
             cur = conn.cursor()
 
             # Determine the number of rows in the table
@@ -218,7 +158,26 @@ class UpdateFideicomisoView(APIView):
                     WHERE RN > {page * rows_per_page}
                 """)
                 rows = cur.fetchall()
-                update_fideicomiso.delay(rows)
+                tipo_identificacion = TipoDeDocumento.objects.get(tipoDocumento='NJ')
+                hasher = hashlib.sha256()
+                hasher.update(str(rows).encode('utf-8'))
+                new_hash = hasher.hexdigest()
+                old_hash = cache.get('fideicomiso_hash')
+                if old_hash != new_hash:
+                    for row in rows:
+                        fecha_vencimiento = row[3] if row[3] else None
+                        fideicomiso, created = Fideicomiso.objects.update_or_create(
+                            codigoSFC=row[0],
+                            defaults={
+                                'tipoIdentificacion': tipo_identificacion,
+                                'nombre': row[4],
+                                'fechaCreacion': row[2] if row[2] else None,
+                                'fechaVencimiento': fecha_vencimiento,
+                                'fechaProrroga': fecha_vencimiento + relativedelta(years=30) if fecha_vencimiento else None,
+                                'estado': row[5]
+                            }
+                        )
+                    cache.set('fideicomiso_hash', new_hash)
             transaction.commit()
             cur.close()
             conn.close()
@@ -227,6 +186,7 @@ class UpdateFideicomisoView(APIView):
             return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 logger = logging.getLogger(__name__)
+
 class UpdateEncargoTemp(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -234,8 +194,8 @@ class UpdateEncargoTemp(APIView):
         try:
             # Connect to the Oracle database
             
-            dsn_tns = cx_Oracle.makedsn(url, port, service_name=service_name)
-            conn = cx_Oracle.connect(user=user, password=password, dsn=dsn_tns)
+            dsn_tns = cx_Oracle.makedsn('192.168.168.175', '1521', service_name='SIFIUN43')
+            conn = cx_Oracle.connect(user='VU_SFI', password='VU_SFI', dsn=dsn_tns)
             cur = conn.cursor()
 
             cur.execute("""
@@ -259,10 +219,10 @@ class UpdateEncargoTemp(APIView):
             if old_hash != new_hash:
                 for i, row in enumerate(rows, start=1):
                     encargotemporal, created = EncargoTemporal.objects.update_or_create(
-                        NumeroEncargo=row[1],
-                        Fideicomiso=row[0],
+                        numeroEncargo=row[1],
+                        fideicomiso=row[0],
                         defaults={
-                            'Descripcion': row[2]
+                            'descripcion': row[2]
                             }
                         )
                     if i % 1000 == 0:
@@ -277,6 +237,9 @@ class UpdateEncargoTemp(APIView):
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+        
 class UpdateEncargoFromTemp(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -298,14 +261,14 @@ class UpdateEncargoFromTemp(APIView):
         encargos_temp = EncargoTemporal.objects.all()
         for encargo_temp in encargos_temp:
             try:
-                # Get the Fideicomiso instance by comparing the Fideicomiso of the EncargoTemp to CodigoSFC of Fideicomiso model
-                fideicomiso_instance = Fideicomiso.objects.get(CodigoSFC=encargo_temp.Fideicomiso)
+                # Get the Fideicomiso instance by comparing the Fideicomiso of the EncargoTemp to codigoSFC of Fideicomiso model
+                fideicomiso_instance = Fideicomiso.objects.get(codigoSFC=encargo_temp.fideicomiso)
                 # Update or create the Encargo instance
                 try:
                     Encargo.objects.update_or_create(
-                        Fideicomiso=fideicomiso_instance,
-                        NumeroEncargo=encargo_temp.NumeroEncargo,
-                        defaults={'Descripcion': encargo_temp.Descripcion}
+                        fideicomiso=fideicomiso_instance,
+                        numeroEncargo=encargo_temp.numeroEncargo,
+                        defaults={'descripcion': encargo_temp.descripcion}
                     )
                 except IntegrityError:
                     pass  # Ignore EncargoTemp instances with duplicate NumeroEncargo
