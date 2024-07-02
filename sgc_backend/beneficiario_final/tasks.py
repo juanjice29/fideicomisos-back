@@ -23,7 +23,7 @@ abort_task,track_process,protected_function_process,track_sub_task
 from process.models import EjecucionProceso,EstadoEjecucion
 from public.models import ParametrosGenericos,TipoParamEnum,TipoNovedadRPBF
 from django.db.models import Subquery,OuterRef
-
+import shutil
 
 logger = logging.getLogger(__name__)
 celery = Celery()
@@ -33,7 +33,7 @@ def progress_callback(current, total):
     
 
 @track_sub_task
-def tkLeerArchivoXmlRPBF(dir,periodo,fondo,tarea=None,ejecucion=None):
+def tkLeerArchivoXmlRPBF(dir,periodo,fondo,novedad,tarea=None,ejecucion=None):
     try:
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Archivos en la ruta {dir} transformados en pandas exitosamente")
         ruta_archivos = glob.glob(os.path.join(dir, '*.xml'))
@@ -44,11 +44,14 @@ def tkLeerArchivoXmlRPBF(dir,periodo,fondo,tarea=None,ejecucion=None):
             root = tree.getroot()            
             # Procesar elementos 'bene'
             for bene in root.findall('bene'):
+                if(novedad!=bene.get('tnov')):
+                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Archivo con errores en el tipo de novedad - {ruta_archivo}")
+                    break
                 rpbf_historico = RpbfHistorico(
                     cargue=ejecucion.celeryTaskId,
                     periodo=periodo,  # Ajusta según corresponda
-                    fondo=fondo,  # Ajusta según corresponda
-                    tipoNovedad=TipoNovedadRPBF.objects.get(id=int(bene.get('tnov'))),
+                    fondo=fondo,# Ajusta según corresponda                    
+                    tipoNovedad=TipoNovedadRPBF.objects.get(id=int(bene.get('tnov'))),                    
                     bepjtit=bene.get('bepjtit'),
                     bepjben=bene.get('bepjben'),
                     bepjcon=bene.get('bepjcon'),
@@ -83,7 +86,8 @@ def tkLeerArchivoXmlRPBF(dir,periodo,fondo,tarea=None,ejecucion=None):
                     tnov=bene.get('tnov')
                 )
                 rpbf_historico.save()
-            guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Registros historicos guardados correctamente - {dir}/{ruta_archivo}")    
+                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Registros historicos guardados correctamente - {ruta_archivo}")  
+                  
         return "Archivos guardados en el historico correctamente"
     except Exception as e:
         tb = traceback.format_exc()
@@ -179,7 +183,7 @@ def tkGenerateXML(self,fondo,tarea=None,ejecucion=None):
                     elif os.path.isdir(file_path):
                         shutil.rmtree(file_path)
                 except Exception as e:
-                    tb= traceback.format_exex()
+                    tb= traceback.format_exc()
                     guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Fallo al eliminar las carpetas actuales , error : {str(e)} , linea : {tb}"[:250])
 
     try:        

@@ -118,8 +118,7 @@ def get_reporte_final(fondo):
     report_3.columns=report_3.columns.str.upper()
     
     
-    df_final=pd.concat([report,report_3],axis=0)
-    df_final.to_csv('resultado_3.csv', index=False)
+    df_final=pd.concat([report,report_3],axis=0)    
     return df_final
 
 def get_semilla(fondo,corte,saldo):
