@@ -103,7 +103,6 @@ class ConfirmFilesRPBF(APIView):
     def post(self,request):
         
         try:
-            
                 
             fondo=request.data.get('fondo')                
             if (not(fondo) or len(fondo)<1 ):

@@ -86,7 +86,7 @@ def tkLeerArchivoXmlRPBF(dir,periodo,fondo,novedad,tarea=None,ejecucion=None):
                     tnov=bene.get('tnov')
                 )
                 rpbf_historico.save()
-                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Registros historicos guardados correctamente - {ruta_archivo}")  
+            guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Registros historicos guardados correctamente - {ruta_archivo}")  
                   
         return "Archivos guardados en el historico correctamente"
     except Exception as e:
@@ -254,8 +254,7 @@ def tkGenerateXML(self,fondo,tarea=None,ejecucion=None):
 def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):   
     
     try:        
-        result=RpbfCandidatos.objects.filter(fondo=fondo).delete()
-        deleteCandidatosExternos()
+        result=RpbfCandidatos.objects.filter(fondo=fondo).delete()        
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Se eliminaron {result} registros temporales correctamente")
         if(self.is_aborted()):
             abort_task(ejecucion=ejecucion)
