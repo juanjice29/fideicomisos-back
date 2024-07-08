@@ -368,9 +368,9 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
         cancelaciones_df['NRO_IDENTIF'] = cancelaciones_df['NRO_IDENTIF'].astype(str)
 
         # Filtrar df_historico para obtener solo los registros no presentes en df_current
-        df_historico_filtered = df_historico[df_historico['tnov'].isin([1, 2])]
+        #df_historico_filtered = df_historico[df_historico['tnov'].isin([1, 2])]
         
-        merged_df = df_historico_filtered.merge(df_current, left_on='niben', right_on='NRO_IDENTIF', how='left', indicator=True)
+        merged_df = df_historico.merge(df_current, left_on='niben', right_on='NRO_IDENTIF', how='left', indicator=True)
         filtered_df = merged_df[merged_df['_merge'] == 'left_only']
 
         # Unir con cancelaciones_df para obtener información de cancelaciones
@@ -392,6 +392,9 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
             "fondo": fondo,
             "porcentaje": row["pppjepj"] if row["pppjepj"] else row["pbpjepj"]
         } if str(row["tnov"] )!= "3" else None, axis=1).tolist()
+        
+        candidatos = [c for c in candidatos if c is not None]
+        
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,
                                         f"Se calcularon exitosamente los candidatos para la novedad : novedad 3 ->  {len(candidatos)}") 
         # Crear las instancias de RpbfCandidatos
