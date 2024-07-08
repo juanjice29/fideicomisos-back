@@ -67,6 +67,7 @@ def tkpCalcularBeneficiariosFinales(self,fondo,calc_cod_post,calc_total_data,cor
                                 "Inicio el generacion de archivos xml")
     
     result=tkGenerateXML(self,fondo=fondo,ejecucion=ejecucion)
+    
     if(fondo=="10"):
         guardarLogEjecucionProceso(ejecucion,
                                 TipoLogEnum.INFO.value,

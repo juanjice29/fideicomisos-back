@@ -39,6 +39,10 @@ def track_process(func):
             kwargs['ejecucion'] = ejecucion_proceso    
         except Proceso.DoesNotExist:
             # If the process does not exist, just call the function
+            guardarLogEjecucionProceso(ejecucion_proceso,TipoLogEnum.ERROR.value,f"No existe un nombre relacionado con el proceso : {tb}"[:250])
+            ejecucion_proceso.fechaFin = timezone.now()
+            ejecucion_proceso.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='FAIL')
+            ejecucion_proceso.save()
             raise ValueError(f"No existe un proceso asociado a la función {function_name}")
         try:        
             result=func(*args, **kwargs)

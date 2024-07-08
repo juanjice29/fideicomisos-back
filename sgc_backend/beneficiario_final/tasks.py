@@ -333,15 +333,18 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,
                                         f"Se calcularon exitosamente los candidatos para las novedades : novedad 1 ->  {count_n1} , novedad 2 -> {count_n2}") 
         
-        instances = [RpbfCandidatos(nroIdentif=candidato["nroIdentif"],
+        
+        for candidato in candidatos:
+            instance=RpbfCandidatos(nroIdentif=candidato["nroIdentif"],
                                        tipoNovedad=candidato["tipoNovedad"],
                                        fondo=candidato["fondo"],
                                        porcentaje=candidato["porcentaje"],
-                                       fechaCreacion=candidato["fechaCreacion"]) for candidato in candidatos]
-            
-        result=RpbfCandidatos.objects.bulk_create(instances)            
+                                       fechaCreacion=candidato["fechaCreacion"])
+            instance.save()
+        
+        result="Insercion exitosa"  
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,
-                                        f"Se insertaron exitosamente los candidatos para el reporte , {len(result)} registros")  
+                                        f"Se insertaron exitosamente los candidatos para el reporte , {len(candidatos)} registros")  
         
     except Exception as e:
         tb = traceback.format_exc()  
@@ -365,7 +368,9 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
         cancelaciones_df['NRO_IDENTIF'] = cancelaciones_df['NRO_IDENTIF'].astype(str)
 
         # Filtrar df_historico para obtener solo los registros no presentes en df_current
-        merged_df = df_historico.merge(df_current, left_on='niben', right_on='NRO_IDENTIF', how='left', indicator=True)
+        df_historico_filtered = df_historico[df_historico['tnov'].isin([1, 2])]
+        
+        merged_df = df_historico_filtered.merge(df_current, left_on='niben', right_on='NRO_IDENTIF', how='left', indicator=True)
         filtered_df = merged_df[merged_df['_merge'] == 'left_only']
 
         # Unir con cancelaciones_df para obtener información de cancelaciones
@@ -378,32 +383,35 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
         novedad_t = TipoNovedadRPBF.objects.get(id="3")
 
         # Crear los candidatos
-        candidatos = candidato_tn3_df.apply(lambda row: {
+        candidatos = candidato_tn3_df.apply(lambda row:
+        {
             "nroIdentif": row["niben"],
             "tipoNovedad": novedad_t,
             "fechaCreacion": row["feiniben"],
             "fechaCancelacion": row["FECCAN"],
             "fondo": fondo,
             "porcentaje": row["pppjepj"] if row["pppjepj"] else row["pbpjepj"]
-        }, axis=1).tolist()
+        } if str(row["tnov"] )!= "3" else None, axis=1).tolist()
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,
                                         f"Se calcularon exitosamente los candidatos para la novedad : novedad 3 ->  {len(candidatos)}") 
         # Crear las instancias de RpbfCandidatos
-        instances = [RpbfCandidatos(
+
+        for candidato in candidatos:
+            instance=  RpbfCandidatos(
             nroIdentif=candidato["nroIdentif"],
             tipoNovedad=candidato["tipoNovedad"],
             fondo=candidato["fondo"],
             porcentaje=candidato["porcentaje"],
             fechaCreacion=candidato["fechaCreacion"],
             fechaCancelacion=candidato["fechaCancelacion"]
-        ) for candidato in candidatos]
+            )
+            instance.save()        
 
-        # Insertar las instancias en la base de datos
-        result = RpbfCandidatos.objects.bulk_create(instances)
-
+        # Insertar las instancias en la base de datos        
+        result="Insercion exitosa" 
         # Registrar log de ejecución
         guardarLogEjecucionTareaProceso(ejecucion, tarea, TipoLogEnum.INFO.value,
-                                        f"Se insertaron exitosamente los candidatos para el reporte, {len(result)} registros.")
+                                        f"Se insertaron exitosamente los candidatos para el reporte, {len(candidatos)} registros.")
    
     except Exception as e:
         tb = traceback.format_exc()  

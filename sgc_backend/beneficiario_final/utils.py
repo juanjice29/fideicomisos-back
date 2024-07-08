@@ -21,7 +21,7 @@ db_port_sgc = os.getenv("DB_PORT_SGC")
 
 def get_current_period():
     anio,mes = datetime.datetime.now().strftime("%Y-%m").split("-")
-    period=math.floor(int(mes)/4)+1    
+    period=math.floor((int(mes)-1)/3)+1    
     return anio+"-"+str(period)
 
 def bef_period(current_period):
@@ -108,21 +108,42 @@ def get_reporte_final(fondo):
     cur.close()
     conn.close() 
     
-    candidatos_3=RpbfCandidatos.objects.filter(tipoNovedad__id=3).values('nroIdentif')
+    candidatos_3 = RpbfCandidatos.objects.filter(tipoNovedad__id=3).values('nroIdentif', 'fechaCancelacion')
     df_candidatos_3 = pd.DataFrame.from_records(candidatos_3)
 
+    # Renombrar columnas en df_candidatos_3
+    df_candidatos_3 = df_candidatos_3.rename(columns={'nroIdentif': 'niben', 'fechaCancelacion': 'fecfinben'})
+
+    # Agregar la columna BECESPJ
+    df_candidatos_3['BECESPJ'] = ''
+
+    # Obtener datos de RpbfHistorico
     subquery = RpbfHistorico.objects.filter(fondo=fondo).values()
-    df_comp_historico=pd.DataFrame.from_records(subquery)
-    df_comp_historico['id']=pd.to_numeric(df_comp_historico['id'], errors='coerce')
+    df_comp_historico = pd.DataFrame.from_records(subquery).drop(columns=['fecfinben'])
+
+    # Convertir la columna 'id' a numérica y obtener el índice máximo para cada 'niben'
+    df_comp_historico['id'] = pd.to_numeric(df_comp_historico['id'], errors='coerce')
     idx = df_comp_historico.groupby('niben')['id'].idxmax()
-    df_historico = df_comp_historico.loc[idx]   
+    df_historico = df_comp_historico.loc[idx]
+
+    # Realizar el merge
+    report_3 = pd.merge(df_historico, df_candidatos_3, on='niben', how='inner')
+
+    # Eliminar columnas no deseadas
+    report_3 = report_3.drop(columns=['id', 'cargue', 'periodo', 'tipoNovedad_id'])
+
+    # Convertir los nombres de las columnas a mayúsculas
+    report_3.columns = report_3.columns.str.upper()
+
+    # Agregar la columna TNOV
+    report_3["TNOV"] = "3"
     
-    df_candidatos_3 = df_candidatos_3.rename(columns={'nroIdentif': 'niben'})
-    df_candidatos_3['BECESPJ']=''
+    print("longitud reporte novedad 3",len(report_3))
+    df_final=pd.concat([report,report_3],axis=0)
+    df_final.to_csv('resultado_2.csv', index=False) 
     
-    report_3 = pd.merge(df_historico, df_candidatos_3, on='niben', how='inner').drop(columns=['id','cargue','periodo','tipoNovedad_id'])
-    report_3.columns=report_3.columns.str.upper()
-    df_final=pd.concat([report,report_3],axis=0)    
+    report.to_csv('resultado_1.csv', index=False)   
+     
     return df_final
 
 def get_semilla(fondo,corte,saldo):
