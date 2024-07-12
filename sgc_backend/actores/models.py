@@ -25,7 +25,8 @@ class ActorDeContrato(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['tipoIdentificacion','numeroIdentificacion'], name='unique_identificacion')
         ] 
-        db_table = 'fidei_actor'     
+        db_table = 'fidei_actor' 
+
 
 class ActorDeContratoNatural(ActorDeContrato):
     primerNombre = models.CharField(max_length=100,db_column='primer_nombre')
@@ -35,12 +36,13 @@ class ActorDeContratoNatural(ActorDeContrato):
     class Meta:
         db_table="fidei_actor_nat"
 
+
 class ActorDeContratoJuridico(ActorDeContrato):
     razonSocialNombre=models.CharField(max_length=100,db_column='razon_social')
+    
     class Meta:
         db_table="fidei_actor_jur"
-       
-    
+
 class RelacionFideicomisoActor(models.Model):
     actor = models.ForeignKey(ActorDeContrato, on_delete=models.CASCADE,db_column='actor')
     fideicomiso = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE,db_column='fideicomiso')

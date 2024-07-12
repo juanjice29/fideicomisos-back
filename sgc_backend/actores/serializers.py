@@ -71,10 +71,6 @@ class ActorDeContratoNaturalCreateSerializer(serializers.ModelSerializer):
                 relacion.tipoActor.set(tipo_actor_ids)        
             #actor.fideicomisoAsociado.add(fideicomiso['fideicomiso'],through_defaults={'tipoActor':fideicomiso['tipoActor']})
         return actor
-    def save(self, **kwargs):
-        instance = super().save(**kwargs)
-        instance.save()
-        return instance    
 class ActorDeContratoNaturalUpdateSerializer(serializers.ModelSerializer):   
     fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)
     class Meta:
@@ -129,12 +125,9 @@ class ActorDeContratoNaturalUpdateSerializer(serializers.ModelSerializer):
             to_delete = relaciones_current - set(f['fideicomiso'].codigoSFC for f in fideicomiso_data)            
             instance.relacionfideicomisoactor_set.filter(fideicomiso__in=to_delete).delete()
         
-        instance.save()
+        #instance.save()
         return instance
-    def save(self, **kwargs):
-        instance = super().save(**kwargs)
-        instance.save()
-        return instance
+
 
 class ActorDeContratoJuridicoCreateSerializer(serializers.ModelSerializer):   
     fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)
@@ -156,10 +149,7 @@ class ActorDeContratoJuridicoCreateSerializer(serializers.ModelSerializer):
                 relacion.tipoActor.set(tipo_actor_ids)        
             #actor.fideicomisoAsociado.add(fideicomiso['fideicomiso'],through_defaults={'tipoActor':fideicomiso['tipoActor']})
         return actor
-    def save(self, **kwargs):
-        instance = super().save(**kwargs)
-        instance.save()
-        return instance
+
 class ActorDeContratoJuridicoUpdateSerializer(serializers.ModelSerializer):   
     fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)
     class Meta:
@@ -205,7 +195,4 @@ class ActorDeContratoJuridicoUpdateSerializer(serializers.ModelSerializer):
         instance.save()
         print("valor instancia : ",instance.razonSocialNombre)
         return instance
-    def save(self, **kwargs):
-        instance = super().save(**kwargs)
-        instance.save()
-        return instance
+
