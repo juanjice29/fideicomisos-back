@@ -115,13 +115,13 @@ def pre_save_receiver(sender, instance, update_fields,**kwargs):
             if app_name_sender not in valid_sender:
                 #logger.info(f"Invalid sender: {app_name_sender}")
                 return
-            logger.info(f"pre_save signal received from {sender.__name__} for instance {instance.pk}")
+            #logger.info(f"pre_save signal received from {sender.__name__} for instance {instance.pk}")
             request = get_current_request()
             request_id=get_request_id()
             signal_id=str(uuid.uuid4()) 
             tipo_proceso = DisparadorEjecucion.objects.get(acronimo='MAN')
-            logger.info(f"Current task: {current_task}")
-            logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")      
+            #logger.info(f"Current task: {current_task}")
+           # logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")      
             if current_task and current_task.request.is_eager == False:
                 task_result = AsyncResult(current_task.request.id)
                 if 'usuario_id' in task_result.result:
@@ -156,16 +156,16 @@ def pre_save_receiver(sender, instance, update_fields,**kwargs):
             
             if update_fields is None:
                 #changed_fields = instance.__dict__
-                changed_fields = serialize_instance(instance)
+                changed_fields = serialize_instance_update(instance)
                 for field in instance._meta.parents.values():
                     changed_fields.update(field)
             else:
                 changed_fields = {field: getattr(instance, field) for field in update_fields}
             if changed_fields is None:
                 return  
-            logger.info(f"Changed fields: {changed_fields}")
+            #logger.info(f"Changed fields: {changed_fields}")
             
-            logger.info(f"Intance: {instance}")
+            #logger.info(f"Intance: {instance}")
             user = User.objects.get(username=request.user.username)
 
             Log_Cambios_Update.objects.create(
@@ -300,7 +300,21 @@ def log_m2m_changes(sender, instance, action, pk_set, **kwargs):
             accion=action,
             requestId=str(uuid.uuid4()), 
         )
+    
 def serialize_instance(instance):
+    """
+    Serialize a Django model instance to a JSON-compatible dictionary.
+    """
+    serialized = {}
+    for field in instance._meta.fields:
+        field_name = field.name
+        field_value = getattr(instance, field_name)
+        if hasattr(field_value, '_meta'):
+            serialized[field_name] = field_value.pk
+        else:
+            serialized[field_name] = field.value_to_string(instance)
+    return serialized
+def serialize_instance_update(instance):
     """
     Serialize a Django model instance to a JSON-compatible dictionary.
     """
