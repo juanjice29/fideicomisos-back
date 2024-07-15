@@ -88,6 +88,7 @@ LOGGING = {
 #BROKER_URL = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@192.168.169.23:15672/')
 #celery --broker=amqp://fssgc:fssgc@localhost// flower
 # celery en modo debug -celery -A sgc_backend worker --pool=solo -l debug
+#ejecutar beat : celery -A sgc_backend beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
 CELERY_BROKER_URL = 'amqp://fssgc:fssgc@localhost'
 #CELERY_BROKER_URL = 'amqp://guest:guest@localhost'
 CELERY_TASK_RESULT_EXPIRES = None

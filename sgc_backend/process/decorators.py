@@ -23,14 +23,15 @@ def track_process(func):
         # Obtener el nombre de la función decorada
         function_name = func.__name__        
         # Obtener la instancia del proceso asociado a la función decorada
-        try:            
+        try:  
+                   
             proceso = Proceso.objects.get(funcionRelacionada=function_name)
             usuario = User.objects.get(id=kwargs.get('usuario_id'))
             ejecucion_proceso = EjecucionProceso()
             ejecucion_proceso.proceso = proceso
             ejecucion_proceso.fechaInicio = timezone.now()
             ejecucion_proceso.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='INI')
-            ejecucion_proceso.disparador = DisparadorEjecucion.objects.get(acronimo='MAN')
+            ejecucion_proceso.disparador = DisparadorEjecucion.objects.get(acronimo=kwargs.get('disparador'))
             ejecucion_proceso.usuario = usuario
             ejecucion_proceso.celeryTaskId = current_task.request.id
 
