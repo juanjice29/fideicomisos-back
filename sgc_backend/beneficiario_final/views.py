@@ -59,6 +59,7 @@ class DownloadDianReport(APIView):
             for fondo in fondos:
                 for novedad in novedades:
                     folder_path = os.path.join(directorio, "fondo_"+fondo,"novedad_"+novedad)
+                    print(folder_path)
                     if os.path.exists(folder_path):
                         for root, _, files in os.walk(folder_path):
                             for file in files:
