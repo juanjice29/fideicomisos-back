@@ -1,7 +1,7 @@
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
-from public.models import TipoDeDocumento
+from public.models import TipoDeDocumento,TipoDePersona
 from .models import ActorDeContrato
 from django.core.exceptions import ValidationError
 from .models import ActorDeContrato,FuturoComprador
@@ -9,9 +9,7 @@ from .serializers import ActorDeContratoSerializer,\
 ActorDeContratoNaturalCreateSerializer,\
 ActorDeContratoNaturalUpdateSerializer,\
 ActorDeContratoJuridicoCreateSerializer,\
-ActorDeContratoJuridicoUpdateSerializer, FuturoCompradorSerializer, \
-ActorDeContratoJuridicoFuturoCreateSerializer,ActorDeContratoJuridicoFuturoUpdateSerializer,\
-ActorDeContratoNaturalFuturoCreateSerializer,ActorDeContratoNaturalFuturoUpdateSerializer
+ActorDeContratoJuridicoUpdateSerializer, FuturoCompradorSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -205,14 +203,18 @@ class FuturoCompradorListView(generics.ListCreateAPIView):
             raise APIException(detail=str(e)) 
     def post(self,request):
         try:
-            tpidentif=request.data.get('tipoIdentificacion')
-            tipo_persona=getTipoPersona(tpidentif)
+            tipo_persona=request.data.get('tipoPersona')
+            tipo_persona=getTipoPersonaById(tipo_persona)
+            tipo_documento=request.data.get('tipoIdentificacion')
+            validacion_tipo_persona=getTipoPersona(tipo_documento)
+            if(validacion_tipo_persona!=tipo_persona):
+                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
             if(tipo_persona=='N'):
                 print("soy natural")
-                serializer=ActorDeContratoNaturalFuturoCreateSerializer(data=request.data)
+                serializer=FuturoCompradorSerializer(data=request.data)
             elif(tipo_persona=='J'):
                 print("soy juridico")
-                serializer=ActorDeContratoJuridicoFuturoCreateSerializer(data=request.data)
+                serializer=FuturoCompradorSerializer(data=request.data)
             else:
                 return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
             if serializer.is_valid():
@@ -230,7 +232,7 @@ class FuturoCompradorListView(generics.ListCreateAPIView):
         try:
             tpidentif=request.data.get('tipoIdentificacion')
             nroidentif=request.data.get('numeroIdentificacion')
-            tipo_persona=getTipoPersona(tpidentif)            
+            tipo_persona=getTipoPersonaById(tpidentif)            
             actor=FuturoComprador.get_object(self,tpidentif,nroidentif)
             if(tipo_persona=='N'):            
                 serializer=ActorDeContratoNaturalFuturoUpdateSerializer(actor,data=request.data)
@@ -327,3 +329,5 @@ def getTipoPersona(tpidentif):
     tipo_persona = tipo_documento.idTipoPersona.tipoPersona
     return tipo_persona
 
+def getTipoPersonaById(tpPersona):
+    return TipoDePersona.objects.get(id=tpPersona).tipoPersona
