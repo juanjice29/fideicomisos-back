@@ -81,6 +81,10 @@ LOGGING = {
         'level': 'DEBUG',
     },
 }
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = '10.1.5.198'
+EMAIL_PORT = 25
+EMAIL_USE_TLS = True
 ##multiple workers celery -A your_project_name worker --loglevel=info -n worker1@%h
 #solo worker celery -A sgc_backend worker --loglevel=info -P solo
 #remember to install redis
