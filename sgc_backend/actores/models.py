@@ -8,6 +8,7 @@ from public.models import TipoDeDocumento
 class TipoActorDeContrato(models.Model):
     tipoActor = models.CharField(max_length=90,db_column='tipo_actor')
     descripcion = models.CharField(max_length=90,db_column='descripcion')
+    
     class Meta:
         # Especifica el nombre de la tabla aquí
         db_table = 'params_tipo_actor'
@@ -26,7 +27,15 @@ class ActorDeContrato(models.Model):
             models.UniqueConstraint(fields=['tipoIdentificacion','numeroIdentificacion'], name='unique_identificacion')
         ] 
         db_table = 'fidei_actor' 
-
+class FuturoComprador(models.Model):
+    tipoIdentificacion = models.ForeignKey(TipoDeDocumento, on_delete=models.CASCADE,db_column='tipo_identificacion', null=True, blank=True)
+    numeroIdentificacion = models.CharField(max_length=12,db_column='numero_identificacion', null=True, blank=True)
+    fideicomisoAsociado = models.ManyToManyField(Fideicomiso,through='RelacionFideicomisoFuturoComprador')
+    fechaCreacion = models.DateTimeField(auto_now_add=True,db_column='fecha_creacion')
+    fechaActualizacion = models.DateTimeField(auto_now=True,db_column='fecha_actualizacion')
+    estado = models.CharField(max_length=100, default='ACT',db_column='estado')
+    class Meta:
+        db_table = 'futuro_comprador'
 
 class ActorDeContratoNatural(ActorDeContrato):
     primerNombre = models.CharField(max_length=100,db_column='primer_nombre')
@@ -52,3 +61,11 @@ class RelacionFideicomisoActor(models.Model):
             models.UniqueConstraint(fields=['actor','fideicomiso'], name='unique_fideicomiso_actor')
         ]
         db_table = 'fidei_actor_fideicomiso'
+class RelacionFideicomisoFuturoComprador(models.Model):
+    FuturoComprador = models.ForeignKey(FuturoComprador, on_delete=models.CASCADE,db_column='futuro_comprador')
+    fideicomiso = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE,db_column='fideicomiso')
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['FuturoComprador','fideicomiso'], name='unique_fideicomiso_futuro_comprador')
+        ]
+        db_table = 'fidei_futuro_comprador_fideicomiso'
