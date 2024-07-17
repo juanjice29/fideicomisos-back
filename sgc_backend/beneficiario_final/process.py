@@ -67,6 +67,7 @@ def tkpCalcularBeneficiariosFinales(self,fondo,calc_cod_post,calc_total_data,cor
                                 "Inicio el generacion de archivos xml")
     
     result=tkGenerateXML(self,fondo=fondo,ejecucion=ejecucion)
+    
     if(fondo=="10"):
         guardarLogEjecucionProceso(ejecucion,
                                 TipoLogEnum.INFO.value,
@@ -87,14 +88,14 @@ def tkpCalcularBeneficiariosFinales(self,fondo,calc_cod_post,calc_total_data,cor
                                "Fin de proceso, resultados: "+str(result))
 
 
-@shared_task
+'''@shared_task
 @track_process   
 def tkpConfirmarReportBeneficiarioFinal(fondos,novedades,periodo,usuario_id, disparador,ejecucion=None):
     ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,                               
-                               f"""Inicio confirmacion de reporte beneficiarios finales, la parametrización correspondiente al proceso es \n 
+                               f"""Inicio confirmacion de reporte beneficiarios finales,archvios en ruta , la parametrización correspondiente al proceso es \n 
                                   fondos = {fondos} ,\n                                  
                                   novedades = {novedades} , \n 
                                   periodo = {periodo},
@@ -105,4 +106,19 @@ def tkpConfirmarReportBeneficiarioFinal(fondos,novedades,periodo,usuario_id, dis
         for j in novedades:
             directorio=directorio_1+f"/fondo_{i}"+f"/novedad_{j}"
             result=tkLeerArchivoXmlRPBF(dir=directorio,ejecucion=ejecucion,periodo=periodo,fondo=i)
-            
+'''
+@shared_task
+@track_process
+def tkpConfirmarArchivosRPBF(file_path,fondo,novedad,periodo,usuario_id,disparador,ejecucion=None):
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
+    ejecucion.save()
+    guardarLogEjecucionProceso(ejecucion,
+                               TipoLogEnum.INFO.value,                               
+                               f"""Inicio confirmacion de reporte beneficiarios finales, la parametrización correspondiente al proceso es \n 
+                                  fondo = {fondo} ,\n                                  
+                                  novedad = {novedad} , \n 
+                                  periodo = {periodo}, \n
+                                  ruta= {file_path}
+                               """)
+    result=tkLeerArchivoXmlRPBF(dir=file_path,ejecucion=ejecucion,periodo=periodo,fondo=fondo,novedad=novedad)
+    

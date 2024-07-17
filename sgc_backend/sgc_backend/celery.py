@@ -23,4 +23,11 @@ app.conf.beat_schedule = {
     #    'task': 'my_app.tasks.another_task',
     #    'schedule': crontab(minute=0),
     #},
+    'calculo-rpbf-trismestral':{
+        'task':'process.task_process_example',
+        'schedule': '* * * * *',
+        'kwargs':{"tiempo_espera":10,"usuario_id":1,"disparador":"AUT"}
+        
+        
+    }
 }

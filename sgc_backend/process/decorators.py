@@ -23,14 +23,15 @@ def track_process(func):
         # Obtener el nombre de la función decorada
         function_name = func.__name__        
         # Obtener la instancia del proceso asociado a la función decorada
-        try:            
+        try:  
+                   
             proceso = Proceso.objects.get(funcionRelacionada=function_name)
             usuario = User.objects.get(id=kwargs.get('usuario_id'))
             ejecucion_proceso = EjecucionProceso()
             ejecucion_proceso.proceso = proceso
             ejecucion_proceso.fechaInicio = timezone.now()
             ejecucion_proceso.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='INI')
-            ejecucion_proceso.disparador = DisparadorEjecucion.objects.get(acronimo='MAN')
+            ejecucion_proceso.disparador = DisparadorEjecucion.objects.get(acronimo=kwargs.get('disparador'))
             ejecucion_proceso.usuario = usuario
             ejecucion_proceso.celeryTaskId = current_task.request.id
 
@@ -39,6 +40,10 @@ def track_process(func):
             kwargs['ejecucion'] = ejecucion_proceso    
         except Proceso.DoesNotExist:
             # If the process does not exist, just call the function
+            guardarLogEjecucionProceso(ejecucion_proceso,TipoLogEnum.ERROR.value,f"No existe un nombre relacionado con el proceso : {tb}"[:250])
+            ejecucion_proceso.fechaFin = timezone.now()
+            ejecucion_proceso.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='FAIL')
+            ejecucion_proceso.save()
             raise ValueError(f"No existe un proceso asociado a la función {function_name}")
         try:        
             result=func(*args, **kwargs)

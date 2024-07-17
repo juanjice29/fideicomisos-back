@@ -54,8 +54,7 @@ def saludar(nombre):
 def esperar(self,tiempo):
     
     print(f"Esperando {tiempo} segundos")
-    for i in range(0,tiempo):
-        print("estoy siendo abortado :c",self.is_aborted())
+    for i in range(0,tiempo):        
         if(self.is_aborted()):
             return 
         time.sleep(1)

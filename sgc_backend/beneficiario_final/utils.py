@@ -7,15 +7,21 @@ import cx_Oracle
 import pandas as pd
 from .models import RpbfCandidatos,RpbfHistorico
 
-db_name = os.getenv("DB_NAME_SIFI")
-db_user = os.getenv("DB_USER_SIFI")
-db_pass = os.getenv("DB_PASS_SIFI")
-db_host = os.getenv("DB_HOST_SIFI")
-db_port = os.getenv("DB_PORT_SIFI")
+db_name_sifi = os.getenv("DB_NAME_SIFI")
+db_user_sifi = os.getenv("DB_USER_SIFI")
+db_pass_sifi = os.getenv("DB_PASS_SIFI")
+db_host_sifi = os.getenv("DB_HOST_SIFI")
+db_port_sifi = os.getenv("DB_PORT_SIFI")
+
+db_name_sgc = os.getenv("DB_NAME_SGC")
+db_user_sgc = os.getenv("DB_USER_SGC")
+db_pass_sgc = os.getenv("DB_PASS_SGC")
+db_host_sgc = os.getenv("DB_HOST_SGC")
+db_port_sgc = os.getenv("DB_PORT_SGC")
 
 def get_current_period():
     anio,mes = datetime.datetime.now().strftime("%Y-%m").split("-")
-    period=math.floor(int(mes)/4)+1    
+    period=math.floor((int(mes)-1)/3)+1    
     return anio+"-"+str(period)
 
 def bef_period(current_period):
@@ -77,9 +83,9 @@ def comprimir_carpeta(carpeta_a_comprimir, archivo_salida):
 def get_saldo_fondo(fondo,corte):
         
     dsn_tns = cx_Oracle.makedsn(
-        db_host, db_port, service_name=db_name)
+        db_host_sifi, db_port_sifi, service_name=db_name_sifi)
     conn = cx_Oracle.connect(
-        user=db_user, password=db_pass, dsn=dsn_tns)
+        user=db_user_sifi, password=db_pass_sifi, dsn=dsn_tns)
     cur = conn.cursor()
     
     saldo = cur.execute(saldo_fondo.format(
@@ -88,46 +94,64 @@ def get_saldo_fondo(fondo,corte):
     cur.close()
     conn.close()
     return saldo
+
 def get_reporte_final(fondo):
     dsn_tns = cx_Oracle.makedsn(
-        db_host, db_port, service_name=db_name)
+        db_host_sgc, db_port_sgc, service_name=db_name_sgc)
     conn = cx_Oracle.connect(
-        user=db_user, password=db_pass, dsn=dsn_tns)
+        user=db_user_sgc, password=db_pass_sgc, dsn=dsn_tns)
     cur = conn.cursor()
     cur.execute("SELECT * FROM RPBF_REPORTE_FINAL WHERE FONDO={0}".format(fondo))
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
-    report = pd.DataFrame(rows, columns=columns, dtype="string").fillna('')
-    report.to_csv('resultado_1.csv', index=False)
+    report = pd.DataFrame(rows, columns=columns, dtype="string").fillna('')    
     cur.close()
     conn.close() 
     
-    candidatos_3=RpbfCandidatos.objects.filter(tipoNovedad__id=3).values('nroIdentif')
+    candidatos_3 = RpbfCandidatos.objects.filter(tipoNovedad__id=3).values('nroIdentif', 'fechaCancelacion')
     df_candidatos_3 = pd.DataFrame.from_records(candidatos_3)
 
+    # Renombrar columnas en df_candidatos_3
+    df_candidatos_3 = df_candidatos_3.rename(columns={'nroIdentif': 'niben', 'fechaCancelacion': 'fecfinben'})
+
+    # Agregar la columna BECESPJ
+    df_candidatos_3['BECESPJ'] = ''
+
+    # Obtener datos de RpbfHistorico
     subquery = RpbfHistorico.objects.filter(fondo=fondo).values()
-    df_comp_historico=pd.DataFrame.from_records(subquery)
-    df_comp_historico['id']=pd.to_numeric(df_comp_historico['id'], errors='coerce')
+    df_comp_historico = pd.DataFrame.from_records(subquery).drop(columns=['fecfinben'])
+
+    # Convertir la columna 'id' a numérica y obtener el índice máximo para cada 'niben'
+    df_comp_historico['id'] = pd.to_numeric(df_comp_historico['id'], errors='coerce')
     idx = df_comp_historico.groupby('niben')['id'].idxmax()
-    df_historico = df_comp_historico.loc[idx]   
+    df_historico = df_comp_historico.loc[idx]
+
+    # Realizar el merge
+    report_3 = pd.merge(df_historico, df_candidatos_3, on='niben', how='inner')
+
+    # Eliminar columnas no deseadas
+    report_3 = report_3.drop(columns=['id', 'cargue', 'periodo', 'tipoNovedad_id'])
+
+    # Convertir los nombres de las columnas a mayúsculas
+    report_3.columns = report_3.columns.str.upper()
+
+    # Agregar la columna TNOV
+    report_3["TNOV"] = "3"
     
-    df_candidatos_3 = df_candidatos_3.rename(columns={'nroIdentif': 'niben'})
-    df_candidatos_3['BECESPJ']=''
-    
-    report_3 = pd.merge(df_historico, df_candidatos_3, on='niben', how='inner').drop(columns=['id','cargue','periodo','tipoNovedad_id'])
-    report_3.columns=report_3.columns.str.upper()
-    
-    
+    print("longitud reporte novedad 3",len(report_3))
     df_final=pd.concat([report,report_3],axis=0)
-    df_final.to_csv('resultado_3.csv', index=False)
+    df_final.to_csv('resultado_2.csv', index=False) 
+    
+    report.to_csv('resultado_1.csv', index=False)   
+     
     return df_final
 
 def get_semilla(fondo,corte,saldo):
     
     dsn_tns = cx_Oracle.makedsn(
-        db_host, db_port, service_name=db_name)
+        db_host_sifi, db_port_sifi, service_name=db_name_sifi)
     conn = cx_Oracle.connect(
-        user=db_user, password=db_pass, dsn=dsn_tns)
+        user=db_user_sifi, password=db_pass_sifi, dsn=dsn_tns)
     cur = conn.cursor()
     rows = cur.execute(query.format(saldo, corte, fondo))   
     rows = cur.fetchall()  
@@ -138,11 +162,12 @@ def get_semilla(fondo,corte,saldo):
     conn.close()
 
     return df_current
+
 def get_cancelaciones(fondo,corte):  
     dsn_tns = cx_Oracle.makedsn(
-        db_host, db_port, service_name=db_name)
+        db_host_sifi, db_port_sifi, service_name=db_name_sifi)
     conn = cx_Oracle.connect(
-        user=db_user, password=db_pass, dsn=dsn_tns)
+        user=db_user_sifi, password=db_pass_sifi, dsn=dsn_tns)
     cur = conn.cursor()
     
     if (fondo == "14"):
@@ -169,13 +194,4 @@ def get_cancelaciones(fondo,corte):
     
     return cancelaciones_df
     
-            
-def deleteCandidatosExternos():
-    dsn_tns = cx_Oracle.makedsn(
-        db_host, db_port, service_name=db_name)
-    conn = cx_Oracle.connect(
-        user=db_user, password=db_pass, dsn=dsn_tns)
-    cur = conn.cursor()
-    cur.execute("DELETE FROM RPBF_CANDIDATOS")
-    cur.close()
-    conn.close()          
+        
