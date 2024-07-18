@@ -1,15 +1,15 @@
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
-from public.models import TipoDeDocumento
+from public.models import TipoDeDocumento,TipoDePersona
 from .models import ActorDeContrato
 from django.core.exceptions import ValidationError
-from .models import ActorDeContrato
+from .models import ActorDeContrato,FuturoComprador
 from .serializers import ActorDeContratoSerializer,\
 ActorDeContratoNaturalCreateSerializer,\
 ActorDeContratoNaturalUpdateSerializer,\
 ActorDeContratoJuridicoCreateSerializer,\
-ActorDeContratoJuridicoUpdateSerializer
+ActorDeContratoJuridicoUpdateSerializer, FuturoCompradorSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -26,6 +26,41 @@ from django.core.files.storage import default_storage,FileSystemStorage
 from datetime import datetime
 import os
 from sgc_backend.middleware import get_request_id
+class FuturoCompradorView(APIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
+
+    def get_object_by_id(self, pk):
+        try:
+            return FuturoComprador.objects.get(FuturoComprador.id == pk)
+        except FuturoComprador.DoesNotExist:
+            raise NotFound(detail='Futuro comprador no encontrado')
+        except Exception as e:
+            raise APIException(detail=str(e))
+    def get_object(self, request, tipo_id, nro_id, format=None):
+        try:
+            return FuturoComprador.objects.get(tipoIdentificacion=tipo_id,numeroIdentificacion=nro_id)        
+        except  FuturoComprador.DoesNotExist:
+            raise NotFound(detail='Futuro comprador no encontrado')
+        except Exception as e:
+            raise APIException(detail=str(e))  
+    def get(self, request, tipo_id, nro_id, format=None):
+        futuro_comprador = self.get_object(tipo_id, nro_id)
+        serializer = FuturoCompradorSerializer(futuro_comprador)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    def put(self, request, tipo_id, nro_id):
+        futuro_comprador = self.get_object(tipo_id, nro_id)
+        serializer = FuturoCompradorSerializer(futuro_comprador, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, tipo_id, nro_id):
+        futuro_comprador = self.get_object(tipo_id, nro_id)
+        futuro_comprador.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 class ActorView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]
@@ -151,7 +186,85 @@ class ActorListView(generics.ListCreateAPIView):
         except Exception as e:
             raise APIException(detail=str(e)) 
 
-
+class FuturoCompradorListView(generics.ListCreateAPIView):
+    authentication_classes = [LoggingJWTAuthentication]
+    permission_classes = [IsAuthenticated, HasRolePermission]
+    ordering = ['-fechaActualizacion','-fechaCreacion']
+    queryset = FuturoComprador.objects.all()
+    serializer_class = FuturoCompradorSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['numeroIdentificacion','actordecontratonatural__primerNombre', 'actordecontratonatural__segundoNombre', 'actordecontratojuridico__razonSocialNombre']
+    def get_queryset(self):
+        try:            
+            return self.queryset
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e)) 
+    def post(self,request):
+        try:
+            tipo_persona=request.data.get('tipoPersona')
+            tipo_persona=getTipoPersonaById(tipo_persona)
+            tipo_documento=request.data.get('tipoIdentificacion')
+            validacion_tipo_persona=getTipoPersona(tipo_documento)
+            if(validacion_tipo_persona!=tipo_persona):
+                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
+            if(tipo_persona=='N'):
+                print("soy natural")
+                serializer=FuturoCompradorSerializer(data=request.data)
+            elif(tipo_persona=='J'):
+                print("soy juridico")
+                serializer=FuturoCompradorSerializer(data=request.data)
+            else:
+                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
+            if serializer.is_valid():
+                serializer.save()                
+                return Response(serializer.data,status=status.HTTP_201_CREATED)
+            return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except IntegrityError as e:
+            if 'ORA-00001' in str(e):
+                return Response({'detail':'Ya existe un futuro comprador con el mismo tipo y número de identificación'},status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            raise APIException(detail=str(e))
+    def put(self,request):
+        try:
+            tpidentif=request.data.get('tipoIdentificacion')
+            nroidentif=request.data.get('numeroIdentificacion')
+            tipo_persona=getTipoPersonaById(tpidentif)            
+            actor=FuturoComprador.get_object(self,tpidentif,nroidentif)
+            if(tipo_persona=='N'):            
+                serializer=ActorDeContratoNaturalFuturoUpdateSerializer(actor,data=request.data)
+            elif(tipo_persona=='J'):
+                serializer=ActorDeContratoJuridicoFuturoUpdateSerializer(actor,data=request.data)
+            else:
+                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
+            
+            if serializer.is_valid():
+                serializer.save(delete_non_serialized=True)
+                return Response(serializer.data,status=status.HTTP_201_CREATED)
+            else:
+                error_messages = []
+                errors = serializer.errors
+                for field, field_errors in errors.items():
+                    if field == "fideicomisoAsociado":
+                        for error in field_errors:
+                            if (error): error_messages.append(f"{error}")
+                    else:
+                        error_messages.append(f"{field}: {field_errors}")
+                return Response({"detail": error_messages},status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            raise ParseError(detail=str(e))
+        except Exception as e:
+            raise APIException(detail=str(e))
+        
+    def delete(self,request):
+        try:
+            self.queryset.delete()  
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            raise APIException(detail=str(e)) 
 class ActoresByFideiFileUploadView(APIView):    
 
     def post(self, request, codigo_SFC):
@@ -216,3 +329,5 @@ def getTipoPersona(tpidentif):
     tipo_persona = tipo_documento.idTipoPersona.tipoPersona
     return tipo_persona
 
+def getTipoPersonaById(tpPersona):
+    return TipoDePersona.objects.get(id=tpPersona).tipoPersona

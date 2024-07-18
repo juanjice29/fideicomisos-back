@@ -4,11 +4,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import permission_classes
-from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED,HTTP_403_FORBIDDEN
+from rest_framework.status import HTTP_403_FORBIDDEN
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.response import Response
-from .serializers import MyTokenObtainPairSerializer, PermisosSerializer,PantallaPermisosSerializer
+from .serializers import MyTokenObtainPairSerializer, PantallaPermisosSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken
 from .models import Permisos, PantallaPermisos
 from rest_framework.views import APIView
@@ -17,6 +17,13 @@ from .models import  Permisos
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils import timezone
 from collections import defaultdict
+from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_decode as uid_decoder
+from rest_framework import status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.contrib.auth.models import User
 
 @permission_classes([AllowAny])
 class LoginView(APIView):
@@ -84,3 +91,50 @@ class PermisosView(APIView):
         pantalla_permisos = PantallaPermisos.objects.all()
         serializer = PantallaPermisosSerializer(pantalla_permisos, many=True)
         return Response(serializer.data)
+class PasswordResetView(APIView):
+    """
+    post:
+    Send a password reset email to the user.
+    """
+    def post(self, request, *args, **kwargs):
+        username = request.data.get('username')
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return Response({"detail": "User does not exist."}, status=status.HTTP_400_BAD_REQUEST)
+
+        form = PasswordResetForm(data={'email': user.email})
+        if form.is_valid():
+            form.save(
+                use_https=request.is_secure(),
+                email_template_name='password_reset_email.html',
+                request=request,
+            )
+            return Response({"detail": "Password reset email has been sent."})
+        else:
+            return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class PasswordResetConfirmView(APIView):
+    """
+    post:
+    Reset the user's password.
+    """
+    def post(self, request, *args, **kwargs):
+        uidb64 = kwargs['uidb64']
+        token = kwargs['token']
+
+        try:
+            uid = uid_decoder(uidb64).decode()
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        if user is not None and default_token_generator.check_token(user, token):
+            form = SetPasswordForm(user, request.data)
+            if form.is_valid():
+                form.save()
+                return Response({"detail": "Password has been reset."})
+            else:
+                return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"detail": "Password reset unsuccessful."}, status=status.HTTP_400_BAD_REQUEST)

@@ -3,9 +3,9 @@ from .models import ActorDeContrato
 from fidecomisos.models import Encargo
 from fidecomisos.serializers import EncargoSerializer,FideicomisoSerializer
 from rest_framework import serializers
-from .models import TipoActorDeContrato,RelacionFideicomisoActor,ActorDeContratoNatural,ActorDeContratoJuridico
+from .models import TipoActorDeContrato,RelacionFideicomisoActor,RelacionFideicomisoFuturoComprador,ActorDeContratoNatural,ActorDeContratoJuridico
 from rest_framework import serializers
-from .models import Encargo,Fideicomiso
+from .models import Encargo,Fideicomiso,FuturoComprador
 from django.db import transaction
 
 class EncargoSerializer(serializers.ModelSerializer):
@@ -24,12 +24,11 @@ class RelacionFideicomisoActorSerializer(serializers.ModelSerializer):
     class Meta:
         model=RelacionFideicomisoActor
         fields='__all__'
-
 class RelacionFideicomisoActorCreateSerializer(serializers.ModelSerializer):
     fideicomiso = serializers.PrimaryKeyRelatedField(queryset=Fideicomiso.objects.all())    
     class Meta:
         model = RelacionFideicomisoActor
-        fields = ['fideicomiso', 'tipoActor']
+        fields = ['fideicomiso', 'tipoActor']       
 
 class ActorDeContratoNaturalSerializer(serializers.ModelSerializer):
     class Meta:
@@ -41,6 +40,18 @@ class ActorDeContratoJuridicoSerializer(serializers.ModelSerializer):
         model = ActorDeContratoJuridico
         fields = '__all__'
 
+class RelacionFideicomisoFuturoCompradorSerializer(serializers.ModelSerializer):    
+    fideicomiso = FideicomisoSerializer()
+    class Meta:
+        model=RelacionFideicomisoFuturoComprador
+        fields='__all__'
+class FuturoCompradorSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)    
+    fideicomisoAsociado = RelacionFideicomisoFuturoCompradorSerializer(source="relacionfideicomisofuturo_set", many=True,read_only=True)
+    class Meta:
+        model = FuturoComprador
+        fields = '__all__'
+               
 class ActorDeContratoSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     fideicomisoAsociado = RelacionFideicomisoActorSerializer(source="relacionfideicomisoactor_set", many=True,read_only=True)    
@@ -50,6 +61,8 @@ class ActorDeContratoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActorDeContrato
         fields='__all__'  
+
+
         
 class ActorDeContratoNaturalCreateSerializer(serializers.ModelSerializer):   
     fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)
@@ -71,10 +84,6 @@ class ActorDeContratoNaturalCreateSerializer(serializers.ModelSerializer):
                 relacion.tipoActor.set(tipo_actor_ids)        
             #actor.fideicomisoAsociado.add(fideicomiso['fideicomiso'],through_defaults={'tipoActor':fideicomiso['tipoActor']})
         return actor
-    def save(self, **kwargs):
-        instance = super().save(**kwargs)
-        instance.save()
-        return instance    
 class ActorDeContratoNaturalUpdateSerializer(serializers.ModelSerializer):   
     fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)
     class Meta:
@@ -129,11 +138,7 @@ class ActorDeContratoNaturalUpdateSerializer(serializers.ModelSerializer):
             to_delete = relaciones_current - set(f['fideicomiso'].codigoSFC for f in fideicomiso_data)            
             instance.relacionfideicomisoactor_set.filter(fideicomiso__in=to_delete).delete()
         
-        instance.save()
-        return instance
-    def save(self, **kwargs):
-        instance = super().save(**kwargs)
-        instance.save()
+        #instance.save()
         return instance
 
 class ActorDeContratoJuridicoCreateSerializer(serializers.ModelSerializer):   
@@ -156,10 +161,7 @@ class ActorDeContratoJuridicoCreateSerializer(serializers.ModelSerializer):
                 relacion.tipoActor.set(tipo_actor_ids)        
             #actor.fideicomisoAsociado.add(fideicomiso['fideicomiso'],through_defaults={'tipoActor':fideicomiso['tipoActor']})
         return actor
-    def save(self, **kwargs):
-        instance = super().save(**kwargs)
-        instance.save()
-        return instance
+
 class ActorDeContratoJuridicoUpdateSerializer(serializers.ModelSerializer):   
     fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)
     class Meta:
@@ -205,7 +207,5 @@ class ActorDeContratoJuridicoUpdateSerializer(serializers.ModelSerializer):
         instance.save()
         print("valor instancia : ",instance.razonSocialNombre)
         return instance
-    def save(self, **kwargs):
-        instance = super().save(**kwargs)
-        instance.save()
-        return instance
+
+

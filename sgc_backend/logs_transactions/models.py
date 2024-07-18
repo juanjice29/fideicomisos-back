@@ -16,7 +16,7 @@ class Log_Cambios_Create(models.Model):
     nombreModelo = models.CharField(max_length=50,db_column='nombre_modelo')    
     nuevoValor = models.TextField(null=True,db_column='nuevo_valor')    
     contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE,db_column='content_type')    
-    objectId = models.CharField(max_length=255,null=True,db_column='object_id', unique=True)
+    objectId = models.CharField(max_length=255,null=True,db_column='object_id')
     contentObject = GenericForeignKey('contentType', 'objectId')
     signalId=models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='signal_id') 
     requestId = models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='request_id')    
@@ -24,6 +24,7 @@ class Log_Cambios_Create(models.Model):
     class Meta:
         # Especifica el nombre de la tabla aquí
         db_table = 'logs_create'
+        unique_together = ('objectId', 'tiempoAccion', 'nombreModelo')
 
 class Log_Cambios_Update(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE,db_column='usuario')
@@ -32,7 +33,7 @@ class Log_Cambios_Update(models.Model):
     nombreModelo = models.CharField(max_length=50,db_column='nombre_modelo')
     cambiosValor = models.TextField(null=True,db_column='cambios_valor')    
     contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True,db_column='content_type')
-    objectId = models.CharField(max_length=255,null=True,db_column='object_id', unique=True)
+    objectId = models.CharField(max_length=255,null=True,db_column='object_id')
     contentObject = GenericForeignKey('contentType', 'objectId')
     signalId=models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='signal_id')
     requestId = models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='request_id')
@@ -40,6 +41,7 @@ class Log_Cambios_Update(models.Model):
     class Meta:
         # Especifica el nombre de la tabla aquí
         db_table = 'logs_update'
+        unique_together = ('objectId', 'tiempoAccion', 'nombreModelo')
 
 class Log_Cambios_Delete(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE,db_column='usuario')
@@ -48,7 +50,7 @@ class Log_Cambios_Delete(models.Model):
     nombreModelo = models.CharField(max_length=50,db_column='nombre_modelo')    
     antiguoValor = models.TextField(null=True,db_column='antiguo_valor')
     contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE,null=True,db_column='content_type')
-    objectId = models.CharField(max_length=255,null=True,db_column='object_id', unique=True)
+    objectId = models.CharField(max_length=255,null=True,db_column='object_id')
     contentObject = GenericForeignKey('contentType', 'objectId')
     signalId=models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='signal_id')
     requestId = models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='request_id')
@@ -56,6 +58,7 @@ class Log_Cambios_Delete(models.Model):
     class Meta:
         # Especifica el nombre de la tabla aquí
         db_table = 'logs_delete'
+        unique_together = ('objectId', 'tiempoAccion', 'nombreModelo')
 
 class Log_Cambios_M2M(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE,db_column='usuario')
@@ -63,7 +66,7 @@ class Log_Cambios_M2M(models.Model):
     tiempoAccion = models.DateTimeField(auto_now_add=True,db_column='tiempo_accion')
     nombreModelo = models.CharField(max_length=50,db_column='nombre_modelo')
 
-    objectId = models.CharField(max_length=255,null=True,db_column='object_id', unique=True)
+    objectId = models.CharField(max_length=255,null=True,db_column='object_id')
     contentType = models.ForeignKey(ContentType, on_delete=models.CASCADE,db_column='content_type', related_name='log_cambios_m2m_content')    
     contentObject = GenericForeignKey('contentType', 'objectId')
 
@@ -83,3 +86,4 @@ class Log_Cambios_M2M(models.Model):
     class Meta:
         # Especifica el nombre de la tabla aquí
         db_table = 'logs_relate'
+        unique_together = ('objectId', 'tiempoAccion', 'nombreModelo')

@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework import generics
 from .serializers import LogCreateSerializer,LogCambiosM2MSerializer,LogUpdateSerializer
-from .models import Log_Cambios_Create,Log_Cambios_M2M,Log_Cambios_Update
+from .models import Log_Cambios_Create,Log_Cambios_M2M,Log_Cambios_Update,Log_Cambios_Delete
 from sgc_backend.permissions import HasRolePermission, LoggingJWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from django.core.exceptions import ValidationError
@@ -10,6 +10,8 @@ from rest_framework.exceptions import APIException
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework import status
+from django.http import JsonResponse
+from django.contrib.contenttypes.models import ContentType
 from rest_framework.pagination import PageNumberPagination
 
 class LogCreateView(APIView):
@@ -83,4 +85,21 @@ class LogUpdateListView(APIView):
             raise ParseError(detail=str(e))
         except Exception as e:
             raise APIException(detail=str(e))
-    
+
+def track_changes(request, model_name, object_id):
+    # Get the ContentType for the model
+    content_type = ContentType.objects.get(model=model_name)
+
+    # Fetch the log entries for the given model and object ID
+    create_logs = Log_Cambios_Create.objects.filter(contentType=content_type, objectId=object_id)
+    update_logs = Log_Cambios_Update.objects.filter(contentType=content_type, objectId=object_id)
+    delete_logs = Log_Cambios_Delete.objects.filter(contentType=content_type, objectId=object_id)
+    m2m_logs = Log_Cambios_M2M.objects.filter(contentType=content_type, objectId=object_id)
+
+    # Convert the log entries to JSON and return them
+    return JsonResponse({
+        'create_logs': list(create_logs.values()),
+        'update_logs': list(update_logs.values()),
+        'delete_logs': list(delete_logs.values()),
+        'm2m_logs': list(m2m_logs.values()),
+    })
