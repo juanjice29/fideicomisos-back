@@ -34,6 +34,11 @@ class FuturoComprador(models.Model):
     fechaCreacion = models.DateTimeField(auto_now_add=True,db_column='fecha_creacion')
     fechaActualizacion = models.DateTimeField(auto_now=True,db_column='fecha_actualizacion')
     estado = models.CharField(max_length=100, default='ACT',db_column='estado')
+    primerNombre = models.CharField(max_length=100,db_column='primer_nombre', null=True)
+    segundoNombre = models.CharField(max_length=100,null=True,blank=True,db_column='segundo_nombre')
+    primerApellido = models.CharField(max_length=100,db_column='primer_apellido', null=True)
+    segundoApellido = models.CharField(max_length=100,null=True,blank=True,db_column='segundo_apellido')
+    razonSocialNombre=models.CharField(max_length=100,db_column='razon_social', null=True)
     class Meta:
         db_table = 'futuro_comprador'
 
@@ -62,10 +67,7 @@ class RelacionFideicomisoActor(models.Model):
         ]
         db_table = 'fidei_actor_fideicomiso'
 class RelacionFideicomisoFuturoComprador(models.Model):
-    FuturoComprador = models.ForeignKey(FuturoComprador, on_delete=models.CASCADE,db_column='futuro_comprador')
+    futuro = models.ForeignKey(FuturoComprador, on_delete=models.CASCADE,db_column='futuro_comprador')
     fideicomiso = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE,db_column='fideicomiso')
     class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['FuturoComprador','fideicomiso'], name='unique_fideicomiso_futuro_comprador')
-        ]
-        db_table = 'fidei_futuro_comprador_fideicomiso'
+        db_table = 'fidei_futuro_fideicomiso'

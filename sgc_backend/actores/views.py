@@ -9,9 +9,8 @@ from .serializers import ActorDeContratoSerializer,\
 ActorDeContratoNaturalCreateSerializer,\
 ActorDeContratoNaturalUpdateSerializer,\
 ActorDeContratoJuridicoCreateSerializer,\
-ActorDeContratoJuridicoUpdateSerializer, FuturoCompradorSerializer, \
-ActorDeContratoJuridicoFuturoCreateSerializer,ActorDeContratoJuridicoFuturoUpdateSerializer,\
-ActorDeContratoNaturalFuturoCreateSerializer,ActorDeContratoNaturalFuturoUpdateSerializer
+ActorDeContratoJuridicoUpdateSerializer, FuturoCompradorSerializer \
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -195,7 +194,7 @@ class FuturoCompradorListView(generics.ListCreateAPIView):
     queryset = FuturoComprador.objects.all()
     serializer_class = FuturoCompradorSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['numeroIdentificacion','actordecontratonatural__primerNombre', 'actordecontratonatural__segundoNombre', 'actordecontratojuridico__razonSocialNombre']
+    search_fields = ['numeroIdentificacion','primerNombre', 'segundoNombre', 'razonSocialNombre']
     def get_queryset(self):
         try:            
             return self.queryset
@@ -205,16 +204,7 @@ class FuturoCompradorListView(generics.ListCreateAPIView):
             raise APIException(detail=str(e)) 
     def post(self,request):
         try:
-            tpidentif=request.data.get('tipoIdentificacion')
-            tipo_persona=getTipoPersona(tpidentif)
-            if(tipo_persona=='N'):
-                print("soy natural")
-                serializer=ActorDeContratoNaturalFuturoCreateSerializer(data=request.data)
-            elif(tipo_persona=='J'):
-                print("soy juridico")
-                serializer=ActorDeContratoJuridicoFuturoCreateSerializer(data=request.data)
-            else:
-                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
+            serializer=FuturoCompradorSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()                
                 return Response(serializer.data,status=status.HTTP_201_CREATED)
@@ -228,17 +218,7 @@ class FuturoCompradorListView(generics.ListCreateAPIView):
             raise APIException(detail=str(e))
     def put(self,request):
         try:
-            tpidentif=request.data.get('tipoIdentificacion')
-            nroidentif=request.data.get('numeroIdentificacion')
-            tipo_persona=getTipoPersona(tpidentif)            
-            actor=FuturoComprador.get_object(self,tpidentif,nroidentif)
-            if(tipo_persona=='N'):            
-                serializer=ActorDeContratoNaturalFuturoUpdateSerializer(actor,data=request.data)
-            elif(tipo_persona=='J'):
-                serializer=ActorDeContratoJuridicoFuturoUpdateSerializer(actor,data=request.data)
-            else:
-                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
-            
+            serializer=FuturoCompradorSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save(delete_non_serialized=True)
                 return Response(serializer.data,status=status.HTTP_201_CREATED)
