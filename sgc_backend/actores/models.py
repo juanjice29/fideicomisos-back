@@ -3,7 +3,7 @@ from django.db import models
 from django.db import models
 from django.contrib.auth.models import User
 from fidecomisos.models import Fideicomiso, Encargo
-from public.models import TipoDeDocumento
+from public.models import TipoDeDocumento,TipoDePersona
 
 class TipoActorDeContrato(models.Model):
     tipoActor = models.CharField(max_length=90,db_column='tipo_actor')
@@ -27,20 +27,22 @@ class ActorDeContrato(models.Model):
             models.UniqueConstraint(fields=['tipoIdentificacion','numeroIdentificacion'], name='unique_identificacion')
         ] 
         db_table = 'fidei_actor' 
+        
 class FuturoComprador(models.Model):
+    tipoPersona = models.ForeignKey(TipoDePersona, on_delete=models.CASCADE,db_column='tipo_persona')
     tipoIdentificacion = models.ForeignKey(TipoDeDocumento, on_delete=models.CASCADE,db_column='tipo_identificacion', null=True, blank=True)
-    numeroIdentificacion = models.CharField(max_length=12,db_column='numero_identificacion', null=True, blank=True)
-    fideicomisoAsociado = models.ManyToManyField(Fideicomiso,through='RelacionFideicomisoFuturoComprador')
-    fechaCreacion = models.DateTimeField(auto_now_add=True,db_column='fecha_creacion')
-    fechaActualizacion = models.DateTimeField(auto_now=True,db_column='fecha_actualizacion')
-    estado = models.CharField(max_length=100, default='ACT',db_column='estado')
-    primerNombre = models.CharField(max_length=100,db_column='primer_nombre', null=True)
+    numeroIdentificacion = models.CharField(max_length=12,db_column='numero_identificacion', null=True, blank=True)    
+    primerNombre = models.CharField(max_length=100,null=True,blank=True,db_column='primer_nombre')
     segundoNombre = models.CharField(max_length=100,null=True,blank=True,db_column='segundo_nombre')
-    primerApellido = models.CharField(max_length=100,db_column='primer_apellido', null=True)
+    primerApellido = models.CharField(max_length=100,null=True,blank=True,db_column='primer_apellido')
     segundoApellido = models.CharField(max_length=100,null=True,blank=True,db_column='segundo_apellido')
-    razonSocialNombre=models.CharField(max_length=100,db_column='razon_social', null=True)
+    razonSocialNombre=models.CharField(max_length=100,null=True,blank=True,db_column='razon_social')
+    estado = models.CharField(max_length=100, default='ACT',db_column='estado')
+    fechaCreacion = models.DateTimeField(auto_now_add=True,db_column='fecha_creacion')
+    fechaActualizacion = models.DateTimeField(auto_now=True,db_column='fecha_actualizacion')    
+    fideicomisoAsociado = models.ManyToManyField(Fideicomiso,through='RelacionFideicomisoFuturoComprador')
     class Meta:
-        db_table = 'futuro_comprador'
+        db_table = 'fidei_futuro_comprador'
 
 class ActorDeContratoNatural(ActorDeContrato):
     primerNombre = models.CharField(max_length=100,db_column='primer_nombre')
@@ -66,8 +68,13 @@ class RelacionFideicomisoActor(models.Model):
             models.UniqueConstraint(fields=['actor','fideicomiso'], name='unique_fideicomiso_actor')
         ]
         db_table = 'fidei_actor_fideicomiso'
+        
 class RelacionFideicomisoFuturoComprador(models.Model):
+
     futuro = models.ForeignKey(FuturoComprador, on_delete=models.CASCADE,db_column='futuro_comprador')
     fideicomiso = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE,db_column='fideicomiso')
     class Meta:
-        db_table = 'fidei_futuro_fideicomiso'
+        constraints = [
+            models.UniqueConstraint(fields=['futuroComprador','fideicomiso'], name='unique_fideicomiso_futuro_comprador')
+        ]
+        db_table = 'fidei_futuro_comprador_fideicomiso'

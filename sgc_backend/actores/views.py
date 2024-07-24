@@ -1,7 +1,7 @@
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
-from public.models import TipoDeDocumento
+from public.models import TipoDeDocumento,TipoDePersona
 from .models import ActorDeContrato
 from django.core.exceptions import ValidationError
 from .models import ActorDeContrato,FuturoComprador
@@ -10,7 +10,7 @@ ActorDeContratoNaturalCreateSerializer,\
 ActorDeContratoNaturalUpdateSerializer,\
 ActorDeContratoJuridicoCreateSerializer,\
 ActorDeContratoJuridicoUpdateSerializer, FuturoCompradorSerializer \
-
+    
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -204,7 +204,22 @@ class FuturoCompradorListView(generics.ListCreateAPIView):
             raise APIException(detail=str(e)) 
     def post(self,request):
         try:
+
             serializer=FuturoCompradorSerializer(data=request.data)
+            tipo_persona=request.data.get('tipoPersona')
+            tipo_persona=getTipoPersonaById(tipo_persona)
+            tipo_documento=request.data.get('tipoIdentificacion')
+            validacion_tipo_persona=getTipoPersona(tipo_documento)
+            if(validacion_tipo_persona!=tipo_persona):
+                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
+            if(tipo_persona=='N'):
+                print("soy natural")
+                serializer=FuturoCompradorSerializer(data=request.data)
+            elif(tipo_persona=='J'):
+                print("soy juridico")
+                serializer=FuturoCompradorSerializer(data=request.data)
+            else:
+                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
             if serializer.is_valid():
                 serializer.save()                
                 return Response(serializer.data,status=status.HTTP_201_CREATED)
@@ -218,7 +233,7 @@ class FuturoCompradorListView(generics.ListCreateAPIView):
             raise APIException(detail=str(e))
     def put(self,request):
         try:
-            serializer=FuturoCompradorSerializer(data=request.data)
+            serializer=FuturoCompradorSerializer(data=request.data)         
             if serializer.is_valid():
                 serializer.save(delete_non_serialized=True)
                 return Response(serializer.data,status=status.HTTP_201_CREATED)
@@ -307,3 +322,5 @@ def getTipoPersona(tpidentif):
     tipo_persona = tipo_documento.idTipoPersona.tipoPersona
     return tipo_persona
 
+def getTipoPersonaById(tpPersona):
+    return TipoDePersona.objects.get(id=tpPersona).tipoPersona

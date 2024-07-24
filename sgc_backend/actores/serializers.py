@@ -24,11 +24,13 @@ class RelacionFideicomisoActorSerializer(serializers.ModelSerializer):
     class Meta:
         model=RelacionFideicomisoActor
         fields='__all__'
+
 class RelacionFideicomisoFuturoSerializer(serializers.ModelSerializer):
     fideicomiso = FideicomisoSerializer()    
     class Meta:
         model=RelacionFideicomisoFuturoComprador
         fields='__all__'
+
 class RelacionFideicomisoActorCreateSerializer(serializers.ModelSerializer):
     fideicomiso = serializers.PrimaryKeyRelatedField(queryset=Fideicomiso.objects.all())    
     class Meta:
@@ -39,6 +41,7 @@ class RelacionFideicomisoFuturoCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = RelacionFideicomisoFuturoComprador
         fields = ['fideicomiso']
+      
 
 class ActorDeContratoNaturalSerializer(serializers.ModelSerializer):
     class Meta:
@@ -50,6 +53,18 @@ class ActorDeContratoJuridicoSerializer(serializers.ModelSerializer):
         model = ActorDeContratoJuridico
         fields = '__all__'
 
+class RelacionFideicomisoFuturoCompradorSerializer(serializers.ModelSerializer):    
+    fideicomiso = FideicomisoSerializer()
+    class Meta:
+        model=RelacionFideicomisoFuturoComprador
+        fields='__all__'
+class FuturoCompradorSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)    
+    fideicomisoAsociado = RelacionFideicomisoFuturoCompradorSerializer(source="relacionfideicomisofuturo_set", many=True,read_only=True)
+    class Meta:
+        model = FuturoComprador
+        fields = '__all__'
+               
 class ActorDeContratoSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     fideicomisoAsociado = RelacionFideicomisoActorSerializer(source="relacionfideicomisoactor_set", many=True,read_only=True)    
@@ -60,6 +75,7 @@ class ActorDeContratoSerializer(serializers.ModelSerializer):
         model = ActorDeContrato
         fields='__all__'  
 
+
 class FuturoCompradorSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     numeroIdentificacion = serializers.CharField(allow_blank=True, required=False)
@@ -67,6 +83,7 @@ class FuturoCompradorSerializer(serializers.ModelSerializer):
     class Meta:
         model = FuturoComprador
         fields = '__all__'
+
 class ActorDeContratoNaturalCreateSerializer(serializers.ModelSerializer):   
     fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)
     class Meta:
@@ -144,6 +161,7 @@ class ActorDeContratoNaturalUpdateSerializer(serializers.ModelSerializer):
         
         #instance.save()
         return instance
+
 class ActorDeContratoJuridicoCreateSerializer(serializers.ModelSerializer):   
     fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)
     class Meta:
