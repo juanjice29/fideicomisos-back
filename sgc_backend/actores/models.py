@@ -71,7 +71,7 @@ class RelacionFideicomisoActor(models.Model):
         
 class RelacionFideicomisoFuturoComprador(models.Model):
 
-    futuro = models.ForeignKey(FuturoComprador, on_delete=models.CASCADE,db_column='futuro_comprador')
+    futuroComprador = models.ForeignKey(FuturoComprador, on_delete=models.CASCADE,db_column='futuro_comprador')
     fideicomiso = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE,db_column='fideicomiso')
     class Meta:
         constraints = [

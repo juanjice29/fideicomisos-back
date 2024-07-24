@@ -206,20 +206,6 @@ class FuturoCompradorListView(generics.ListCreateAPIView):
         try:
 
             serializer=FuturoCompradorSerializer(data=request.data)
-            tipo_persona=request.data.get('tipoPersona')
-            tipo_persona=getTipoPersonaById(tipo_persona)
-            tipo_documento=request.data.get('tipoIdentificacion')
-            validacion_tipo_persona=getTipoPersona(tipo_documento)
-            if(validacion_tipo_persona!=tipo_persona):
-                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
-            if(tipo_persona=='N'):
-                print("soy natural")
-                serializer=FuturoCompradorSerializer(data=request.data)
-            elif(tipo_persona=='J'):
-                print("soy juridico")
-                serializer=FuturoCompradorSerializer(data=request.data)
-            else:
-                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
             if serializer.is_valid():
                 serializer.save()                
                 return Response(serializer.data,status=status.HTTP_201_CREATED)

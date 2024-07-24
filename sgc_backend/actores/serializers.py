@@ -64,7 +64,27 @@ class FuturoCompradorSerializer(serializers.ModelSerializer):
     class Meta:
         model = FuturoComprador
         fields = '__all__'
-               
+    def validate(self, data):
+        tipo_persona = data.get('tipoPersona', {}).get('tipoPersona', None)
+
+        if tipo_persona == 'J':
+            if 'razonSocialNombre' not in data:
+                raise serializers.ValidationError({
+                    'razonSocialNombre': 'This field is required.'
+                })
+            data.pop('primerNombre', None)
+            data.pop('segundoNombre', None)
+            data.pop('primerApellido', None)
+            data.pop('segundoApellido', None)
+        elif tipo_persona == 'N':
+            if 'primerNombre' not in data or 'primerApellido' not in data:
+                raise serializers.ValidationError({
+                    'primerNombre': 'This field is required.',
+                    'primerApellido': 'This field is required.'
+                })
+            data.pop('razonSocialNombre', None)
+
+        return data           
 class ActorDeContratoSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     fideicomisoAsociado = RelacionFideicomisoActorSerializer(source="relacionfideicomisoactor_set", many=True,read_only=True)    
