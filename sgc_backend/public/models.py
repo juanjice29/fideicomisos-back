@@ -23,7 +23,12 @@ class TipoNovedadRPBF(models.Model):
     descripcion = models.CharField(max_length=255)
     class Meta:
         db_table="params_tipo_novedad_rpbf"
-
+class HomologacionesRPBF(models.Model):
+    valorDian=models.CharField(max_length=4,db_column='valor_dian')
+    valorSgc=models.CharField(max_length=4,db_column='valor_sgc')
+    valorSifi=models.CharField(max_length=4,db_column='valor_sifi')
+    class Meta:
+        db_table="params_homologaciones_rpbf"
 class ParametrosRpbf(models.Model):
     fondo=models.CharField(max_length=3,db_column='fondo')
     novedad=models.CharField(max_length=3,db_column='novedad')
