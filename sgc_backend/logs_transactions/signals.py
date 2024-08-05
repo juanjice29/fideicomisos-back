@@ -57,14 +57,6 @@ def post_save_receiver(sender, instance, created, **kwargs):
             #logger.info(f"Current task: {current_task}")
             #logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")
             if current_task and current_task.request.is_eager == False:
-                if request is None:
-                    logger.error("No current request")
-                    return
-                try:
-                    user = User.objects.get(username=request.user.username)
-                except User.DoesNotExist:
-                    logger.error(f"User '{request.user.username}' does not exist")
-                    return  
                 task_result = AsyncResult(current_task.request.id)
                 if 'usuario_id' in task_result.result:
                     try:
@@ -130,14 +122,6 @@ def pre_save_receiver(sender, instance, update_fields,**kwargs):
            # logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")      
             if current_task and current_task.request.is_eager == False:
                 task_result = AsyncResult(current_task.request.id)
-                if request is None:
-                    logger.error("No current request")
-                    return
-                try:
-                    user = User.objects.get(username=request.user.username)
-                except User.DoesNotExist:
-                    logger.error(f"User '{request.user.username}' does not exist")
-                    return  
                 if 'usuario_id' in task_result.result:
                     try:
                         user_id = task_result.result['usuario_id']
