@@ -22,17 +22,14 @@ from actores.models import ActorDeContratoNatural, ActorDeContratoJuridico, Acto
 from django.db.models.signals import post_init
 from django.dispatch import receiver
 from django.core import serializers
-
-
+import threading
+_thread_locals = threading.local()
 valid_sender=['fideicomisos','accounts','public','actores']
-@receiver(post_init, sender=ActorDeContrato)
-def save_initial_state(sender, instance, **kwargs):
-    if isinstance(instance, ActorDeContratoNatural):
-        instance._initial_state = model_to_dict(instance, fields=['primerNombre', 'segundoNombre', 'primerApellido', 'segundoApellido'])
-    elif isinstance(instance, ActorDeContratoJuridico):
-        instance._initial_state = model_to_dict(instance, fields=['razonSocial', 'nombreComercial', 'nit'])
-    else:
-        instance._initial_state = instance.__dict__.copy()
+def get_current_user():
+    return getattr(_thread_locals, 'user', None)
+
+def set_current_user(user):
+    _thread_locals.user = user
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
@@ -56,9 +53,18 @@ def post_save_receiver(sender, instance, created, **kwargs):
             request_id=get_request_id()    
             request = get_current_request()
             tipo_proceso = DisparadorEjecucion.objects.get(acronimo='MAN')
+            
             #logger.info(f"Current task: {current_task}")
             #logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")
             if current_task and current_task.request.is_eager == False:
+                if request is None:
+                    logger.error("No current request")
+                    return
+                try:
+                    user = User.objects.get(username=request.user.username)
+                except User.DoesNotExist:
+                    logger.error(f"User '{request.user.username}' does not exist")
+                    return  
                 task_result = AsyncResult(current_task.request.id)
                 if 'usuario_id' in task_result.result:
                     try:
@@ -124,6 +130,14 @@ def pre_save_receiver(sender, instance, update_fields,**kwargs):
            # logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")      
             if current_task and current_task.request.is_eager == False:
                 task_result = AsyncResult(current_task.request.id)
+                if request is None:
+                    logger.error("No current request")
+                    return
+                try:
+                    user = User.objects.get(username=request.user.username)
+                except User.DoesNotExist:
+                    logger.error(f"User '{request.user.username}' does not exist")
+                    return  
                 if 'usuario_id' in task_result.result:
                     try:
                         user_id = task_result.result['usuario_id']
@@ -207,6 +221,7 @@ def pre_delete_receiver(sender, instance, **kwargs):
             if current_task and current_task.request.is_eager == False:
                 task_result = AsyncResult(current_task.request.id)
                 if 'usuario_id' in task_result.result:
+                    
                     try:
                         user_id = task_result.result['usuario_id']
                         user = User.objects.get(pk=user_id)
@@ -256,16 +271,20 @@ def pre_delete_receiver(sender, instance, **kwargs):
             # Handle all other types of errors
             logger.info(f"Un error ocurrio: {str(e)}")   
     transaction.on_commit(_pre_delete_receiver)
-@receiver(m2m_changed)
+"""@receiver(m2m_changed)
 def save_initial_m2m_state(sender, instance, action, **kwargs):
     if action == "pre_add" or action == "pre_remove" or action == "pre_clear":
         m2m_fields = [field for field in instance._meta.get_fields() if isinstance(field, models.ManyToManyField)]
         instance._initial_m2m_state = {field.name: [obj.pk for obj in getattr(instance, field.name).all()] for field in m2m_fields}
 @receiver(m2m_changed)
 def log_m2m_changes(sender, instance, action, pk_set, **kwargs):
-    """
-    Log changes to many-to-many fields.
-    """
+    
+    #Log changes to many-to-many fields.
+    
+    app_name_sender=sender._meta.app_label
+    if app_name_sender not in valid_sender:
+        #logger.info(f"Invalid sender: {app_name_sender}")
+        return
     if action in ["post_add", "post_remove", "post_clear"]:
         # Get the name of the many-to-many field
         m2m_field_name = kwargs.get('reverse') and instance.__class__.__name__.lower() or sender.__name__.lower()
@@ -300,7 +319,7 @@ def log_m2m_changes(sender, instance, action, pk_set, **kwargs):
             accion=action,
             requestId=str(uuid.uuid4()), 
         )
-    
+"""    
 def serialize_instance(instance):
     """
     Serialize a Django model instance to a JSON-compatible dictionary.

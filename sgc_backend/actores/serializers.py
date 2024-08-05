@@ -250,4 +250,3 @@ class ActorDeContratoJuridicoUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 
-

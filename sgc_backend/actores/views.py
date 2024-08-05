@@ -1,3 +1,4 @@
+import logging
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
@@ -269,14 +270,15 @@ class ActoresByFideiFileUploadView(APIView):
         except Exception as e:
             raise APIException(detail=str(e))
         
-        
+logger = logging.getLogger(__name__)        
 class ActoresFileUploadView(APIView):    
 
     def post(self, request):
         form = UploadFileForm(request.POST, request.FILES)
        
         try:
-            if form.is_valid():         
+            if form.is_valid():    
+                logger.info("ActoresFileUploadView")     
                 file = form.cleaned_data['file'] 
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                 dir_name = f'C:/Salida-SGC/actores/temp/masivo_general/actores_'+ timestamp

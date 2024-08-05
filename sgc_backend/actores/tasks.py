@@ -1,3 +1,5 @@
+import logging
+import os
 from celery import Celery,current_task,shared_task
 from process.decorators import TipoLogEnum, guardarLogEjecucionProceso, guardarLogEjecucionTareaProceso, track_process,protected_function_process,track_sub_task,log_changes
 from django import forms
@@ -45,19 +47,19 @@ def tkpCargarActoresPorFideiExcel(file_path,fideicomiso,usuario_id, disparador,e
                                "Fin de proceso, resultados: "+str(resultado))
     
     return str(resultado)
-
+logger = logging.getLogger(__name__)
 @shared_task
 @track_process
 
 def tkpCargarActoresExcel(file_path,usuario_id,ip_address,request_id, disparador,ejecucion=None):
     current_task.update_state(state='PROGRESS', meta={'usuario_id': usuario_id, 'ip_address': ip_address, 'request_id': request_id,'disparador':disparador})
 
-    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimio='PPP')
+    ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                "Inicio validacion del archivo excel")
-    
+    logger.info("Starting tkpCargarActoresExcel")
     df=tkExcelActoresToPandas(file_path=file_path,ejecucion=ejecucion)
     if df is False:
         guardarLogEjecucionProceso(ejecucion,
@@ -80,21 +82,30 @@ def tkpCargarActoresExcel(file_path,usuario_id,ip_address,request_id, disparador
 @track_sub_task
 def tkExcelActoresToPandas(file_path,tarea=None,ejecucion=None):
     try:
+        logger.info("Starting tkExcelActoresToPandas")
+        if not os.path.exists(file_path):
+            logger.error(f"File does not exist: {file_path}")
+            return False
         default_cols=['tipoIdentificacion','numeroIdentificacion','tipoActor','fideicomiso','primerNombre','segundoNombre','primerApellido','segundoApellido','razonSocialNombre']
         df=pd.read_excel(file_path, header=None)        
         df.columns = default_cols[:len(df.columns)]
-        df = df.drop(df.index[0])   
+        df = df.drop(df.index[0]) 
+        logger.info(f"Dataframe leido: {df}")  
         return df
     except PermissionError:
+        logger.error(f"No se tienen permisos para leer el archivo: {file_path}\n{traceback.format_exc()}")
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"No se tienen permisos para leer el archivo")
         return False
     except ValueError:
+        logger.error(f"El archivo de excel no es valido o esta dañado,revisar columnas: {file_path}\n{traceback.format_exc()}")
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"El archivo de excel no es valido o esta dañado,revisar columnas")
         return False
     except MemoryError:
+        logger.error(f"El archivo excede la capacidad de memoria de el worker: {file_path}\n{traceback.format_exc()}")
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"El archivo excede la capacidad de memoria de el worker")
         return False
-    except Exception as e:        
+    except Exception as e:  
+        logger.error(f"Error desconocido transformando archivo: {file_path}\n{traceback.format_exc()}")      
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error desconocido transformando archivo: {str(e)}")
         return False
     
@@ -104,8 +115,10 @@ def tkExcelActoresPorFideiToPandas(file_path,fideicomiso,tarea=None,ejecucion=No
         default_cols=['tipoIdentificacion','numeroIdentificacion','tipoActor','primerNombre','segundoNombre','primerApellido','segundoApellido','razonSocialNombre']
         df=pd.read_excel(file_path, header=None)        
         df.columns = default_cols[:len(df.columns)]
+        logger.info(f"Dataframe leido: {df}")
         df = df.drop(df.index[0])       
-        df=df.assign(fideicomiso=fideicomiso)        
+        df=df.assign(fideicomiso=fideicomiso)
+        logger.info(f"Dataframe con fideicomiso: {df}")        
         return df
     except PermissionError:
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"No se tienen permisos para leer el archivo")
@@ -177,7 +190,8 @@ def tkProcesarPandasActores( df,tarea=None,ejecucion=None,usuario_id=None):
                 guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al crear el actor en la fila {index}, {serializer.errors}") 
         except Exception as e:
             resultado['errores']+=1
-            guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al procesar la fila {index}, {str(e)[:200]}")            
+            tb = traceback.format_exc()
+            guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al procesar la fila {index}, {str(e)[:200]} \n {tb}")            
             continue
     return resultado
 
