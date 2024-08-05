@@ -5,13 +5,15 @@ from process.decorators import TipoLogEnum, guardarLogEjecucionProceso, guardarL
 from django import forms
 import pandas as pd
 from django.db.models.signals import pre_save, post_save, pre_delete
-from public.models import TipoDeDocumento
-from actores.models import TipoActorDeContrato,ActorDeContrato
+from public.models import TipoDeDocumento,TipoDePersona
+from actores.models import TipoActorDeContrato,ActorDeContrato,FuturoComprador
+from fidecomisos.models import Fideicomiso
 from actores.serializers import TipoActorDeContratoSerializer,\
 ActorDeContratoNaturalCreateSerializer,\
 ActorDeContratoNaturalUpdateSerializer,\
 ActorDeContratoJuridicoUpdateSerializer,\
-ActorDeContratoJuridicoCreateSerializer
+ActorDeContratoJuridicoCreateSerializer,\
+FuturoCompradorSerializer
 from sgc_backend.middleware import get_request_id
 import json
 import traceback
@@ -50,10 +52,9 @@ def tkpCargarActoresPorFideiExcel(file_path,fideicomiso,usuario_id, disparador,e
 logger = logging.getLogger(__name__)
 @shared_task
 @track_process
-
 def tkpCargarActoresExcel(file_path,usuario_id,ip_address,request_id, disparador,ejecucion=None):
     current_task.update_state(state='PROGRESS', meta={'usuario_id': usuario_id, 'ip_address': ip_address, 'request_id': request_id,'disparador':disparador})
-
+    logger.info(f"usuario_id: {usuario_id}")
     ejecucion.estadoEjecucion = EstadoEjecucion.objects.get(acronimo='PPP')
     ejecucion.save()
     guardarLogEjecucionProceso(ejecucion,
@@ -86,7 +87,7 @@ def tkExcelActoresToPandas(file_path,tarea=None,ejecucion=None):
         if not os.path.exists(file_path):
             logger.error(f"File does not exist: {file_path}")
             return False
-        default_cols=['tipoIdentificacion','numeroIdentificacion','tipoActor','fideicomiso','primerNombre','segundoNombre','primerApellido','segundoApellido','razonSocialNombre']
+        default_cols=['tipoIdentificacion','numeroIdentificacion','tipoActor','fideicomiso','primerNombre','segundoNombre','primerApellido','segundoApellido','razonSocialNombre','tipoPersona']
         df=pd.read_excel(file_path, header=None)        
         df.columns = default_cols[:len(df.columns)]
         df = df.drop(df.index[0]) 
@@ -112,7 +113,7 @@ def tkExcelActoresToPandas(file_path,tarea=None,ejecucion=None):
 @track_sub_task
 def tkExcelActoresPorFideiToPandas(file_path,fideicomiso,tarea=None,ejecucion=None):
     try:
-        default_cols=['tipoIdentificacion','numeroIdentificacion','tipoActor','primerNombre','segundoNombre','primerApellido','segundoApellido','razonSocialNombre']
+        default_cols=['tipoIdentificacion','numeroIdentificacion','tipoActor','primerNombre','segundoNombre','primerApellido','segundoApellido','razonSocialNombre','tipoPersona']
         df=pd.read_excel(file_path, header=None)        
         df.columns = default_cols[:len(df.columns)]
         logger.info(f"Dataframe leido: {df}")
@@ -141,53 +142,95 @@ def tkProcesarPandasActores( df,tarea=None,ejecucion=None,usuario_id=None):
         'creados':0
     }
     for index,row in df.iterrows():
-        try:            
-            if pd.isna(row['tipoIdentificacion']) or pd.isna(row['numeroIdentificacion']) or pd.isna(row['tipoActor']):
-                resultado['errores']+=1
-                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Datos insuficientes para crear el actor en la fila {index}")
-                continue            
-            if not TipoDeDocumento.objects.filter(tipoDocumento=row['tipoIdentificacion']).exists():
-                resultado['errores']+=1
-                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"El tipo de documento en la fila {index} no existe")
-                continue
-            if not TipoActorDeContrato.objects.filter(id=row['tipoActor']).exists():
-                resultado['errores']+=1
-                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"El tipo de actor en la fila {index} no existe")
-            
-            tipoIdentificacion=row['tipoIdentificacion']
-            numeroIdentificacion=row['numeroIdentificacion']
-            tipoPersona=getTipoPersona(tipoIdentificacion)
-            if (tipoPersona=='N') and (pd.isna(row['primerNombre']) or pd.isna(row['primerApellido'])):
-                resultado['errores']+=1
-                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Primer nombre y Primer apellido requeridos {index}")
-                continue
-            if((tipoPersona=='J') and (pd.isna(row['razonSocialNombre']))):
-                resultado['errores']+=1
-                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Razon social nombre requerida {index}")
-                continue
+        try:
+            tipoActor = TipoActorDeContrato.objects.get(id=row['tipoActor'])            
+            if tipoActor.descripcion == 'Futuro Comprador':
+                fideicomiso = Fideicomiso.objects.get(codigoSFC=row['fideicomiso'])
+                tipoPersona = TipoDePersona.objects.get(id=row['tipoPersona'])
+                if tipoPersona.tipoPersona == 'J':
+                    futuro_comprador = FuturoComprador.objects.filter(razonSocialNombre=row['razonSocialNombre'], fideicomisoAsociado=fideicomiso).first()
+                else:
+                    futuro_comprador = FuturoComprador.objects.filter(primerNombre=row['primerNombre'], primerApellido=row['primerApellido'], fideicomisoAsociado=fideicomiso).first()
 
-            actor=ActorDeContrato.objects.filter(tipoIdentificacion=tipoIdentificacion,numeroIdentificacion=numeroIdentificacion).first()    
-            if actor:                
-                serializer=serializarActor(row=row,actor=actor,action='UPDATE')  
-                if serializer.is_valid():
-                    with transaction.atomic():
-                        serializer.save(preserve_non_serialized_tp_actor=True)
-                        resultado['actualizados']+=1
-                        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.WARN.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} se le sobreescriben los datos.")
+                if futuro_comprador:
+                    row_dict = row.to_dict()
+
+                    if pd.isna(row_dict.get('tipoIdentificacion')):
+                        row_dict.pop('tipoIdentificacion', None)
+
+                    if pd.isna(row_dict.get('numeroIdentificacion')):
+                        row_dict.pop('numeroIdentificacion', None)
+                    serializer = FuturoCompradorSerializer(data=row.to_dict())
+                    if serializer.is_valid():
+                        with transaction.atomic():
+                            serializer.save()
+                            resultado['actualizados'] += 1
+                            guardarLogEjecucionTareaProceso(ejecucion, tarea, TipoLogEnum.WARN.value, f"Futuro comprador '{row['primerNombre']} {row['primerApellido']}', en la fila {index} se le sobreescriben los datos.")
+                    else:
+                        resultado['errores'] += 1
+                        guardarLogEjecucionTareaProceso(ejecucion, tarea, TipoLogEnum.ERROR.value, f"Error al sobreescribir datos del futuro comprador en la fila {index}, {serializer.errors}")
+                else:
+                    row_dict = row.to_dict()
+                    if pd.isna(row_dict.get('tipoIdentificacion')):
+                        row_dict.pop('tipoIdentificacion', None)
+                    if pd.isna(row_dict.get('numeroIdentificacion')):
+                        row_dict.pop('numeroIdentificacion', None)
+                    serializer = FuturoCompradorSerializer(futuro_comprador, data=row_dict)
+                    if serializer.is_valid():
+                        with transaction.atomic():
+                            serializer.save()
+                            resultado['creados'] += 1
+                            guardarLogEjecucionTareaProceso(ejecucion, tarea, TipoLogEnum.INFO.value, f"Futuro comprador '{row['primerNombre']} {row['primerApellido']}', en la fila {index} creado exitosamente para el fideicomiso {row['fideicomiso']}")
+                    else:
+                        resultado['errores'] += 1
+                        guardarLogEjecucionTareaProceso(ejecucion, tarea, TipoLogEnum.ERROR.value, f"Error al crear el futuro comprador en la fila {index}, {serializer.errors}")
+            else:            
+                if pd.isna(row['tipoIdentificacion']) or pd.isna(row['numeroIdentificacion']) or pd.isna(row['tipoActor']):
+                    resultado['errores']+=1
+                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Datos insuficientes para crear el actor en la fila {index}")
+                    continue            
+                if not TipoDeDocumento.objects.filter(tipoDocumento=row['tipoIdentificacion']).exists():
+                    resultado['errores']+=1
+                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"El tipo de documento en la fila {index} no existe")
+                    continue
+                if not TipoActorDeContrato.objects.filter(id=row['tipoActor']).exists():
+                    resultado['errores']+=1
+                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"El tipo de actor en la fila {index} no existe")
+                
+                tipoIdentificacion=row['tipoIdentificacion']
+                numeroIdentificacion=row['numeroIdentificacion']
+                tipoPersona=getTipoPersona(tipoIdentificacion)
+                if (tipoPersona=='N') and (pd.isna(row['primerNombre']) or pd.isna(row['primerApellido'])):
+                    resultado['errores']+=1
+                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Primer nombre y Primer apellido requeridos {index}")
+                    continue
+                if((tipoPersona=='J') and (pd.isna(row['razonSocialNombre']))):
+                    resultado['errores']+=1
+                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Razon social nombre requerida {index}")
+                    continue
+
+                actor=ActorDeContrato.objects.filter(tipoIdentificacion=tipoIdentificacion,numeroIdentificacion=numeroIdentificacion).first()    
+                if actor:                
+                    serializer=serializarActor(row=row,actor=actor,action='UPDATE')  
+                    if serializer.is_valid():
+                        with transaction.atomic():
+                            serializer.save(preserve_non_serialized_tp_actor=True)
+                            resultado['actualizados']+=1
+                            guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.WARN.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} se le sobreescriben los datos.")
+                    else:
+                        resultado['errores']+=1
+                        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al sobreescribir datos del el actor en la fila {index}, {serializer.errors}")  
+                    continue
+                
+                serializer=serializarActor(row=row,action='CREATE')                  
+                if serializer.is_valid():     
+                    with transaction.atomic():           
+                        serializer.save()
+                        resultado['creados']+=1
+                        guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} creado exitosamente para el fideicomiso {row['fideicomiso']}")
                 else:
                     resultado['errores']+=1
-                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al sobreescribir datos del el actor en la fila {index}, {serializer.errors}")  
-                continue
-            
-            serializer=serializarActor(row=row,action='CREATE')                  
-            if serializer.is_valid():     
-                with transaction.atomic():           
-                    serializer.save()
-                    resultado['creados']+=1
-                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,f"Actor '{row['tipoIdentificacion']} {row['numeroIdentificacion']}',en la fila {index} creado exitosamente para el fideicomiso {row['fideicomiso']}")
-            else:
-                resultado['errores']+=1
-                guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al crear el actor en la fila {index}, {serializer.errors}") 
+                    guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"Error al crear el actor en la fila {index}, {serializer.errors}") 
         except Exception as e:
             resultado['errores']+=1
             tb = traceback.format_exc()

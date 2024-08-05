@@ -24,7 +24,7 @@ from django.dispatch import receiver
 from django.core import serializers
 import threading
 _thread_locals = threading.local()
-valid_sender=['fideicomisos','accounts','public','actores']
+valid_sender=['fideicomisos','accounts','public','actores','ActorDeContrato']
 def get_current_user():
     return getattr(_thread_locals, 'user', None)
 
@@ -53,7 +53,7 @@ def post_save_receiver(sender, instance, created, **kwargs):
             request_id=get_request_id()    
             request = get_current_request()
             tipo_proceso = DisparadorEjecucion.objects.get(acronimo='MAN')
-            
+            logger.info(f"Request: {request}")
             #logger.info(f"Current task: {current_task}")
             #logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")
             if current_task and current_task.request.is_eager == False:
@@ -108,22 +108,28 @@ def pre_save_receiver(sender, instance, update_fields,**kwargs):
         try:
             
             #logger.info(f"pre_save signal received from {sender}")
-            #logger.info(f"Instance: {instance}")
-            app_name_sender=sender._meta.app_label
+            logger.info(f"Instance: {instance}")
+            if sender is not None:
+                logger.info(f"Sender: {sender.__name__}")
+                app_name_sender = sender.__name__
+            else:
+                logger.error("Sender is None")
+                return 
             if app_name_sender not in valid_sender:
                 #logger.info(f"Invalid sender: {app_name_sender}")
                 return
-            #logger.info(f"pre_save signal received from {sender.__name__} for instance {instance.pk}")
+            logger.info(f"pre_save signal received from {sender.__name__} for instance {instance.pk}")
             request = get_current_request()
-            request_id=get_request_id()
             signal_id=str(uuid.uuid4()) 
             tipo_proceso = DisparadorEjecucion.objects.get(acronimo='MAN')
+            logger.info(f"Request: {request}")
             #logger.info(f"Current task: {current_task}")
            # logger.info(f"Is current task eager: {current_task.request.is_eager if current_task else None}")      
             if current_task and current_task.request.is_eager == False:
                 task_result = AsyncResult(current_task.request.id)
                 if 'usuario_id' in task_result.result:
                     try:
+                        logger.info(f"Task result: {task_result.result}")
                         user_id = task_result.result['usuario_id']
                         user = User.objects.get(pk=user_id)
                         ip = task_result.result['ip_address']
@@ -137,6 +143,8 @@ def pre_save_receiver(sender, instance, update_fields,**kwargs):
                     logger.error("No usuario_id in current task request")
                     return
             else:
+                
+                request_id=get_request_id()
                 if request is None:
                     #logger.error("No current request")
                     return
@@ -161,11 +169,8 @@ def pre_save_receiver(sender, instance, update_fields,**kwargs):
                 changed_fields = {field: getattr(instance, field) for field in update_fields}
             if changed_fields is None:
                 return  
-            #logger.info(f"Changed fields: {changed_fields}")
-            
-            #logger.info(f"Intance: {instance}")
-            user = User.objects.get(username=request.user.username)
-
+            logger.info(f"Changed fields: {changed_fields}")
+            logger.info(f"Intance: {instance}")
             Log_Cambios_Update.objects.create(
                 usuario=user,
                 ip=get_client_ip(request),
