@@ -45,7 +45,12 @@ def post_save_receiver(sender, instance, created, **kwargs):
         try:
             #logger.info(f"post_save signal received from {sender}")
             #logger.info(f"Instance: {instance}")
-            app_name_sender=sender._meta.app_label
+            if sender is not None:
+                logger.info(f"Sender: {sender.__name__}")
+                app_name_sender = sender.__name__
+            else:
+                logger.error("Sender is None")
+                return 
             if app_name_sender not in valid_sender:
                 #logger.info(f"Invalid sender: {app_name_sender}")
                 return
@@ -76,7 +81,11 @@ def post_save_receiver(sender, instance, created, **kwargs):
                 if request is None:
                     logger.error("No current request")
                     return
-                ip = get_client_ip(request)
+                if request is not None:
+                    ip = get_client_ip(request)
+                else:
+                    logger.error("Request is None")
+                    return
                 try:
                     user = User.objects.get(username=request.user.username)
                 except User.DoesNotExist:
@@ -145,14 +154,16 @@ def pre_save_receiver(sender, instance, update_fields,**kwargs):
             else:
                 
                 request_id=get_request_id()
-                if request is None:
-                    #logger.error("No current request")
+                if request is not None:
+                    ip = get_client_ip(request)
+                    logger.error("No current request")
+                else:
+                    logger.error("Request is None")
                     return
-                ip = get_client_ip(request)
                 try:
                     user = User.objects.get(username=request.user.username)
                 except User.DoesNotExist:
-                    #logger.error(f"User '{request.user.username}' does not exist")
+                    logger.error(f"User '{request.user.username}' does not exist")
                     return  # get the User instance
             logger.info(f"User: {user}")
             
@@ -173,7 +184,7 @@ def pre_save_receiver(sender, instance, update_fields,**kwargs):
             logger.info(f"Intance: {instance}")
             Log_Cambios_Update.objects.create(
                 usuario=user,
-                ip=get_client_ip(request),
+                ip=ip,
                 nombreModelo=sender.__name__,
                 cambiosValor=changed_fields,            
                 contentObject=instance,
