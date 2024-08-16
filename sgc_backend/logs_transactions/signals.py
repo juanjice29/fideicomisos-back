@@ -21,7 +21,7 @@ from django.forms.models import model_to_dict
 from django.db import models
 import requests
 import logging
-from actores.models import ActorDeContratoNatural, ActorDeContratoJuridico, ActorDeContrato
+from actores.models import ActorDeContratoNatural, ActorDeContratoJuridico, ActorDeContrato, FuturoComprador
 from django.db.models.signals import post_init
 from django.dispatch import receiver
 from actores.models import ActorDeContrato
@@ -101,9 +101,17 @@ def post_save_receiver(sender, instance, created, **kwargs):
                 if isinstance(instance, ActorDeContratoNatural):
                     person_type = 'N'
                     full_name = f"{instance.primerNombre} {instance.segundoNombre} {instance.primerApellido} {instance.segundoApellido}"
-                else:
+                elif isinstance(instance, ActorDeContratoJuridico):
                     person_type = 'J'
-                    full_name = instance.razonSocialNombre         
+                    full_name = instance.razonSocialNombre
+                elif isinstance(instance, FuturoComprador):
+                    person_type = instance.tipoPersona.tipoPersona
+                    full_name = instance.razonSocialNombre if person_type == 'J' else f"{instance.primerNombre} {instance.segundoNombre} {instance.primerApellido} {instance.segundoApellido}"
+                    identification_type = 'NIT' if person_type == 'J' else 'CC'
+                    identification_number = 1111
+                else:
+                    logger.error("Unknown instance type")
+                    return        
                 logger.info(f"Full name: {full_name}")       
                 instance_json = json.dumps(serialize_instance(instance), cls=DjangoJSONEncoder, ensure_ascii=False)      
                 logger.info(f"Instance created: {instance}")        
@@ -140,12 +148,19 @@ def post_save_receiver(sender, instance, created, **kwargs):
                 logger.info(f"API response: {response_data}")
                 # Check if the actor is in any list
                 if any(result['result'] for result in response_data['resultData'][0]['resultList']):
-                    # Send an email
+                    subject = f'Actor in List {full_name}'
+                    message = 'El actor esta en una lista.'
+                    from_email = 'fiduciaria89@gmail.com'
+                    recipient_list =['camilofranco98@gmail.com',]
+                    logger.info(f"Email subject: {subject}")
+                    logger.info(f"Email message: {message}")
+                    logger.info(f"From email: {from_email}")
+                    logger.info(f"Recipient list: {recipient_list}")
                     send_mail(
-                        'Actor in List',
-                        f'El actor {full_name} con tipo de identificacion {instance.tipoIdentificacion} con numero de identificacion {instance.numeroIdentificacion}  esta en una lista.',
-                        'recepcionpruebasrendir2@bancocajasocial.com',
-                        ['notificacionpruebasrendir@bancocajasocial.com'],
+                        subject,
+                        message,
+                        from_email,
+                        recipient_list,
                         fail_silently=False,
                     )
         except IntegrityError:
