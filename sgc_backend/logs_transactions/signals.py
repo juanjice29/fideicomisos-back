@@ -9,6 +9,8 @@ from django.contrib.contenttypes.models import ContentType
 import logging
 import json
 import uuid
+import sgc_backend.settings 
+from django.core.mail import send_mail
 from celery import current_task
 from django.db import transaction
 from django.contrib.auth import get_user_model
@@ -17,14 +19,16 @@ from celery.result import AsyncResult
 from process.models import DisparadorEjecucion
 from django.forms.models import model_to_dict
 from django.db import models
+import requests
 import logging
 from actores.models import ActorDeContratoNatural, ActorDeContratoJuridico, ActorDeContrato
 from django.db.models.signals import post_init
 from django.dispatch import receiver
+from actores.models import ActorDeContrato
 from django.core import serializers
 import threading
 _thread_locals = threading.local()
-valid_sender=['fideicomisos','accounts','public','actores','ActorDeContrato']
+valid_sender=['fideicomisos','accounts','public','actores','ActorDeContrato','ActorDeContratoNatural','ActorDeContratoJuridico']
 def get_current_user():
     return getattr(_thread_locals, 'user', None)
 
@@ -43,8 +47,8 @@ logger = logging.getLogger(__name__)
 def post_save_receiver(sender, instance, created, **kwargs):
     def _post_save_receiver():
         try:
-            #logger.info(f"post_save signal received from {sender}")
-            #logger.info(f"Instance: {instance}")
+            logger.info(f"post_save signal received from {sender}")
+            logger.info(f"Instance: {instance}")
             if sender is not None:
                 logger.info(f"Sender: {sender.__name__}")
                 app_name_sender = sender.__name__
@@ -91,9 +95,18 @@ def post_save_receiver(sender, instance, created, **kwargs):
                 except User.DoesNotExist:
                     logger.error(f"User '{request.user.username}' does not exist")
                     return  # get the User instance
-            
-            if created:                     
-                instance_json = json.dumps(serialize_instance(instance), cls=DjangoJSONEncoder, ensure_ascii=False)              
+            logger.info(f"User: {user}")
+            if created:     
+                logger.info(f"Instance created first: {instance}")
+                if isinstance(instance, ActorDeContratoNatural):
+                    person_type = 'N'
+                    full_name = f"{instance.primerNombre} {instance.segundoNombre} {instance.primerApellido} {instance.segundoApellido}"
+                else:
+                    person_type = 'J'
+                    full_name = instance.razonSocialNombre         
+                logger.info(f"Full name: {full_name}")       
+                instance_json = json.dumps(serialize_instance(instance), cls=DjangoJSONEncoder, ensure_ascii=False)      
+                logger.info(f"Instance created: {instance}")        
                 Log_Cambios_Create.objects.create(
                     requestId=request_id,
                     contentObject=instance,
@@ -104,6 +117,37 @@ def post_save_receiver(sender, instance, created, **kwargs):
                     signalId=request_signal,
                     tipoProcesoEjecucion=tipo_proceso
                 ) 
+                logger.info(f"Instance created: {instance.tipoIdentificacion.tipoDocumento}")
+                data = {
+                    "customer_Id_Identification_type": instance.tipoIdentificacion.tipoDocumento,
+                    "customer_Identification_Number": instance.numeroIdentificacion,
+                    "customer_Full_Name": full_name,
+                    "customer_Person_Type": person_type,
+                    "id_Identification_Type": instance.tipoIdentificacion.tipoDocumento,
+                    "identification_Number": instance.numeroIdentificacion,
+                    "full_Name": full_name,
+                    "relationship_Type": 1,
+                    "person_Type": person_type,
+                    "id_App": 2,
+                    "UserName": "PRUEBAS",
+                    "fullNameOrdered": full_name
+                }
+
+                # Make the API call
+                logger.info(f"API request: {data}")
+                response = requests.post("http://192.168.169.145:8089/api/BindingList/ValidateBindingList", json=data, verify=False)
+                response_data = response.json()
+                logger.info(f"API response: {response_data}")
+                # Check if the actor is in any list
+                if any(result['result'] for result in response_data['resultData'][0]['resultList']):
+                    # Send an email
+                    send_mail(
+                        'Actor in List',
+                        f'El actor {full_name} con tipo de identificacion {instance.tipoIdentificacion} con numero de identificacion {instance.numeroIdentificacion}  esta en una lista.',
+                        'recepcionpruebasrendir2@bancocajasocial.com',
+                        ['notificacionpruebasrendir@bancocajasocial.com'],
+                        fail_silently=False,
+                    )
         except IntegrityError:
             logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
         except ValidationError:
