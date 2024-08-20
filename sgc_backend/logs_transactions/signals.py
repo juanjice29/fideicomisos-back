@@ -9,6 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 import logging
 import json
 import uuid
+from django.apps import apps
 import sgc_backend.settings 
 from django.core.mail import send_mail
 from celery import current_task
@@ -19,6 +20,7 @@ from celery.result import AsyncResult
 from process.models import DisparadorEjecucion
 from django.forms.models import model_to_dict
 from django.db import models
+from .tasks import validate_binding_list_task
 import requests
 import logging
 from actores.models import ActorDeContratoNatural, ActorDeContratoJuridico, ActorDeContrato, FuturoComprador
@@ -140,36 +142,17 @@ def post_save_receiver(sender, instance, created, **kwargs):
                     "UserName": "PRUEBAS",
                     "fullNameOrdered": full_name
                 }
-
-                # Make the API call
-                logger.info(f"API request: {data}")
-                response = requests.post("http://192.168.169.145:8089/api/BindingList/ValidateBindingList", json=data, verify=False)
-                response_data = response.json()
-                logger.info(f"API response: {response_data}")
-                # Check if the actor is in any list
-                if any(result['result'] for result in response_data['resultData'][0]['resultList']):
-                    subject = f'Actor in List {full_name}'
-                    message = 'El actor esta en una lista.'
-                    from_email = 'fiduciaria89@gmail.com'
-                    recipient_list =['camilofranco98@gmail.com',]
-                    logger.info(f"Email subject: {subject}")
-                    logger.info(f"Email message: {message}")
-                    logger.info(f"From email: {from_email}")
-                    logger.info(f"Recipient list: {recipient_list}")
-                    send_mail(
-                        subject,
-                        message,
-                        from_email,
-                        recipient_list,
-                        fail_silently=False,
-                    )
+                validate_binding_list_task = apps.get_app_config('actores').get('validate_binding_list_task')
+                validate_binding_list_task.delay(data, full_name, instance.id, user, ip, request_id, tipo_proceso, request_signal)
         except IntegrityError:
+            # Handle the case where the instance violates a database constraint
             logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
         except ValidationError:
+            # Handle the case where an instance's field data is invalid
             logger.info("Un campo contiene un valor invalido")
         except Exception as e:
+            # Handle all other types of errors
             logger.info(f"Un error ocurrio: {str(e)}")
-    transaction.on_commit(_post_save_receiver)
 @receiver(pre_save)
 def pre_save_receiver(sender, instance, update_fields,**kwargs):
     def _pre_save_receiver():

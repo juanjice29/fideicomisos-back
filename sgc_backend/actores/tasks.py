@@ -21,6 +21,15 @@ from django.contrib.auth import get_user_model
 from public.utils import getTipoPersona
 from process.models import EstadoEjecucion
 from django.db import transaction
+from celery import shared_task, current_task
+import requests
+import logging
+from django.core.mail import send_mail
+from django.db import IntegrityError
+from django.core.exceptions import ValidationError
+
+logger = logging.getLogger(__name__)
+
 
 @shared_task
 @track_process

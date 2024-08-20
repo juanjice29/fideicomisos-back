@@ -27,7 +27,11 @@ db_user = os.getenv("DB_USER")
 db_pass = os.getenv("DB_PASS")
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-
+email_backend = os.getenv("EMAIL_BACKEND")
+email_port = os.getenv("EMAIL_PORT")
+email_host = os.getenv("EMAIL_HOST")
+email_host_user = os.getenv("EMAIL_HOST_USER")
+email_host_password = os.getenv("EMAIL_HOST_PASSWORD")
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -81,14 +85,15 @@ LOGGING = {
         'level': 'DEBUG',
     },
 }
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+#EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 #EMAIL_HOST = '10.1.5.198'
-EMAIL_HOST = '192.168.168.145'
-EMAIL_PORT = 25
+EMAIL_HOST = email_host
+EMAIL_PORT = email_port
 EMAIL_USE_TLS = False
 EMAIL_USE_SSL = False
-EMAIL_HOST_USER = '' 
-EMAIL_HOST_PASSWORD = ''
+EMAIL_HOST_USER = email_host_user
+EMAIL_HOST_PASSWORD = email_host_password
 ##multiple workers celery -A your_project_name worker --loglevel=info -n worker1@%h
 #solo worker celery -A sgc_backend worker --loglevel=info -P solo
 #remember to install redis
