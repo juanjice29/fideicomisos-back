@@ -6,7 +6,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sgc_backend.settings')
 
 app = Celery('sgc_backend')
-app.conf.broker_transport_options = {'confirm_publish': True, 'ack_emulation': True, 'visibility_timeout': 18000}  # 5 hours
+app.conf.broker_transport_options = {'confirm_publish': True, 'ack_emulation': True, 'visibility_timeout': 180000}  # 5 hours
 app.conf.update(result_extended=True)
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.
