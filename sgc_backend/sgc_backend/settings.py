@@ -85,8 +85,8 @@ LOGGING = {
         'level': 'DEBUG',
     },
 }
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-#EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 #EMAIL_HOST = '10.1.5.198'
 EMAIL_HOST = email_host
 EMAIL_PORT = email_port

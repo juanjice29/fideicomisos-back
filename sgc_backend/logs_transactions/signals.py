@@ -3,10 +3,13 @@ from django.dispatch import receiver
 from django.core.serializers.json import DjangoJSONEncoder
 from sgc_backend.middleware import get_current_request,get_request_id
 from django.db import IntegrityError
+from rest_framework import status
 from django.core.exceptions import ValidationError
 from .models import Log_Cambios_Create, Log_Cambios_Update, Log_Cambios_Delete,Log_Cambios_M2M
 from django.contrib.contenttypes.models import ContentType
+from django.forms.models import model_to_dict
 import logging
+from rest_framework.response import Response
 import json
 import uuid
 from django.apps import apps
@@ -20,7 +23,6 @@ from celery.result import AsyncResult
 from process.models import DisparadorEjecucion
 from django.forms.models import model_to_dict
 from django.db import models
-from .tasks import validate_binding_list_task
 import requests
 import logging
 from actores.models import ActorDeContratoNatural, ActorDeContratoJuridico, ActorDeContrato, FuturoComprador
@@ -142,8 +144,22 @@ def post_save_receiver(sender, instance, created, **kwargs):
                     "UserName": "PRUEBAS",
                     "fullNameOrdered": full_name
                 }
-                validate_binding_list_task = apps.get_app_config('actores').get('validate_binding_list_task')
-                validate_binding_list_task.delay(data, full_name, instance.id, user, ip, request_id, tipo_proceso, request_signal)
+                logger.info(f"Empezando tarea")
+                user_id = request.auth.get('user_id')
+                logger.info(f"User id '{user_id}' ")
+                logger.info(f"Type of usuario_id: {type(user_id)}")
+                user_id = request.user.id
+                try:
+                    User.objects.get(id=user_id)
+                    logger.info(f"User exists")
+                except User.DoesNotExist:
+                    logger.error("User matching query does not exist")
+                    return Response({'message': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+                tipo_proceso_dict = model_to_dict(tipo_proceso)
+                from actores.tasks import validate_binding_list_task
+                result = validate_binding_list_task.delay(data, full_name, instance.id, user_id, instance.tipoIdentificacion.tipoDocumento, instance.numeroIdentificacion)
+                return Response({'procesoId:':result.id,'message': 'La tarea se ha iniciado correctamente.'}, status=status.HTTP_202_ACCEPTED)
         except IntegrityError:
             # Handle the case where the instance violates a database constraint
             logger.info("Ocurrio un error de integridad en la base de datos debido a un constraint")
@@ -153,6 +169,7 @@ def post_save_receiver(sender, instance, created, **kwargs):
         except Exception as e:
             # Handle all other types of errors
             logger.info(f"Un error ocurrio: {str(e)}")
+    transaction.on_commit(_post_save_receiver)
 @receiver(pre_save)
 def pre_save_receiver(sender, instance, update_fields,**kwargs):
     def _pre_save_receiver():
