@@ -91,6 +91,8 @@ class PermisosView(APIView):
         pantalla_permisos = PantallaPermisos.objects.all()
         serializer = PantallaPermisosSerializer(pantalla_permisos, many=True)
         return Response(serializer.data)
+    
+@permission_classes([AllowAny])
 class PasswordResetView(APIView):
     """
     post:
@@ -113,7 +115,7 @@ class PasswordResetView(APIView):
             return Response({"detail": "Password reset email has been sent."})
         else:
             return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
-
+@permission_classes([AllowAny])
 class PasswordResetConfirmView(APIView):
     """
     post:
