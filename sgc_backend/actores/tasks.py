@@ -28,9 +28,9 @@ import logging
 from django.core.mail import send_mail
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
-
+import os
 logger = logging.getLogger(__name__)
-
+api = os.getenv("API_SALA_DE_VENTAS")
 @shared_task
 def validate_binding_list_task(data, full_name, instance, usuario_id,tipo_documento,numero_identificacion, ejecucion=None):
     logger.info(f"usuario_id: {usuario_id}")
@@ -44,7 +44,7 @@ def validate_binding_list_task(data, full_name, instance, usuario_id,tipo_docume
     try:
         # Make the API call
         logger.info(f"API request: {data}")
-        response = requests.post("http://192.168.169.145:8089/api/BindingList/ValidateBindingList", json=data, verify=False)
+        response = requests.post(api, json=data, verify=False)
         response_data = response.json()
         logger.info(f"API response: {response_data}")
 
