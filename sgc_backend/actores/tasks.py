@@ -55,7 +55,7 @@ def validate_binding_list_task(data, full_name, instance, usuario_id,tipo_docume
         if any(result['result'] for result in response_data['resultData'][0]['resultList']):
             subject = f'Actor se encuentra en una lista restrictiva {full_name}, {tipo_documento}, {numero_identificacion}'
             message = 'El actor esta en una lista.'
-            from_email = '00J9R7C9@fs.net'
+            from_email = 'notificaciones_sgc@fundaciongruposocial.co'
             ejecutor_role = Role.objects.get(nombre='EJECUTOR')
             recipient_list = User.objects.filter(role=ejecutor_role).values_list('email', flat=True)
             recipient_list.append('USR-SARLAFTFIDUCIARIA@fundaciongruposocialco.onmicrosoft.com')
