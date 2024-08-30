@@ -29,6 +29,9 @@ from django.core.mail import send_mail
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 import os
+from django.contrib.auth.models import User
+from accounts.models import Role
+
 logger = logging.getLogger(__name__)
 api = os.getenv("API_SALA_DE_VENTAS")
 @shared_task
@@ -53,11 +56,9 @@ def validate_binding_list_task(data, full_name, instance, usuario_id,tipo_docume
             subject = f'Actor se encuentra en una lista restrictiva {full_name}, {tipo_documento}, {numero_identificacion}'
             message = 'El actor esta en una lista.'
             from_email = '00J9R7C9@fs.net'
-            recipient_list = ['USR-SARLAFTFIDUCIARIA@fundaciongruposocialco.onmicrosoft.com',]
-            logger.info(f"Email subject: {subject}")
-            logger.info(f"Email message: {message}")
-            logger.info(f"From email: {from_email}")
-            logger.info(f"Recipient list: {recipient_list}")
+            ejecutor_role = Role.objects.get(nombre='EJECUTOR')
+            recipient_list = User.objects.filter(role=ejecutor_role).values_list('email', flat=True)
+            recipient_list.append('USR-SARLAFTFIDUCIARIA@fundaciongruposocialco.onmicrosoft.com')
             send_mail(
                 subject,
                 message,
