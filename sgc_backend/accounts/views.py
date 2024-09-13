@@ -1,4 +1,6 @@
 from tokenize import TokenError
+
+from django.conf import settings
 from .serializers import LoginSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -118,7 +120,7 @@ class PasswordResetView(APIView):
         # Send email using SMTP configuration
         subject = 'Password Reset Requested'
         message = f'Please click the link below to reset your password:\n{reset_link}'
-        from_email = 'notificaciones_sgc@fundaciongruposocial.co'
+        from_email = 'soporte_ti_fiduciariacajasocial@fgs.co'
         recipient_list = [user.email]
         
         send_mail(
@@ -153,3 +155,19 @@ class PasswordResetConfirmView(APIView):
                 return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({"detail": "Password reset unsuccessful."}, status=status.HTTP_400_BAD_REQUEST)
+
+class CustomPasswordResetView(PasswordResetView):
+    email_template_name = 'custom_password_reset_email.html'
+    subject_template_name = 'custom_password_reset_subject.txt'
+    from_email = 'soporte_ti_fiduciariacajasocial@fgs.co'
+
+    def send_mail(self, subject_template_name, email_template_name, context, from_email, to_email, html_email_template_name=None):
+        """
+        Send a django.core.mail.EmailMultiAlternatives to `to_email`.
+        """
+        subject = self.render_to_string(subject_template_name, context)
+        # Email subject *must not* contain newlines
+        subject = ''.join(subject.splitlines())
+        body = self.render_to_string(email_template_name, context)
+
+        send_mail(subject, body, from_email, [to_email])
