@@ -1,30 +1,32 @@
 import smtplib
+import ssl
 from django.core.mail.backends.smtp import EmailBackend
-from urllib.parse import urlparse
 
-class ProxyEmailBackend(EmailBackend):
+class CustomEmailBackend(EmailBackend):
     def __init__(self, *args, **kwargs):
-        self.proxy_url = kwargs.pop('proxy_url', None)
         super().__init__(*args, **kwargs)
+        self.local_hostname = kwargs.get('local_hostname', None)
+        self.source_address = kwargs.get('source_address', None)  # Initialize source_address
 
-    def _get_connection(self):
-        if self.proxy_url:
-            proxy = urlparse(self.proxy_url)
-            proxy_host = proxy.hostname
-            proxy_port = proxy.port
-            proxy_username = proxy.username
-            proxy_password = proxy.password
+    def _get_ssl_context(self):
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        return context
 
-            # Create a connection to the proxy
-            connection = smtplib.SMTP(proxy_host, proxy_port)
-            if proxy_username and proxy_password:
-                connection.login(proxy_username, proxy_password)
-            
-            # Connect to the actual SMTP server through the proxy
-            connection.starttls()
-            connection.connect(self.host, self.port)
-            if self.username and self.password:
-                connection.login(self.username, self.password)
-            return connection
-        else:
-            return super()._get_connection()
+    def open(self):
+        if self.connection:
+            return False
+        connection_class = smtplib.SMTP_SSL if self.use_ssl else smtplib.SMTP
+        self.connection = connection_class(
+            self.host,
+            self.port,
+            local_hostname=self.local_hostname,
+            timeout=self.timeout,
+            source_address=self.source_address,  # Use source_address
+        )
+        if self.use_tls:
+            self.connection.starttls(context=self._get_ssl_context())
+        if self.username and self.password:
+            self.connection.login(self.username, self.password)
+        return True

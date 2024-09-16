@@ -88,21 +88,17 @@ LOGGING = {
 #EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 #EMAIL_BACKEND = 'sgc_backend.custom_email_backend.ProxyEmailBackend'
 #EMAIL_BACKEND = 'django_smtp_ssl.SSLEmailBackend'
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+#EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'sgc_backend.custom_email_backend.CustomEmailBackend'
 EMAIL_HOST = '10.1.5.198'
 #EMAIL_HOST = email_host
 EMAIL_PORT = 25
-EMAIL_USE_TLS = False
-#EMAIL_USE_SSL = False
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
 EMAIL_HOST_USER = '01A6G8H5'
 EMAIL_HOST_PASSWORD = 'gsLN8RXY*'
 DEFAULT_FROM_EMAIL = 'fiduciariacajasocialextractos@fgs.co'
-EMAIL_PROXY_URL = 'http://10.1.6.3:80'
-
-# Pass the proxy URL to the custom email backend
-EMAIL_BACKEND_OPTIONS = {
-    'proxy_url': EMAIL_PROXY_URL,
-}
+EMAIL_SOURCE_ADDRESS = ('fiduciariacajasocialextractos@fgs.co', 0)
 
 ##multiple workers celery -A your_project_name worker --loglevel=info -n worker1@%h
 #solo worker celery -A sgc_backend worker --loglevel=info -P solo
