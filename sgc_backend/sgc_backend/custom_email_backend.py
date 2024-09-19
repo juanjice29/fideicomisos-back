@@ -1,6 +1,9 @@
 import smtplib
 import ssl
 from django.core.mail.backends.smtp import EmailBackend
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CustomEmailBackend(EmailBackend):
     def __init__(self, *args, **kwargs):
@@ -26,7 +29,15 @@ class CustomEmailBackend(EmailBackend):
             source_address=self.source_address,  # Use source_address
         )
         if self.use_tls:
-            self.connection.starttls(context=self._get_ssl_context())
+            try:
+                self.connection.starttls(context=self._get_ssl_context())
+            except smtplib.SMTPNotSupportedError:
+                logger.warning("STARTTLS extension not supported by server.")
         if self.username and self.password:
-            self.connection.login(self.username, self.password)
+            try:
+                self.connection.login(self.username, self.password)
+            except smtplib.SMTPException as e:
+                logger.error(f"SMTP login failed: {e}")
+                self.close()
+                return False
         return True

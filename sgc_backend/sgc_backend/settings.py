@@ -17,11 +17,17 @@ import logging
 import sys
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR2 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 import os
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
+#STATIC_ROOT = os.path.join(BASE_DIR, "static")
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR2, 'static'),
+]
+STATIC_ROOT = os.path.join(BASE_DIR2, 'staticfiles')
+
 db_name = os.getenv("DB_NAME")
 db_user = os.getenv("DB_USER")
 db_pass = os.getenv("DB_PASS")
@@ -85,6 +91,7 @@ LOGGING = {
         'level': 'DEBUG',
     },
 }
+
 #EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 #EMAIL_BACKEND = 'sgc_backend.custom_email_backend.ProxyEmailBackend'
 #EMAIL_BACKEND = 'django_smtp_ssl.SSLEmailBackend'
@@ -95,10 +102,10 @@ EMAIL_HOST = '10.1.5.198'
 EMAIL_PORT = 25
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
-EMAIL_HOST_USER = '01A6G8H5'
-EMAIL_HOST_PASSWORD = 'gsLN8RXY*'
-DEFAULT_FROM_EMAIL = 'fiduciariacajasocialextractos@fgs.co'
-EMAIL_SOURCE_ADDRESS = ('fiduciariacajasocialextractos@fgs.co', 0)
+EMAIL_HOST_USER = '00J6B7S6'
+EMAIL_HOST_PASSWORD = 'Colombia2024++'
+DEFAULT_FROM_EMAIL = 'soporte_ti_fiduciariacajasocial@fgs.co'
+EMAIL_SOURCE_ADDRESS = ('soporte_ti_fiduciariacajasocial@fgs.co', 0)
 
 ##multiple workers celery -A your_project_name worker --loglevel=info -n worker1@%h
 #solo worker celery -A sgc_backend worker --loglevel=info -P solo
@@ -155,7 +162,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'sgc_backend.middleware.CurrentRequestMiddleware',
-    'sgc_backend.middleware.RequestIdMiddleware'
+    'sgc_backend.middleware.RequestIdMiddleware',
+    'sgc_backend.remove_coop_middleware.RemoveCOOPMiddleware',
    
     
 ]
