@@ -11,7 +11,9 @@ from functools import wraps
 from logs_transactions.signals import log_change
 import traceback
 import signal
-
+import logging
+from rest_framework.exceptions import NotFound, APIException
+logger = logging.getLogger(__name__)
 class TipoLogEnum(Enum):
     INFO = "INFO"
     ERROR = "ERR"
@@ -20,13 +22,24 @@ class TipoLogEnum(Enum):
 def track_process(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
+        logger.debug(f'kwargs received: {kwargs}')
         # Obtener el nombre de la función decorada
         function_name = func.__name__        
         # Obtener la instancia del proceso asociado a la función decorada
         try:  
-                   
+            usuario_id = kwargs.get('usuario_id')
+            logger.info(f'Track process started for user_id: {usuario_id}')
+            if usuario_id is None:
+                logger.error('usuario_id is None')
+                raise User.DoesNotExist('usuario_id is None')
+            if not User.objects.filter(id=usuario_id).exists():
+                logger.error(f'User with id {usuario_id} does not exist.')
+                raise User.DoesNotExist(f"User with id {usuario_id} does not exist.")
+            usuario = User.objects.get(id=usuario_id)
+            logger.info(f'User {usuario_id} found: {usuario}')       
             proceso = Proceso.objects.get(funcionRelacionada=function_name)
             usuario = User.objects.get(id=kwargs.get('usuario_id'))
+            
             ejecucion_proceso = EjecucionProceso()
             ejecucion_proceso.proceso = proceso
             ejecucion_proceso.fechaInicio = timezone.now()

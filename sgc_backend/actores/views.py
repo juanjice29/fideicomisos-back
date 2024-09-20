@@ -1,3 +1,4 @@
+import logging
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
@@ -9,7 +10,8 @@ from .serializers import ActorDeContratoSerializer,\
 ActorDeContratoNaturalCreateSerializer,\
 ActorDeContratoNaturalUpdateSerializer,\
 ActorDeContratoJuridicoCreateSerializer,\
-ActorDeContratoJuridicoUpdateSerializer, FuturoCompradorSerializer
+ActorDeContratoJuridicoUpdateSerializer, FuturoCompradorSerializer \
+    
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -193,7 +195,7 @@ class FuturoCompradorListView(generics.ListCreateAPIView):
     queryset = FuturoComprador.objects.all()
     serializer_class = FuturoCompradorSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['numeroIdentificacion','actordecontratonatural__primerNombre', 'actordecontratonatural__segundoNombre', 'actordecontratojuridico__razonSocialNombre']
+    search_fields = ['numeroIdentificacion','primerNombre', 'segundoNombre', 'razonSocialNombre']
     def get_queryset(self):
         try:            
             return self.queryset
@@ -203,20 +205,8 @@ class FuturoCompradorListView(generics.ListCreateAPIView):
             raise APIException(detail=str(e)) 
     def post(self,request):
         try:
-            tipo_persona=request.data.get('tipoPersona')
-            tipo_persona=getTipoPersonaById(tipo_persona)
-            tipo_documento=request.data.get('tipoIdentificacion')
-            validacion_tipo_persona=getTipoPersona(tipo_documento)
-            if(validacion_tipo_persona!=tipo_persona):
-                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
-            if(tipo_persona=='N'):
-                print("soy natural")
-                serializer=FuturoCompradorSerializer(data=request.data)
-            elif(tipo_persona=='J'):
-                print("soy juridico")
-                serializer=FuturoCompradorSerializer(data=request.data)
-            else:
-                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
+
+            serializer=FuturoCompradorSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()                
                 return Response(serializer.data,status=status.HTTP_201_CREATED)
@@ -230,17 +220,7 @@ class FuturoCompradorListView(generics.ListCreateAPIView):
             raise APIException(detail=str(e))
     def put(self,request):
         try:
-            tpidentif=request.data.get('tipoIdentificacion')
-            nroidentif=request.data.get('numeroIdentificacion')
-            tipo_persona=getTipoPersonaById(tpidentif)            
-            actor=FuturoComprador.get_object(self,tpidentif,nroidentif)
-            if(tipo_persona=='N'):            
-                serializer=ActorDeContratoNaturalFuturoUpdateSerializer(actor,data=request.data)
-            elif(tipo_persona=='J'):
-                serializer=ActorDeContratoJuridicoFuturoUpdateSerializer(actor,data=request.data)
-            else:
-                return Response({'detail':'Tipo de persona no soportado'},status=status.HTTP_400_BAD_REQUEST)
-            
+            serializer=FuturoCompradorSerializer(data=request.data)         
             if serializer.is_valid():
                 serializer.save(delete_non_serialized=True)
                 return Response(serializer.data,status=status.HTTP_201_CREATED)
@@ -290,14 +270,15 @@ class ActoresByFideiFileUploadView(APIView):
         except Exception as e:
             raise APIException(detail=str(e))
         
-        
+logger = logging.getLogger(__name__)        
 class ActoresFileUploadView(APIView):    
 
     def post(self, request):
         form = UploadFileForm(request.POST, request.FILES)
        
         try:
-            if form.is_valid():         
+            if form.is_valid():    
+                logger.info("ActoresFileUploadView")     
                 file = form.cleaned_data['file'] 
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                 dir_name = f'C:/Salida-SGC/actores/temp/masivo_general/actores_'+ timestamp

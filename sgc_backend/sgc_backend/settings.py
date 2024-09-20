@@ -17,17 +17,27 @@ import logging
 import sys
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR2 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from dotenv import load_dotenv
 load_dotenv()
 import os
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
+#STATIC_ROOT = os.path.join(BASE_DIR, "static")
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR2, 'static'),
+]
+STATIC_ROOT = os.path.join(BASE_DIR2, 'staticfiles')
+
 db_name = os.getenv("DB_NAME")
 db_user = os.getenv("DB_USER")
 db_pass = os.getenv("DB_PASS")
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
-
+email_backend = os.getenv("EMAIL_BACKEND")
+email_port = os.getenv("EMAIL_PORT")
+email_host = os.getenv("EMAIL_HOST")
+email_host_user = os.getenv("EMAIL_HOST_USER")
+email_host_password = os.getenv("EMAIL_HOST_PASSWORD")
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -81,10 +91,22 @@ LOGGING = {
         'level': 'DEBUG',
     },
 }
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+#EMAIL_BACKEND = 'sgc_backend.custom_email_backend.ProxyEmailBackend'
+#EMAIL_BACKEND = 'django_smtp_ssl.SSLEmailBackend'
+#EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'sgc_backend.custom_email_backend.CustomEmailBackend'
 EMAIL_HOST = '10.1.5.198'
+#EMAIL_HOST = email_host
 EMAIL_PORT = 25
 EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = '00J6B7S6'
+EMAIL_HOST_PASSWORD = 'Colombia2024++'
+DEFAULT_FROM_EMAIL = 'soporte_ti_fiduciariacajasocial@fgs.co'
+EMAIL_SOURCE_ADDRESS = ('soporte_ti_fiduciariacajasocial@fgs.co', 0)
+
 ##multiple workers celery -A your_project_name worker --loglevel=info -n worker1@%h
 #solo worker celery -A sgc_backend worker --loglevel=info -P solo
 #remember to install redis
@@ -140,7 +162,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'sgc_backend.middleware.CurrentRequestMiddleware',
-    'sgc_backend.middleware.RequestIdMiddleware'
+    'sgc_backend.middleware.RequestIdMiddleware',
+    'sgc_backend.remove_coop_middleware.RemoveCOOPMiddleware',
    
     
 ]
@@ -150,7 +173,7 @@ ROOT_URLCONF = 'sgc_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

@@ -1,9 +1,16 @@
 from tokenize import TokenError
+
+from django.conf import settings
 from .serializers import LoginSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import permission_classes
+from django.core.mail import send_mail
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.urls import reverse
+from django.contrib.auth.tokens import default_token_generator
 from rest_framework.status import HTTP_403_FORBIDDEN
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -91,6 +98,8 @@ class PermisosView(APIView):
         pantalla_permisos = PantallaPermisos.objects.all()
         serializer = PantallaPermisosSerializer(pantalla_permisos, many=True)
         return Response(serializer.data)
+    
+@permission_classes([AllowAny])
 class PasswordResetView(APIView):
     """
     post:
@@ -103,17 +112,25 @@ class PasswordResetView(APIView):
         except User.DoesNotExist:
             return Response({"detail": "User does not exist."}, status=status.HTTP_400_BAD_REQUEST)
 
-        form = PasswordResetForm(data={'email': user.email})
-        if form.is_valid():
-            form.save(
-                use_https=request.is_secure(),
-                email_template_name='password_reset_email.html',
-                request=request,
-            )
-            return Response({"detail": "Password reset email has been sent."})
-        else:
-            return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Generate password reset link
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_link = request.build_absolute_uri(reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token}))
 
+        # Send email using SMTP configuration
+        subject = 'Password Reset Requested'
+        message = f'Please click the link below to reset your password:\n{reset_link}'
+        from_email = 'soporte_ti_fiduciariacajasocial@fgs.co'
+        recipient_list = [user.email]
+        
+        send_mail(
+            subject,
+            message,
+            from_email,
+            recipient_list,
+            fail_silently=False,
+        )
+        return Response({"detail": "Password reset email has been sent."})@permission_classes([AllowAny])
 class PasswordResetConfirmView(APIView):
     """
     post:
@@ -138,3 +155,19 @@ class PasswordResetConfirmView(APIView):
                 return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({"detail": "Password reset unsuccessful."}, status=status.HTTP_400_BAD_REQUEST)
+
+class CustomPasswordResetView(PasswordResetView):
+    email_template_name = 'custom_password_reset_email.html'
+    subject_template_name = 'custom_password_reset_subject.txt'
+    from_email = 'soporte_ti_fiduciariacajasocial@fgs.co'
+
+    def send_mail(self, subject_template_name, email_template_name, context, from_email, to_email, html_email_template_name=None):
+        """
+        Send a django.core.mail.EmailMultiAlternatives to `to_email`.
+        """
+        subject = self.render_to_string(subject_template_name, context)
+        # Email subject *must not* contain newlines
+        subject = ''.join(subject.splitlines())
+        body = self.render_to_string(email_template_name, context)
+
+        send_mail(subject, body, from_email, [to_email])

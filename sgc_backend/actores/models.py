@@ -70,6 +70,7 @@ class RelacionFideicomisoActor(models.Model):
         db_table = 'fidei_actor_fideicomiso'
         
 class RelacionFideicomisoFuturoComprador(models.Model):
+
     futuroComprador = models.ForeignKey(FuturoComprador, on_delete=models.CASCADE,db_column='futuro_comprador')
     fideicomiso = models.ForeignKey(Fideicomiso, on_delete=models.CASCADE,db_column='fideicomiso')
     class Meta:

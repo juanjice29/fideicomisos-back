@@ -1,3 +1,4 @@
+from django.apps import apps
 from rest_framework.views import APIView
 from rest_framework import generics
 from .serializers import LogCreateSerializer,LogCambiosM2MSerializer,LogUpdateSerializer
@@ -59,21 +60,38 @@ class LogRelateView(APIView):
 class LogUpdateListView(APIView):
     authentication_classes = [LoggingJWTAuthentication]
     permission_classes = [IsAuthenticated, HasRolePermission]    
-    def get_all_objects(self,model_name,object_key):
-        result_qs = Log_Cambios_Update.objects.none()
-        result_qs |=self.get_object(model_name,object_key)
-        child_relations=LogRelateView.get_object_childs(self,model_name,object_key)
+    def get_all_objects(self, model_name, object_key):
+        result_list = list(self.get_object(model_name, object_key, Log_Cambios_Update))
+        result_list += list(self.get_object(model_name, object_key, Log_Cambios_Delete))
+        result_list += list(self.get_object(model_name, object_key, Log_Cambios_Create))
+
+        # Check if model_name is ActorDeContrato
+        if model_name == 'ActorDeContrato':
+            # Check if ActorDeContratoJuridico or ActorDeContratoNatural exists with the given object_key
+            if self.object_exists('ActorDeContratoJuridico', object_key) or self.object_exists('ActorDeContratoNatural', object_key):
+                result_list += list(self.get_object(model_name, object_key, Log_Cambios_Create))
+
+        child_relations = LogRelateView.get_object_childs(self, model_name, object_key)
         if child_relations:
             for child in child_relations:
-                result_qs |=self.get_object(child['nombreModelo'],child['objectId'])
-        return result_qs.order_by("-tiempoAccion")
-    
-    def get_object(self,model_name,object_key):
-        try:            
-            return Log_Cambios_Update.objects.filter(nombreModelo=model_name,objectId=object_key)        
+                result_list += list(self.get_object(child['nombreModelo'], child['objectId'], Log_Cambios_Update))
+                result_list += list(self.get_object(child['nombreModelo'], child['objectId'], Log_Cambios_Delete))
+                result_list += list(self.get_object(child['nombreModelo'], child['objectId'], Log_Cambios_Create))
+        return sorted(result_list, key=lambda x: x.tiempoAccion, reverse=True)
+
+    def get_object(self, model_name, object_key, model):
+        try:
+            return model.objects.filter(nombreModelo=model_name, objectId=object_key)
         except Exception as e:
-            return False 
-    def get(self,request,model_name,object_key):
+            return model.objects.none()
+    def object_exists(self, model_name, object_key):
+        try:
+            content_type = ContentType.objects.get(model=model_name.lower())
+            model = apps.get_model(app_label=content_type.app_label, model_name=model_name)
+            return model.objects.filter(id=object_key).exists()
+        except ContentType.DoesNotExist:
+            return False
+    def get(self, request, model_name, object_key):
         try:
             queryset = self.get_all_objects(model_name, object_key)
             paginator = PageNumberPagination()
@@ -85,7 +103,6 @@ class LogUpdateListView(APIView):
             raise ParseError(detail=str(e))
         except Exception as e:
             raise APIException(detail=str(e))
-
 def track_changes(request, model_name, object_id):
     # Get the ContentType for the model
     content_type = ContentType.objects.get(model=model_name)

@@ -3,7 +3,7 @@ from .models import ActorDeContrato
 from fidecomisos.models import Encargo
 from fidecomisos.serializers import EncargoSerializer,FideicomisoSerializer
 from rest_framework import serializers
-from .models import TipoActorDeContrato,RelacionFideicomisoActor,RelacionFideicomisoFuturoComprador,ActorDeContratoNatural,ActorDeContratoJuridico
+from .models import TipoActorDeContrato,RelacionFideicomisoActor,ActorDeContratoNatural,ActorDeContratoJuridico,RelacionFideicomisoFuturoComprador
 from rest_framework import serializers
 from .models import Encargo,Fideicomiso,FuturoComprador
 from django.db import transaction
@@ -24,11 +24,24 @@ class RelacionFideicomisoActorSerializer(serializers.ModelSerializer):
     class Meta:
         model=RelacionFideicomisoActor
         fields='__all__'
+
+class RelacionFideicomisoFuturoSerializer(serializers.ModelSerializer):
+    fideicomiso = FideicomisoSerializer()    
+    class Meta:
+        model=RelacionFideicomisoFuturoComprador
+        fields='__all__'
+
 class RelacionFideicomisoActorCreateSerializer(serializers.ModelSerializer):
     fideicomiso = serializers.PrimaryKeyRelatedField(queryset=Fideicomiso.objects.all())    
     class Meta:
         model = RelacionFideicomisoActor
-        fields = ['fideicomiso', 'tipoActor']       
+        fields = ['fideicomiso', 'tipoActor']
+class RelacionFideicomisoFuturoCreateSerializer(serializers.ModelSerializer):
+    fideicomiso = serializers.PrimaryKeyRelatedField(queryset=Fideicomiso.objects.all())    
+    class Meta:
+        model = RelacionFideicomisoFuturoComprador
+        fields = ['fideicomiso']
+      
 
 class ActorDeContratoNaturalSerializer(serializers.ModelSerializer):
     class Meta:
@@ -51,7 +64,27 @@ class FuturoCompradorSerializer(serializers.ModelSerializer):
     class Meta:
         model = FuturoComprador
         fields = '__all__'
-               
+    def validate(self, data):
+        tipo_persona = data.get('tipoPersona', {}).get('tipoPersona', None)
+
+        if tipo_persona == 'J':
+            if 'razonSocialNombre' not in data:
+                raise serializers.ValidationError({
+                    'razonSocialNombre': 'This field is required.'
+                })
+            data.pop('primerNombre', None)
+            data.pop('segundoNombre', None)
+            data.pop('primerApellido', None)
+            data.pop('segundoApellido', None)
+        elif tipo_persona == 'N':
+            if 'primerNombre' not in data or 'primerApellido' not in data:
+                raise serializers.ValidationError({
+                    'primerNombre': 'This field is required.',
+                    'primerApellido': 'This field is required.'
+                })
+            data.pop('razonSocialNombre', None)
+
+        return data           
 class ActorDeContratoSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     fideicomisoAsociado = RelacionFideicomisoActorSerializer(source="relacionfideicomisoactor_set", many=True,read_only=True)    
@@ -63,7 +96,14 @@ class ActorDeContratoSerializer(serializers.ModelSerializer):
         fields='__all__'  
 
 
-        
+class FuturoCompradorSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    numeroIdentificacion = serializers.CharField(allow_blank=True, required=False)
+    fideicomisoAsociado = RelacionFideicomisoFuturoCreateSerializer(source="relacionfideicomisofuturo_set", many=True,read_only=True)    
+    class Meta:
+        model = FuturoComprador
+        fields = '__all__'
+
 class ActorDeContratoNaturalCreateSerializer(serializers.ModelSerializer):   
     fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)
     class Meta:
@@ -84,6 +124,7 @@ class ActorDeContratoNaturalCreateSerializer(serializers.ModelSerializer):
                 relacion.tipoActor.set(tipo_actor_ids)        
             #actor.fideicomisoAsociado.add(fideicomiso['fideicomiso'],through_defaults={'tipoActor':fideicomiso['tipoActor']})
         return actor
+
 class ActorDeContratoNaturalUpdateSerializer(serializers.ModelSerializer):   
     fideicomisoAsociado = RelacionFideicomisoActorCreateSerializer(source="relacionfideicomisoactor_set", many=True)
     class Meta:
