@@ -15,6 +15,7 @@ from pathlib import Path
 import os
 import logging
 import sys
+import ssl
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 BASE_DIR2 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -99,13 +100,13 @@ LOGGING = {
 EMAIL_BACKEND = 'sgc_backend.custom_email_backend.CustomEmailBackend'
 EMAIL_HOST = '10.1.5.198'
 #EMAIL_HOST = email_host
-EMAIL_PORT = 25
+EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
-EMAIL_HOST_USER = '00J6B7S6'
-EMAIL_HOST_PASSWORD = 'Colombia2024++'
-DEFAULT_FROM_EMAIL = 'soporte_ti_fiduciariacajasocial@fgs.co'
-EMAIL_SOURCE_ADDRESS = ('soporte_ti_fiduciariacajasocial@fgs.co', 0)
+EMAIL_HOST_USER = '01A6G8H5'
+EMAIL_HOST_PASSWORD = 'gsLN8RXY*'
+DEFAULT_FROM_EMAIL = 'fiduciariacajasocialextractos@fgs.co'
+EMAIL_SOURCE_ADDRESS = ('fiduciariacajasocialextractos@fgs.co', 0)
 
 ##multiple workers celery -A your_project_name worker --loglevel=info -n worker1@%h
 #solo worker celery -A sgc_backend worker --loglevel=info -P solo
@@ -115,7 +116,7 @@ EMAIL_SOURCE_ADDRESS = ('soporte_ti_fiduciariacajasocial@fgs.co', 0)
 #celery --broker=amqp://fssgc:fssgc@localhost// flower
 # celery en modo debug -celery -A sgc_backend worker --pool=solo -l debug
 #ejecutar beat : celery -A sgc_backend beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
-CELERY_BROKER_URL = 'amqp://fssgc:fssgc@localhost'
+CELERY_BROKER_URL = 'amqp://fsgc:fsgc@BOA10SRVVCA01.fs.net'
 #CELERY_BROKER_URL = 'amqp://guest:guest@localhost'
 CELERY_TASK_RESULT_EXPIRES = None
 CELERY_RESULT_BACKEND = 'django-db'
@@ -163,7 +164,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'sgc_backend.middleware.CurrentRequestMiddleware',
     'sgc_backend.middleware.RequestIdMiddleware',
-    'sgc_backend.remove_coop_middleware.RemoveCOOPMiddleware',
    
     
 ]
@@ -173,7 +173,7 @@ ROOT_URLCONF = 'sgc_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -239,7 +239,6 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -269,7 +268,7 @@ JWT_AUTH = {
     'JWT_EXPIRATION_DELTA': datetime.timedelta(seconds=36000),
 }
 #LOGIN_REDIRECT_URL='/'
-
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
     "https://example.com",
     "https://sub.example.com",
@@ -281,6 +280,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.169.23",
     "http://10.5.44.216:4200",
     "http://localhost:4200",
+    "http://10.1.5.113:9095",
+    "http://10.1.5.113:8096",
+    "http://10.5.44.216:8096",
+    
 ]
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -308,3 +311,4 @@ GRAPH_MODELS = {
   'all_applications': True,
   'group_models': True,
 }
+context = ssl._create_unverified_context()
