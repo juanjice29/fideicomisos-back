@@ -44,7 +44,7 @@ def tkpCalcularBeneficiariosFinales(self,fondo,calc_cod_post,calc_total_data,cor
         result=tkFillPostalCodeView(self,ejecucion=ejecucion)
         guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
-                               f"Finalizo calculo de codigos postales resultado: {result_t1}")
+                               f"Finalizo calculo de codigos postales resultado: {result}")
     else:
         guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
