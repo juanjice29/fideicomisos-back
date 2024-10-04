@@ -280,6 +280,7 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
         return f"Fallo al obtener el saldo general del fondo."
     
     try:
+        
         query=RpbfHistorico.objects.filter(fondo=fondo).values()
         df_comp_historico=pd.DataFrame.from_records(query)
         if(self.is_aborted()):
@@ -290,7 +291,19 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
             return f"No hay datos del historicos para comparar revisar la tabla."
         
         df_comp_historico['id'] = pd.to_numeric(df_comp_historico['id'], errors='coerce')
-        idx = df_comp_historico.groupby('niben')['id'].idxmax()
+        
+        # Crear una copia del DataFrame con las columnas relevantes para simplificar
+        df_comp_historico_relevant = df_comp_historico[['id', 'periodo', 'tdocben', 'niben']]
+
+        # Paso 1: Agrupar por 'tdocben' y 'niben' y encontrar el periodo máximo
+        max_periodo = df_comp_historico_relevant.groupby(['tdocben', 'niben'])['periodo'].transform('max')
+
+        # Paso 2: Filtrar el DataFrame para conservar sólo los registros con el periodo máximo
+        df_max_periodo = df_comp_historico_relevant[df_comp_historico_relevant['periodo'] == max_periodo]
+
+        # Paso 3: Dentro de los registros con el periodo máximo, encontrar el índice del máximo id
+        idx = df_max_periodo.groupby(['tdocben', 'niben'])['id'].idxmax()
+
         df_historico = df_comp_historico.loc[idx]        
         df_current=get_semilla(fondo,corte,saldo)
         if(self.is_aborted()):
@@ -316,12 +329,13 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
         df_current['tipoNovedad'] = "1"
         df_current['count_n1'] = 0
         df_current['count_n2'] = 0
-        df_merged = df_current.merge(df_historico[['niben', 'tnov']], left_on='NRO_IDENTIF', right_on='niben', how='left')
+        df_merged = df_current.merge(df_historico[['niben', 'tnov','tdocben']], left_on=['NRO_IDENTIF','TPIDENTIF'], right_on=['niben','tdocben'], how='left')
         df_merged['tipoNovedad'] = df_merged['tnov'].apply(lambda x: "2" if x in ["1", "2"] else "1")
         df_merged['count_n2'] = df_merged['tnov'].apply(lambda x: 1 if x in ["1", "2"] else 0)
         df_merged['count_n1'] = df_merged['tnov'].apply(lambda x: 1 if x == "3" or pd.isna(x) else 0)
         df_merged['tipoNovedad'] = df_merged['tipoNovedad'].apply(lambda x: TipoNovedadRPBF.objects.get(id=x))
         candidatos = df_merged.apply(lambda row: {
+                "tpIdentif":row["TPIDENTIF"],
                 "nroIdentif": row["NRO_IDENTIF"],
                 "tipoNovedad": row["tipoNovedad"],
                 "fechaCreacion": row["MAX_FECCRE"],
@@ -335,7 +349,9 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
         
         
         for candidato in candidatos:
-            instance=RpbfCandidatos(nroIdentif=candidato["nroIdentif"],
+            instance=RpbfCandidatos(
+                                       tpIdentif=candidato["tpIdentif"],
+                                       nroIdentif=candidato["nroIdentif"],
                                        tipoNovedad=candidato["tipoNovedad"],
                                        fondo=candidato["fondo"],
                                        porcentaje=candidato["porcentaje"],
@@ -353,11 +369,11 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
                                             linea : {tb}
                                         """[:250])        
         return f"""Fallo calculando candidatos novedad 1 y 2."""
-                                        
+                                       
     try: 
         # Obtener cancelaciones
         cancelaciones_df = get_cancelaciones(fondo, corte)
-
+        cancelaciones_cambio_tpdoc=get_cancelaciones('00',corte)
         # Inicialización de contadores y listas
         registros_not_inseed = 0        
         candidatos = []
@@ -370,21 +386,24 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
         # Filtrar df_historico para obtener solo los registros no presentes en df_current
         #df_historico_filtered = df_historico[df_historico['tnov'].isin([1, 2])]
         
-        merged_df = df_historico.merge(df_current, left_on='niben', right_on='NRO_IDENTIF', how='left', indicator=True)
+        merged_df = df_historico.merge(df_current, left_on=['niben','tdocben'], right_on=['NRO_IDENTIF','TPIDENTIF'], how='left', indicator=True)
         filtered_df = merged_df[merged_df['_merge'] == 'left_only']
 
         # Unir con cancelaciones_df para obtener información de cancelaciones
-        candidato_tn3_df = filtered_df.merge(cancelaciones_df, left_on='niben', right_on='NRO_IDENTIF', how='left')
+        candidato_tn3_df = filtered_df.merge(cancelaciones_df, left_on=['niben','tdocben'], right_on=['NRO_IDENTIF','TPIDENTIF'], how='left')
 
         # Filtrar los registros que tienen cancelaciones
         candidato_tn3_df = candidato_tn3_df[candidato_tn3_df['FECCAN'].notna()]
-
+        
+        #Unir con cancelaciones_df para obtener los que cambiaron de tipo de documento
+        candidato_tn3_dftdoc = filtered_df.merge(cancelaciones_cambio_tpdoc, left_on='niben', right_on='NRO_IDENTIF', how='left')
+        # Filtrar los registros que tienen cancelaciones
+        candidato_tn3_dftdoc = candidato_tn3_dftdoc[candidato_tn3_dftdoc['FECCAN'].notna()]        
         # Obtener la novedad tipo 3
         novedad_t = TipoNovedadRPBF.objects.get(id="3")
-
-        # Crear los candidatos
-        candidatos = candidato_tn3_df.apply(lambda row:
+        candidatos2=candidato_tn3_dftdoc.apply(lambda row:
         {
+            "tpIdentif": row["tdocben"],
             "nroIdentif": row["niben"],
             "tipoNovedad": novedad_t,
             "fechaCreacion": row["feiniben"],
@@ -393,14 +412,31 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
             "porcentaje": row["pppjepj"] if row["pppjepj"] else row["pbpjepj"]
         } if str(row["tnov"] )!= "3" else None, axis=1).tolist()
         
+        # Crear los candidatos
+        candidatos = candidato_tn3_df.apply(lambda row:
+        {
+            "tpIdentif": row["tdocben"],
+            "nroIdentif": row["niben"],
+            "tipoNovedad": novedad_t,
+            "fechaCreacion": row["feiniben"],
+            "fechaCancelacion": row["FECCAN"],
+            "fondo": fondo,
+            "porcentaje": row["pppjepj"] if row["pppjepj"] else row["pbpjepj"]
+        } if str(row["tnov"] )!= "3" else None, axis=1).tolist()
+        
+        for c in candidatos2:
+            candidatos.append(c)
+            
         candidatos = [c for c in candidatos if c is not None]
         
+            
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.INFO.value,
                                         f"Se calcularon exitosamente los candidatos para la novedad : novedad 3 ->  {len(candidatos)}") 
         # Crear las instancias de RpbfCandidatos
 
-        for candidato in candidatos:
+        for candidato in candidatos:            
             instance=  RpbfCandidatos(
+            tpIdentif=candidato["tpIdentif"] ,
             nroIdentif=candidato["nroIdentif"],
             tipoNovedad=candidato["tipoNovedad"],
             fondo=candidato["fondo"],
@@ -421,7 +457,7 @@ def tkCalculateCandidates(self,fondo,corte,tarea=None,ejecucion=None):
         guardarLogEjecucionTareaProceso(ejecucion,tarea,TipoLogEnum.ERROR.value,f"""Fallo calculando los candidatos novedad 3,  
                                             error : {str(e)} , 
                                             linea : {tb}
-                                        """[:300])        
+                                        """[:400])        
         
         return f"""Fallo calculando los candidatos novedad 3"""
     

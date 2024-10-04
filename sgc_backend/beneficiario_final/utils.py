@@ -19,6 +19,16 @@ db_pass_sgc = os.getenv("DB_PASS_SGC")
 db_host_sgc = os.getenv("DB_HOST_SGC")
 db_port_sgc = os.getenv("DB_PORT_SGC")
 
+identif_map = {
+    'CC': '13',
+    'TI': '12',
+    'CE': '22',
+    'PA': '41',
+    'RC': '11',
+    'PEP': '47'
+}
+inverse_identif_map = {v: k for k, v in identif_map.items()}
+
 def get_current_period():
     anio,mes = datetime.datetime.now().strftime("%Y-%m").split("-")
     period=math.floor((int(mes)-1)/3)+1    
@@ -170,28 +180,55 @@ def get_cancelaciones(fondo,corte):
         user=db_user_sifi, password=db_pass_sifi, dsn=dsn_tns)
     cur = conn.cursor()
     
+    
+    dsn_tns2 = cx_Oracle.makedsn(
+        db_host_sgc, db_port_sgc, service_name=db_name_sgc)
+    conn2 = cx_Oracle.connect(
+        user=db_user_sgc, password=db_pass_sgc, dsn=dsn_tns)
+    cur2 = conn.cursor()
+    
     if (fondo == "14"):
         rows = cur.execute(
             cancelaciones_rendir.format(corte))  
+        rows = cur.fetchall()
+        columns = [desc[0] for desc in cur.description]
     if (fondo == "12"):
         rows = cur.execute(
-            cancelaciones_rentafacil.format(corte))        
+            cancelaciones_rentafacil.format(corte))  
+        rows = cur.fetchall()
+        columns = [desc[0] for desc in cur.description]
     if (fondo == "10"):
         rows = cur.execute(
             cancelaciones_universitas.format(corte))
+        rows = cur.fetchall()
+        columns = [desc[0] for desc in cur.description]        
     if(fondo  =="16"):
         rows = cur.execute(
             cancelaciones_cortoplazo.format(corte))
+        rows = cur.fetchall() 
+        columns = [desc[0] for desc in cur.description]        
     if(fondo=="18"):
         rows = cur.execute(
             cancelaciones_retiro.format(corte))
-    rows = cur.fetchall()
+        rows = cur.fetchall()   
+        columns = [desc[0] for desc in cur.description]        
+    if(fondo=="00"):
+        rows = cur2.execute(
+            cancelaciones_cambio_tpidentif.format(corte))
+        rows = cur2.fetchall()
+        columns = [desc[0] for desc in cur2.description]  
     
-    columns = [desc[0] for desc in cur.description]
+    
     cancelaciones_df = pd.DataFrame(rows, columns=columns, dtype="string")
     cur.close()
     conn.close()
-    
+    cur2.close()
+    conn2.close()
     return cancelaciones_df
     
-        
+
+def get_identif_value(identif):
+    return identif_map.get(identif, 'CC')
+
+def get_identif_key(value):
+    return inverse_identif_map.get(value, 'CC')

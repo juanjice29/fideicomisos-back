@@ -1,7 +1,8 @@
 from django.db import models
 from public.models import TipoNovedadRPBF
 import uuid
-class RpbfCandidatos(models.Model):    
+class RpbfCandidatos(models.Model):     
+    tpIdentif=models.CharField(max_length=3)
     nroIdentif= models.CharField(max_length=20)
     fondo=models.CharField(max_length=2)
     tipoNovedad=models.ForeignKey(TipoNovedadRPBF,on_delete=models.CASCADE)
@@ -10,7 +11,7 @@ class RpbfCandidatos(models.Model):
     porcentaje=models.CharField(max_length=7)
     class Meta:
         db_table='rpbf_candidatos'
-        
+  
 #longitud de datos basados en el anexo tecnico de la dian
 class RpbfHistorico(models.Model):
     cargue=models.CharField(max_length=36, default=uuid.uuid4,null=True,db_column='cargue_id')    
