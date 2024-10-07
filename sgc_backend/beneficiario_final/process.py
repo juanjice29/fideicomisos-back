@@ -45,6 +45,7 @@ def tkpCalcularBeneficiariosFinales(self,fondo,calc_cod_post,calc_total_data,cor
         guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
                                f"Finalizo calculo de codigos postales resultado: {result}")
+        
     else:
         guardarLogEjecucionProceso(ejecucion,
                                TipoLogEnum.INFO.value,
@@ -121,4 +122,4 @@ def tkpConfirmarArchivosRPBF(file_path,fondo,novedad,periodo,usuario_id,disparad
                                   ruta= {file_path}
                                """)
     result=tkLeerArchivoXmlRPBF(dir=file_path,ejecucion=ejecucion,periodo=periodo,fondo=fondo,novedad=novedad)
-    
+
