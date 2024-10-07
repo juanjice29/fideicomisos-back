@@ -6,6 +6,7 @@ from .querys.semilla import *
 import cx_Oracle
 import pandas as pd
 from .models import RpbfCandidatos,RpbfHistorico
+from sqlalchemy import create_engine
 
 db_name_sifi = os.getenv("DB_NAME_SIFI")
 db_user_sifi = os.getenv("DB_USER_SIFI")
@@ -28,6 +29,7 @@ identif_map = {
     'PEP': '47'
 }
 inverse_identif_map = {v: k for k, v in identif_map.items()}
+
 
 def get_current_period():
     anio,mes = datetime.datetime.now().strftime("%Y-%m").split("-")
@@ -232,3 +234,58 @@ def get_identif_value(identif):
 
 def get_identif_key(value):
     return inverse_identif_map.get(value, 'CC')
+
+def get_engine_sifi():
+    engine = create_engine(
+             f'oracle+cx_oracle://{db_user_sifi}":{db_pass_sifi}@{db_host_sifi}:{db_port_sifi}/?service_name={db_name_sifi}')
+    return engine
+
+def make_sifi_query_pandas(query):
+    try:
+        dsn_tns = cx_Oracle.makedsn(
+            db_host_sifi, db_port_sifi, service_name=db_name_sifi)
+        conn = cx_Oracle.connect(
+            user=db_user_sifi, password=db_pass_sifi, dsn=dsn_tns)
+        cur = conn.cursor()
+        cur.execute(query)
+        rows = cur.fetchall()
+        columns = [desc[0] for desc in cur.description]
+        
+        result = pd.DataFrame(rows, columns=columns, dtype="string").fillna('') 
+        cur.close()
+        conn.close() 
+        result.columns = result.columns.str.upper()
+        result = result.astype(str)
+        return result        
+    except Exception as e:
+        print("Error de conexion")
+
+def get_postal_code_pandas():
+
+    dsn_tns = cx_Oracle.makedsn(
+        db_host_sifi, db_port_sifi, service_name=db_name_sifi)
+    conn = cx_Oracle.connect(
+        user=db_user_sifi, password=db_pass_sifi, dsn=dsn_tns)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT DIREC_DIREC ID_CLIENTE,CIUD_DEPTO||CIUD_DANE AS ID_CIUDAD_RESIDENCIA,CIUD_DEPTO AS ID_DPTO_RESIDENCIA,'COL' AS ID_PAIS_RESIDENCIA,
+        DIREC_DIRECCION AS DIRECCION_RECIDENCIAL,NVL(DIREC_BARRIO,'-') BARRIO_DIR_RESIDENCIAL
+        FROM RPBF_CANDIDATOS@DBLINK_FIDUCRM 
+        INNER JOIN CL_TDIREC D1 ON D1.DIREC_NROIDENT=NROIDENTIF
+        INNER JOIN (SELECT DIREC_NROIDENT,MAX(DIREC_DIREC) MAX_DIREC FROM CL_TDIREC 
+        WHERE DIREC_POSTAL IS NULL AND DIREC_ESTADO='ACT' AND DIREC_TPDIR='RES'  AND DIREC_DIRECCION IS NOT NULL
+        GROUP BY DIREC_NROIDENT) D2 ON D1.DIREC_DIREC=D2.MAX_DIREC
+        INNER JOIN GE_TCIUD ON DIREC_CIUD=CIUD_CIUD
+        INNER JOIN GE_TDEPTO ON DEPTO_DEPTO=CIUD_DEPTO
+        INNER JOIN GE_TPAIS ON PAIS_PAIS=DEPTO_PAIS
+        """)
+    rows = cur.fetchall()
+    columns = [desc[0] for desc in cur.description]
+    
+    result = pd.DataFrame(rows, columns=columns, dtype="string").fillna('') 
+    cur.close()
+    conn.close() 
+    result.columns = result.columns.str.upper()
+    result = result.astype(str)
+    return result
+    

@@ -490,48 +490,49 @@ def tkZipFileRPBF(self,tarea=None,ejecucion=None):
     return f"Archivos comprimidos correctamente en la ruta {carpeta_a_comprimir}"
 
 @track_sub_task
-def tkFillPostalCodeView(tarea=None,ejecucion=None):
-        
-    engine = create_engine(
-        f'oracle+cx_oracle://{user}":{password}@{url}:{port}/?service_name={service_name}')
-    sql = """
+def tkFillPostalCodeView(self,tarea=None,ejecucion=None):        
+
+    result=make_sifi_query_pandas("""
         SELECT DIREC_DIREC ID_CLIENTE,CIUD_DEPTO||CIUD_DANE AS ID_CIUDAD_RESIDENCIA,CIUD_DEPTO AS ID_DPTO_RESIDENCIA,'COL' AS ID_PAIS_RESIDENCIA,
         DIREC_DIRECCION AS DIRECCION_RECIDENCIAL,NVL(DIREC_BARRIO,'-') BARRIO_DIR_RESIDENCIAL
-        FROM TEMP_RPBF_CANDIDATES 
-        INNER JOIN CL_TDIREC D1 ON D1.DIREC_NROIDENT=NRO_IDENTIF
+        FROM RPBF_CANDIDATOS@DBLINK_FIDUCRM 
+        INNER JOIN CL_TDIREC D1 ON D1.DIREC_NROIDENT=NROIDENTIF
         INNER JOIN (SELECT DIREC_NROIDENT,MAX(DIREC_DIREC) MAX_DIREC FROM CL_TDIREC 
         WHERE DIREC_POSTAL IS NULL AND DIREC_ESTADO='ACT' AND DIREC_TPDIR='RES'  AND DIREC_DIRECCION IS NOT NULL
         GROUP BY DIREC_NROIDENT) D2 ON D1.DIREC_DIREC=D2.MAX_DIREC
         INNER JOIN GE_TCIUD ON DIREC_CIUD=CIUD_CIUD
         INNER JOIN GE_TDEPTO ON DEPTO_DEPTO=CIUD_DEPTO
         INNER JOIN GE_TPAIS ON PAIS_PAIS=DEPTO_PAIS
-        """
-    df = pd.read_sql(sql, engine)
-    df.columns = df.columns.str.upper()
-    df = df.astype(str)
-    df.to_excel('cod_postal.xlsx', index=False)
+        """)
+    result.to_excel('cod_postal.xlsx', index=False)
     return Response({"status": "200"})
 
-@shared_task
-def RunJarView():
+@track_sub_task
+def RunJarView(self,tarea=None,ejecucion=None):
     renderer_classes = [JSONRenderer]
     result = subprocess.run(['java', '-Dhttp.proxyHost=10.1.5.2', '-Dhttp.proxyPort=80', '-Dhttps.proxyHost=10.1.5.2',
                                 '-Dhttps.proxyPort=80', '-jar', 'cp.jar', '-separador', ',', '-entrada', 'cod_postal.xlsx', '-salida', 'salida.csv'], check=True)
     df = pd.read_csv('salida.csv')
-    engine = create_engine(
-             f'oracle+cx_oracle://{user}":{password}@{url}:{port}/?service_name={service_name}')
+    engine = get_engine_sifi()
     metadata = MetaData()
     metadata.bind = engine
     cl_tdirec = Table('cl_tdirec', metadata, autoload_with=engine)
     Session = sessionmaker(bind=engine)
     session = Session()
     for index, row in df.iterrows():
-        if pd.isnull(row['CP']):
+        if pd.isnull(row['CP']) or pd.isnull(row['DIRECCION_RECIDENCIAL']):
             continue
-        stmt = update(cl_tdirec).where(cl_tdirec.c.direc_direc ==
-                                       row['ID_CLIENTE']).values(direc_postal=row['CP'])
+        
+        stmt = update(cl_tdirec).where(
+            (cl_tdirec.c.direc_direc == row['ID_CLIENTE']) &
+            (cl_tdirec.c.direccion_recidencial == row['DIRECCION_RECIDENCIAL'])
+        ).values(direc_postal=row['CP'])
+
         session.execute(stmt)
-        logger.info(f"Updated cl_tdirec: direc_direc={row['ID_CLIENTE']}, direc_postal={row['CP']}")
+        logger.info(f"Updated cl_tdirec: direc_direc={row['ID_CLIENTE']}, "
+                    f"direccion_recidencial={row['DIRECCION_RECIDENCIAL']}, "
+                    f"direc_postal={row['CP']}")
+
     session.commit()
     return Response({"status": "200"})
 
