@@ -20,7 +20,7 @@ class IndexView(APIView):
     permission_classes = [AllowAny]
     def get(self, request, format=None):
         content = {
-            'wmsg':"Sonar qube quality gate test 1"
+            'wmsg':"Sonar qube quality gate test 2"
         }
         return Response(content)
 
