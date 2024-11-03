@@ -20,7 +20,7 @@ class IndexView(APIView):
     permission_classes = [AllowAny]
     def get(self, request, format=None):
         content = {
-            'wmsg':"Welcome to SGC Api Fiduciaria"
+            'wmsg':"Welcome to SGC Api Fiduciaria, prueba de sonar qube"
         }
         return Response(content)
 
